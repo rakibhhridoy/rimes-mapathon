@@ -36,43 +36,57 @@ def render_map(infra: gpd.GeoDataFrame,
     center = cfg.get("dashboard", {}).get("map_center", [25.5, 89.0])
     zoom = cfg.get("dashboard", {}).get("map_zoom", 8)
 
-    m = folium.Map(location=center, zoom_start=zoom, tiles=None)
+    # Dark-themed map
+    m = folium.Map(
+        location=center,
+        zoom_start=zoom,
+        tiles=None,
+    )
 
     # Base layers
-    folium.TileLayer("OpenStreetMap", name="OpenStreetMap").add_to(m)
+    folium.TileLayer(
+        tiles="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
+        attr="Stadia", name="Dark", overlay=False,
+    ).add_to(m)
+    folium.TileLayer("OpenStreetMap", name="OpenStreetMap", overlay=False).add_to(m)
     folium.TileLayer(
         tiles="https://server.arcgisonline.com/ArcGIS/rest/services/"
               "World_Imagery/MapServer/tile/{z}/{y}/{x}",
         attr="Esri", name="Satellite", overlay=False,
     ).add_to(m)
-    folium.TileLayer(
-        tiles="https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}.png",
-        attr="Stamen", name="Terrain", overlay=False,
-    ).add_to(m)
 
     # --- Infrastructure markers (clustered) ---
     if infra is not None and len(infra) > 0:
         marker_cluster = MarkerCluster(name="Infrastructure Assets")
-        infra_pts = infra.copy()
-        if "centroid" not in infra_pts.columns:
-            infra_pts["centroid"] = infra_pts.geometry.representative_point()
 
-        for _, row in infra_pts.iterrows():
-            pt = row.get("centroid", row.geometry.representative_point())
+        for _, row in infra.iterrows():
+            # Use lon/lat columns if available, otherwise compute
+            if "lon" in row.index and "lat" in row.index:
+                lat, lon = row["lat"], row["lon"]
+            else:
+                pt = row.geometry.representative_point()
+                lat, lon = pt.y, pt.x
+
             atype = row.get("asset_type", "other")
             risk = row.get("flood_risk", 0)
             name = row.get("name", "unnamed")
             icon_name, icon_color = ICON_MAP.get(atype, ("info-sign", "gray"))
 
+            # Style popup
+            risk_val = f"{risk:.3f}" if isinstance(risk, (int, float)) else "N/A"
             popup_html = (
-                f"<b>{name}</b><br>"
-                f"Type: {atype}<br>"
-                f"Risk: {risk:.3f}<br>"
-                f"Rank: {row.get('risk_rank', 'N/A')}"
+                f'<div style="font-family:sans-serif; min-width:160px;">'
+                f'<b style="font-size:13px;">{name}</b><br>'
+                f'<span style="color:#666;">Type:</span> {atype}<br>'
+                f'<span style="color:#666;">Risk:</span> '
+                f'<b style="color:{_risk_to_hex(risk) if isinstance(risk, (int, float)) else "#999"}">'
+                f'{risk_val}</b><br>'
+                f'<span style="color:#666;">Rank:</span> {row.get("risk_rank", "N/A")}'
+                f'</div>'
             )
 
             folium.Marker(
-                location=[pt.y, pt.x],
+                location=[lat, lon],
                 popup=folium.Popup(popup_html, max_width=250),
                 icon=folium.Icon(color=icon_color, icon=icon_name, prefix="glyphicon"),
             ).add_to(marker_cluster)
@@ -92,7 +106,8 @@ def render_map(infra: gpd.GeoDataFrame,
             HeatMap(
                 heat_data, name="Flood Risk Heatmap",
                 min_opacity=0.3, radius=15, blur=10,
-                gradient={0.2: "blue", 0.4: "lime", 0.6: "yellow", 0.8: "orange", 1.0: "red"},
+                gradient={0.2: "#0ea5e9", 0.4: "#22c55e", 0.6: "#eab308",
+                          0.8: "#f59e0b", 1.0: "#ef4444"},
             ).add_to(m)
 
     # --- Admin boundaries (unions) ---
@@ -101,15 +116,16 @@ def render_map(infra: gpd.GeoDataFrame,
             "fillColor": _risk_to_hex(
                 feature["properties"].get("mean_risk", 0)
             ),
-            "color": "#333",
+            "color": "#94a3b8",
             "weight": 1,
-            "fillOpacity": 0.4,
+            "fillOpacity": 0.35,
+            "dashArray": "3",
         }
 
         tooltip = folium.GeoJsonTooltip(
             fields=["admin_name", "mean_risk", "risk_rank"],
             aliases=["Union:", "Mean Risk:", "Rank:"],
-            style="font-size:12px;",
+            style="font-size:12px; background:#1e293b; color:#e2e8f0;",
         )
 
         folium.GeoJson(
@@ -121,16 +137,19 @@ def render_map(infra: gpd.GeoDataFrame,
 
     # --- Hotspot clusters ---
     if hotspot_gdf is not None and len(hotspot_gdf) > 0:
-        hotspots = hotspot_gdf[hotspot_gdf.get("is_hotspot", False) == True]
+        if "is_hotspot" in hotspot_gdf.columns:
+            hotspots = hotspot_gdf[hotspot_gdf["is_hotspot"] == True]
+        else:
+            hotspots = hotspot_gdf
         if len(hotspots) > 0:
             folium.GeoJson(
                 hotspots.to_json(),
                 name="Hotspot Clusters (Gi*)",
                 style_function=lambda x: {
-                    "fillColor": "#dc3545",
-                    "color": "#dc3545",
+                    "fillColor": "#ef4444",
+                    "color": "#ef4444",
                     "weight": 2,
-                    "fillOpacity": 0.5,
+                    "fillOpacity": 0.4,
                 },
             ).add_to(m)
 
@@ -138,15 +157,19 @@ def render_map(infra: gpd.GeoDataFrame,
     folium.LayerControl(collapsed=False).add_to(m)
 
     # Render
-    st_folium(m, width=None, height=600, returned_objects=[])
+    st_folium(m, width=None, height=650, returned_objects=[])
 
 
-def _risk_to_hex(score: float) -> str:
+def _risk_to_hex(score) -> str:
     """Map risk score to hex color."""
+    try:
+        score = float(score)
+    except (TypeError, ValueError):
+        return "#64748b"
     if score >= 0.7:
-        return "#dc3545"
+        return "#ef4444"
     elif score >= 0.5:
-        return "#fd7e14"
+        return "#f59e0b"
     elif score >= 0.3:
-        return "#ffc107"
-    return "#28a745"
+        return "#eab308"
+    return "#22c55e"
