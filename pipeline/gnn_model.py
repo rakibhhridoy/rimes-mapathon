@@ -166,7 +166,8 @@ def extract_embeddings_and_scores(model: FloodGNN,
     model.eval()
     with torch.no_grad():
         embeddings = model.embed(graph_data.x, graph_data.edge_index).numpy()
-        logits = model(graph_data.x, graph_data.edge_index).squeeze().numpy()
+        logits = model(graph_data.x, graph_data.edge_index).squeeze(-1).numpy()
+        logits = np.atleast_1d(logits)  # ensure 1D even for single node
         risk_scores = 1 / (1 + np.exp(-logits))  # sigmoid
 
     logger.info(

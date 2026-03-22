@@ -138,6 +138,29 @@ def fetch_osm_infrastructure(cfg: dict, output_dir: Path) -> gpd.GeoDataFrame:
         infra["name"] = "unnamed"
     infra["name"] = infra["name"].fillna("unnamed")
 
+    # Deduplicate column names (OSM has case variants like damage_per / damage_Per
+    # which collide in case-insensitive SQLite/GPKG). Keep only the first occurrence.
+    seen = {}
+    drop_cols = []
+    for col in infra.columns:
+        lower = col.lower()
+        if lower in seen:
+            drop_cols.append(col)
+            logger.warning(f"Dropping duplicate column '{col}' (conflicts with '{seen[lower]}')")
+        else:
+            seen[lower] = col
+    if drop_cols:
+        infra = infra.drop(columns=drop_cols)
+
+    # Keep only essential columns to avoid fragmentation and GPKG issues
+    keep_cols = [
+        "geometry", "name", "asset_type", "source_tag", "priority", "division",
+        "amenity", "highway", "bridge", "railway", "waterway", "landuse",
+        "man_made", "building",
+    ]
+    keep_cols = [c for c in keep_cols if c in infra.columns]
+    infra = infra[keep_cols].copy()
+
     out_path = output_dir / "infrastructure_raw.gpkg"
     infra.to_file(out_path, driver="GPKG")
     logger.info(f"Saved {len(infra)} infrastructure features → {out_path}")

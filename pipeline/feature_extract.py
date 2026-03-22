@@ -88,7 +88,7 @@ def extract_features(cfg: dict, infra: gpd.GeoDataFrame,
             features[name] = np.zeros(len(infra))
 
     # Population density
-    pop_path = cfg["data"]["vulnerability"]["population_path"]
+    pop_path = cfg.get("data", {}).get("vulnerability", {}).get("population_path", "")
     if Path(pop_path).exists():
         features["pop_density"] = sample_raster_at_points(pop_path, coord_list)
     else:

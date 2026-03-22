@@ -207,8 +207,7 @@ def krige(ctx):
     )
 
     # Hybrid fusion
-    labels = np.load(str(output_dir / "gnn_risk_scores.npy"))  # use GNN scores
-    z_fused = hybrid_fusion(z, risk_scores, labels, coords, grid_lon, grid_lat, cfg)
+    z_fused = hybrid_fusion(z, risk_scores, risk_scores, coords, grid_lon, grid_lat, cfg)
 
     save_kriged_surface(z_fused, grid_lon, grid_lat,
                          str(output_dir / "flood_risk_kriged.tif"),

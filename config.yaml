@@ -74,9 +74,8 @@ kriging:
   grid_resolution_deg: 0.005               # ~500m at this latitude
 
 gnn:
-  architecture: "GraphSAGE"
+  # Model: 2-layer GraphSAGE (hardcoded in gnn_model.py)
   hidden_channels: 64
-  num_layers: 2
   dropout: 0.3
   learning_rate: 0.001
   epochs: 200

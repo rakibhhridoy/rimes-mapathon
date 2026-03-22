@@ -203,10 +203,18 @@ def aggregate_to_admin(risk_gdf: gpd.GeoDataFrame, admin_gdf: gpd.GeoDataFrame,
     summary_df = summary_df.sort_values("mean_risk", ascending=False)
     summary_df["risk_rank"] = range(1, len(summary_df) + 1)
 
-    # Re-attach geometry
+    # Re-attach geometry (left join to keep all admin units, fill NaN with 0)
     summary_gdf = admin_gdf[[admin_level_col, "geometry"]].merge(
-        summary_df, left_on=admin_level_col, right_on="admin_name"
+        summary_df, left_on=admin_level_col, right_on="admin_name", how="left"
     )
+    fill_cols = ["mean_risk", "max_risk", "n_cells", "n_high_risk",
+                 "n_hospitals_exposed", "n_schools_exposed", "n_bridges_exposed",
+                 "n_roads", "n_cropland", "total_assets"]
+    for col in fill_cols:
+        if col in summary_gdf.columns:
+            summary_gdf[col] = summary_gdf[col].fillna(0)
+    if "admin_name" in summary_gdf.columns:
+        summary_gdf["admin_name"] = summary_gdf["admin_name"].fillna(summary_gdf[admin_level_col])
     summary_gdf = gpd.GeoDataFrame(summary_gdf, crs=admin_gdf.crs)
 
     logger.info(f"Aggregated risk to {len(summary_gdf)} admin units")
