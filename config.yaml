@@ -1,0 +1,109 @@
+# ============================================================
+# Smart Geospatial Mapping & Disaster Impact Intelligence
+# Pipeline Configuration — Rangpur & Rajshahi Divisions
+# Hazard Focus: Flood Only
+# ============================================================
+
+aoi:
+  name: "rangpur_rajshahi"
+  divisions: ["Rangpur", "Rajshahi"]
+  bbox: [88.0, 24.0, 89.9, 26.7]          # [west, south, east, north]
+  crs: "EPSG:32646"                         # UTM Zone 46N
+  grid_resolution_m: 500
+
+data:
+  osm:
+    # Priority 1 — Lifeline Infrastructure
+    lifeline_tags:
+      - "amenity=hospital"
+      - "amenity=clinic"
+      - "amenity=school"
+      - "amenity=college"
+      - "man_made=bridge"
+      - "bridge=yes"
+      - "amenity=shelter"
+      - "man_made=embankment"
+      - "waterway=dam"
+    # Priority 1 — Transport Network
+    transport_tags:
+      - "highway=primary"
+      - "highway=secondary"
+      - "highway=tertiary"
+      - "highway=trunk"
+      - "railway=rail"
+      - "amenity=ferry_terminal"
+    # Priority 2 — Agriculture
+    agriculture_tags:
+      - "landuse=farmland"
+      - "landuse=aquaculture"
+      - "waterway=canal"
+      - "waterway=ditch"
+      - "amenity=marketplace"
+
+  dem:
+    source: "SRTM_30m"
+    path: "data/raw/dem_srtm_30m.tif"
+    derivatives: ["slope", "twi", "hand", "flow_accumulation"]
+
+  proxy_labels:
+    # Ensemble flood labels (no ground truth available)
+    dem_flood_fill: true                    # TWI + HAND thresholds
+    jrc_global_surface_water: true          # Historical water occurrence
+    glofas_return_period: true              # 5yr, 20yr, 100yr extents
+    sentinel1_sar: false                    # Set true if SAR scenes acquired
+    fusion_method: "majority_voting"        # >=2 of available sources agree
+    twi_threshold: 8.0                      # TWI > this → flood-prone
+    hand_threshold_m: 5.0                   # HAND < this → flood-prone
+    jrc_occurrence_pct: 25                  # Water occurrence > 25%
+
+  vulnerability:
+    population_path: "data/raw/worldpop_popdens.tif"
+    admin_boundaries_l2: "data/raw/gadm_upazila.shp"
+    admin_boundaries_l3: "data/raw/gadm_union.shp"
+
+graph:
+  k_neighbors: 6
+  max_edge_distance_m: 5000
+  edge_weight: "inverse_distance"
+  train_split: 0.8
+
+kriging:
+  variogram_model: "spherical"
+  nlags: 15
+  weight: true
+  grid_resolution_deg: 0.005               # ~500m at this latitude
+
+gnn:
+  architecture: "GraphSAGE"
+  hidden_channels: 64
+  num_layers: 2
+  dropout: 0.3
+  learning_rate: 0.001
+  epochs: 200
+  patience: 20
+  seed: 42
+
+risk:
+  hazard_weight: 1.0                        # From kriged flood surface
+  exposure_weights:
+    building_count: 0.25
+    road_length_km: 0.15
+    bridge_presence: 0.15
+    cropland_area_km2: 0.15
+    hospital_school_presence: 0.20
+    embankment_shelter_presence: 0.10
+  vulnerability_weights:
+    population_density: 0.30
+    dist_hospital: 0.20
+    dist_flood_shelter: 0.15
+    dist_primary_road: 0.10
+    night_light_proxy: 0.15
+    elderly_child_ratio: 0.10
+  hotspot_confidence: 0.95
+  high_risk_threshold: 0.7
+
+dashboard:
+  port: 8501
+  map_zoom: 8
+  map_center: [25.5, 89.0]                 # Approx center of study area
+  export_formats: ["csv", "geotiff", "geojson", "pdf"]
