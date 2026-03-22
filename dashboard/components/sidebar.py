@@ -62,7 +62,7 @@ def render_analytics(infra: gpd.GeoDataFrame,
             height=250, margin=dict(l=20, r=20, t=30, b=20),
             showlegend=False,
         )
-        st.plotly_chart(fig_hist, use_container_width=True)
+        st.plotly_chart(fig_hist, width="stretch")
 
     # --- Exposed Assets by Category ---
     st.subheader("Exposed Assets by Type")
@@ -80,7 +80,7 @@ def render_analytics(infra: gpd.GeoDataFrame,
             height=300, margin=dict(l=20, r=20, t=30, b=20),
             showlegend=False,
         )
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, width="stretch")
 
     # --- Union risk vs. total assets scatter ---
     if union_gdf is not None and len(union_gdf) > 0:
@@ -101,7 +101,7 @@ def render_analytics(infra: gpd.GeoDataFrame,
         fig_scatter.update_layout(
             height=300, margin=dict(l=20, r=20, t=30, b=20),
         )
-        st.plotly_chart(fig_scatter, use_container_width=True)
+        st.plotly_chart(fig_scatter, width="stretch")
 
     # --- Top 10 ranked assets table ---
     st.subheader("Top At-Risk Assets")
@@ -109,9 +109,11 @@ def render_analytics(infra: gpd.GeoDataFrame,
         c for c in ["risk_rank", "asset_type", "name", "flood_risk"]
         if c in infra.columns
     ]
-    if display_cols:
+    if display_cols and "flood_risk" in infra.columns:
         top = infra.sort_values("flood_risk", ascending=False).head(20)
-        st.dataframe(top[display_cols], use_container_width=True, hide_index=True)
+        st.dataframe(top[display_cols], width="stretch", hide_index=True)
+    elif display_cols:
+        st.dataframe(infra[display_cols].head(20), width="stretch", hide_index=True)
 
     # --- Export ---
     st.markdown("---")

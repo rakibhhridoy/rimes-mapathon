@@ -107,5 +107,5 @@ def render_risk_cards(union_gdf: gpd.GeoDataFrame, n_display: int = 10):
         ]
         st.dataframe(
             union_gdf[display_cols].sort_values("mean_risk", ascending=False),
-            use_container_width=True,
+            width="stretch",
         )
