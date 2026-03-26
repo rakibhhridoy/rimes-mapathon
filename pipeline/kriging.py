@@ -45,6 +45,16 @@ def fit_and_execute_kriging(coords: np.ndarray, values: np.ndarray,
     lats = coords[:, 1]
     lon_min, lat_min, lon_max, lat_max = grid_bounds
 
+    # Subsample to avoid OOM — kriging distance matrix scales O(N × M)
+    max_points = krig_cfg.get("max_points", 3000)
+    if len(values) > max_points:
+        rng = np.random.default_rng(42)
+        idx = rng.choice(len(values), size=max_points, replace=False)
+        lons = lons[idx]
+        lats = lats[idx]
+        values = values[idx]
+        logger.info(f"Subsampled {len(coords)} → {max_points} points for kriging")
+
     logger.info(
         f"Fitting {variogram_model} variogram on {len(values)} points, "
         f"nlags={nlags}"
@@ -70,9 +80,15 @@ def fit_and_execute_kriging(coords: np.ndarray, values: np.ndarray,
     }
     logger.info(f"Variogram params: {variogram_params}")
 
-    # Define prediction grid
+    # Define prediction grid — cap dimensions to avoid OOM
+    max_grid_dim = krig_cfg.get("max_grid_dim", 200)
     grid_lon = np.arange(lon_min, lon_max, grid_res)
     grid_lat = np.arange(lat_min, lat_max, grid_res)
+    if len(grid_lon) > max_grid_dim or len(grid_lat) > max_grid_dim:
+        coarse_res = max((lon_max - lon_min), (lat_max - lat_min)) / max_grid_dim
+        grid_lon = np.arange(lon_min, lon_max, coarse_res)
+        grid_lat = np.arange(lat_min, lat_max, coarse_res)
+        logger.info(f"Coarsened grid to {len(grid_lon)}×{len(grid_lat)} (res={coarse_res:.4f}°) to fit in memory")
 
     logger.info(
         f"Kriging on {len(grid_lon)}×{len(grid_lat)} grid "
@@ -122,11 +138,17 @@ def hybrid_fusion(kriged_surface: np.ndarray,
 
     residuals = gnn_scores - kriged_at_nodes
 
-    # Krige the residuals
+    # Krige the residuals (subsample to avoid OOM)
     krig_cfg = cfg["kriging"]
+    max_points = krig_cfg.get("max_points", 3000)
+    r_lons, r_lats, r_vals = coords[:, 0], coords[:, 1], residuals
+    if len(residuals) > max_points:
+        rng = np.random.default_rng(43)
+        idx = rng.choice(len(residuals), size=max_points, replace=False)
+        r_lons, r_lats, r_vals = r_lons[idx], r_lats[idx], r_vals[idx]
     try:
         ok_resid = OrdinaryKriging(
-            coords[:, 0], coords[:, 1], residuals,
+            r_lons, r_lats, r_vals,
             variogram_model=krig_cfg["variogram_model"],
             verbose=False,
             nlags=krig_cfg["nlags"],

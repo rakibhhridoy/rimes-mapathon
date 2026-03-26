@@ -101,6 +101,16 @@ risk:
   hotspot_confidence: 0.95
   high_risk_threshold: 0.7
 
+alphaearth:
+  year: 2024
+  scale: 256                                # Resolution in meters
+  n_clusters: 8
+  output_dir: "data/output"
+
+landslide:
+  bbox: [91.5, 21.5, 92.7, 23.5]           # CHT region
+  output_dir: "data/output"
+
 dashboard:
   port: 8501
   map_zoom: 8
