@@ -38,6 +38,14 @@ pandas>=2.0
 scipy>=1.10
 tqdm>=4.65
 loguru>=0.7
+requests>=2.28
+
+# AlphaEarth / Earth Engine
+earthengine-api>=0.1.370
+umap-learn>=0.5
+
+# Image processing (raster overlay)
+Pillow>=9.0
 
 # Export
 fpdf2>=2.7

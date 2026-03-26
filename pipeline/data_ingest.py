@@ -387,6 +387,23 @@ def _compute_hand(dem: np.ndarray, drainage_mask: np.ndarray,
     return hand
 
 
+def _resample_to_ref(src_path: str, ref_shape: tuple, ref_transform,
+                      ref_crs) -> np.ndarray:
+    """Read a raster and resample it to match the reference grid shape."""
+    from rasterio.warp import reproject, Resampling
+
+    with rasterio.open(src_path) as src:
+        dst = np.empty(ref_shape, dtype=np.float32)
+        reproject(
+            source=rasterio.band(src, 1),
+            destination=dst,
+            dst_transform=ref_transform,
+            dst_crs=ref_crs,
+            resampling=Resampling.nearest,
+        )
+    return dst
+
+
 def build_ensemble_flood_labels(cfg: dict, dem_derivatives: dict,
                                  output_dir: Path) -> str:
     """Create binary flood proxy labels via majority voting."""
@@ -394,12 +411,18 @@ def build_ensemble_flood_labels(cfg: dict, dem_derivatives: dict,
     proxy_cfg = cfg["data"]["proxy_labels"]
 
     votes = []
+    ref_shape = None
+    ref_transform = None
+    ref_crs = None
 
-    # Source 1: DEM-derived (TWI + HAND)
+    # Source 1: DEM-derived (TWI + HAND) — also sets the reference grid
     if proxy_cfg.get("dem_flood_fill"):
         with rasterio.open(dem_derivatives["twi"]) as src:
             twi = src.read(1)
             meta = src.meta.copy()
+            ref_shape = twi.shape
+            ref_transform = src.transform
+            ref_crs = src.crs
         with rasterio.open(dem_derivatives["hand"]) as src:
             hand = src.read(1)
 
@@ -413,8 +436,15 @@ def build_ensemble_flood_labels(cfg: dict, dem_derivatives: dict,
     # Source 2: JRC Global Surface Water
     jrc_path = output_dir.parent / "raw" / "jrc_water_occurrence.tif"
     if proxy_cfg.get("jrc_global_surface_water") and jrc_path.exists():
-        with rasterio.open(str(jrc_path)) as src:
-            jrc = src.read(1)
+        if ref_shape is not None:
+            jrc = _resample_to_ref(str(jrc_path), ref_shape, ref_transform, ref_crs)
+        else:
+            with rasterio.open(str(jrc_path)) as src:
+                jrc = src.read(1)
+                meta = src.meta.copy()
+                ref_shape = jrc.shape
+                ref_transform = src.transform
+                ref_crs = src.crs
         occ_thresh = proxy_cfg.get("jrc_occurrence_pct", 25)
         jrc_label = (jrc > occ_thresh).astype(np.float32)
         votes.append(jrc_label)
@@ -423,8 +453,15 @@ def build_ensemble_flood_labels(cfg: dict, dem_derivatives: dict,
     # Source 3: GloFAS return period
     glofas_path = output_dir.parent / "raw" / "glofas_flood_extent.tif"
     if proxy_cfg.get("glofas_return_period") and glofas_path.exists():
-        with rasterio.open(str(glofas_path)) as src:
-            glofas = src.read(1)
+        if ref_shape is not None:
+            glofas = _resample_to_ref(str(glofas_path), ref_shape, ref_transform, ref_crs)
+        else:
+            with rasterio.open(str(glofas_path)) as src:
+                glofas = src.read(1)
+                meta = src.meta.copy()
+                ref_shape = glofas.shape
+                ref_transform = src.transform
+                ref_crs = src.crs
         glofas_label = (glofas > 0).astype(np.float32)
         votes.append(glofas_label)
         logger.info("GloFAS return-period proxy label generated")
@@ -432,8 +469,15 @@ def build_ensemble_flood_labels(cfg: dict, dem_derivatives: dict,
     # Source 4: Sentinel-1 SAR
     sar_path = output_dir.parent / "raw" / "sentinel1_flood_extent.tif"
     if proxy_cfg.get("sentinel1_sar") and sar_path.exists():
-        with rasterio.open(str(sar_path)) as src:
-            sar = src.read(1)
+        if ref_shape is not None:
+            sar = _resample_to_ref(str(sar_path), ref_shape, ref_transform, ref_crs)
+        else:
+            with rasterio.open(str(sar_path)) as src:
+                sar = src.read(1)
+                meta = src.meta.copy()
+                ref_shape = sar.shape
+                ref_transform = src.transform
+                ref_crs = src.crs
         sar_label = (sar > 0).astype(np.float32)
         votes.append(sar_label)
         logger.info("Sentinel-1 SAR proxy label generated")

@@ -50,17 +50,39 @@ def cli(ctx, config):
 
 
 # ---------------------------------------------------------------------------
+# Step 0 — Download
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.pass_context
+def download(ctx):
+    """Step 0: Download GADM boundaries, SRTM DEM, JRC water, WorldPop data."""
+    from pipeline.data_download import download_all
+
+    cfg = ctx.obj["config"]
+    raw_dir = Path("data/raw")
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.info("=== Step 0: Data Download ===")
+    results = download_all(cfg, raw_dir)
+    succeeded = sum(1 for v in results.values() if v)
+    click.echo(f"Downloaded {succeeded}/{len(results)} datasets.")
+
+
+# ---------------------------------------------------------------------------
 # Step 1 — Ingest
 # ---------------------------------------------------------------------------
 @cli.command()
 @click.pass_context
 def ingest(ctx):
-    """Step 1: Download OSM infrastructure, DEM, and proxy data."""
+    """Step 1: Download data (if needed) then ingest OSM infrastructure."""
     from pipeline.data_ingest import fetch_osm_infrastructure
 
     cfg = ctx.obj["config"]
     raw_dir = Path("data/raw")
     raw_dir.mkdir(parents=True, exist_ok=True)
+
+    # Ensure required datasets are downloaded before ingestion
+    ctx.invoke(download)
 
     logger.info("=== Step 1: Data Ingestion ===")
     infra = fetch_osm_infrastructure(cfg, raw_dir)
@@ -299,7 +321,77 @@ def risk(ctx):
         str(output_dir / "situation_report.pdf")
     )
 
+    # Upazila aggregation (L2)
+    upazila_path = cfg["data"]["vulnerability"].get("admin_boundaries_l2", "")
+    if Path(upazila_path).exists():
+        from pipeline.risk_score import aggregate_to_upazila
+        upazila_gdf = gpd.read_file(upazila_path)
+        upazila_summary = aggregate_to_upazila(grid_gdf, upazila_gdf, infra)
+        # Export GeoJSON
+        export_geojson(upazila_summary, str(output_dir / "upazila_risk_summary.geojson"))
+        # Export CSV for dashboard loader
+        cols = [c for c in upazila_summary.columns if c != "geometry"]
+        upazila_summary[cols].to_csv(
+            str(output_dir / "upazila_risk_summary.csv"), index=False
+        )
+        logger.info("Upazila risk summary exported")
+
     click.echo("Risk assessment complete. Outputs in data/output/")
+
+
+# ---------------------------------------------------------------------------
+# Metadata — pipeline confidence metrics
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.pass_context
+def metadata(ctx):
+    """Export pipeline confidence metadata (kriging var, GNN CI, IQR, density)."""
+    from pipeline.metadata import compute_confidence_metadata, export_metadata
+
+    cfg = ctx.obj["config"]
+    output_dir = Path("data/output")
+    processed_dir = Path("data/processed")
+
+    logger.info("=== Pipeline Metadata ===")
+    meta = compute_confidence_metadata(cfg, str(output_dir), str(processed_dir))
+    export_metadata(meta, str(output_dir / "pipeline_metadata.json"))
+    click.echo(f"Metadata exported: {output_dir / 'pipeline_metadata.json'}")
+
+
+# ---------------------------------------------------------------------------
+# Landslide — CHT slope-based susceptibility
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.pass_context
+def landslide(ctx):
+    """Compute landslide susceptibility for CHT region."""
+    from pipeline.landslide import run_landslide_pipeline
+
+    cfg = ctx.obj["config"]
+    logger.info("=== Landslide Susceptibility ===")
+    result = run_landslide_pipeline(cfg)
+    if result:
+        click.echo(f"Landslide pipeline complete: {result}")
+    else:
+        click.echo("Landslide pipeline failed.", err=True)
+
+
+# ---------------------------------------------------------------------------
+# AlphaEarth — satellite embedding clusters
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.pass_context
+def alphaearth(ctx):
+    """Download AlphaEarth embeddings, cluster, and export GeoJSON."""
+    from pipeline.alphaearth import run_alphaearth_pipeline
+
+    cfg = ctx.obj["config"]
+    logger.info("=== AlphaEarth Integration ===")
+    result = run_alphaearth_pipeline(cfg)
+    if result:
+        click.echo(f"AlphaEarth clusters exported: {result}")
+    else:
+        click.echo("AlphaEarth pipeline failed (EE auth required).", err=True)
 
 
 def _sample_raster_at_grid(raster_path: str, grid_gdf) -> np.ndarray:
@@ -328,6 +420,7 @@ def run(ctx):
     logger.info("SGMDI — Full Pipeline Execution")
     logger.info("=" * 60)
 
+    ctx.invoke(download)
     ctx.invoke(ingest)
     ctx.invoke(preprocess)
     ctx.invoke(features)
@@ -335,6 +428,8 @@ def run(ctx):
     ctx.invoke(train)
     ctx.invoke(krige)
     ctx.invoke(risk)
+    ctx.invoke(metadata)
+    ctx.invoke(landslide)
 
     click.echo("\nPipeline complete! Launch dashboard with:")
     click.echo("  streamlit run dashboard/app.py -- --config config.yaml")

@@ -62,47 +62,32 @@ def render_risk_cards(union_gdf: gpd.GeoDataFrame, is_dark: bool = True,
             total = int(row.get("total_assets", 0))
 
             with cols[i]:
-                st.markdown(f"""
-                <div style="
-                    background: {bg};
-                    border: 1px solid {border};
-                    border-left: 4px solid {color};
-                    border-radius: 10px;
-                    padding: 14px 16px;
-                    margin-bottom: 10px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-                ">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="
-                            font-size:0.6rem; color:{color}; background:{color}15;
-                            border:1px solid {color}30; padding:2px 8px;
-                            border-radius:10px; font-weight:600;
-                        ">{label}</span>
-                        <span style="font-size:0.65rem; color:{text2}; font-weight:600;">
-                            #{rank}
-                        </span>
-                    </div>
-
-                    <div style="font-size:0.9rem; font-weight:600; color:{text};
-                                margin:6px 0 2px 0; line-height:1.2;">{name}</div>
-
-                    <div style="font-size:1.3rem; font-weight:700; color:{color};
-                                margin:2px 0 6px 0;">{score:.3f}</div>
-
-                    <div style="background:{bg2}; border-radius:4px; height:5px;
-                                overflow:hidden; margin-bottom:8px;">
-                        <div style="background:{color}; width:{pct:.0f}%; height:5px;
-                                    border-radius:4px;"></div>
-                    </div>
-
-                    <div style="display:grid; grid-template-columns:1fr 1fr;
-                                gap:2px 10px; font-size:0.68rem; color:{text2};">
-                        <span>🏥 {n_h}</span><span>🏫 {n_s}</span>
-                        <span>🌉 {n_b}</span><span>🛣️ {n_r}</span>
-                        <span>🌾 {n_c}</span><span>📊 {total}</span>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                card_html = (
+                    f'<div style="background:{bg};border:1px solid {border};'
+                    f'border-left:4px solid {color};border-radius:10px;'
+                    f'padding:14px 16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">'
+                    f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+                    f'<span style="font-size:0.6rem;color:{color};background:{color}15;'
+                    f'border:1px solid {color}30;padding:2px 8px;'
+                    f'border-radius:10px;font-weight:600;">{label}</span>'
+                    f'<span style="font-size:0.65rem;color:{text2};font-weight:600;">#{rank}</span>'
+                    f'</div>'
+                    f'<div style="font-size:0.9rem;font-weight:600;color:{text};'
+                    f'margin:6px 0 2px 0;line-height:1.2;">{name}</div>'
+                    f'<div style="font-size:1.3rem;font-weight:700;color:{color};'
+                    f'margin:2px 0 6px 0;">{score:.3f}</div>'
+                    f'<div style="background:{bg2};border-radius:4px;height:5px;'
+                    f'overflow:hidden;margin-bottom:8px;">'
+                    f'<div style="background:{color};width:{pct:.0f}%;height:5px;'
+                    f'border-radius:4px;"></div></div>'
+                    f'<div style="display:grid;grid-template-columns:1fr 1fr;'
+                    f'gap:2px 10px;font-size:0.68rem;color:{text2};">'
+                    f'<span>🏥 {n_h}</span><span>🏫 {n_s}</span>'
+                    f'<span>🌉 {n_b}</span><span>🛣️ {n_r}</span>'
+                    f'<span>🌾 {n_c}</span><span>📊 {total}</span>'
+                    f'</div></div>'
+                )
+                st.markdown(card_html, unsafe_allow_html=True)
 
     # Full table
     with st.expander("View full ranking table"):
