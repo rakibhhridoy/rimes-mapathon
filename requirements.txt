@@ -55,3 +55,5 @@ Pillow>=9.0
 
 # Export
 fpdf2>=2.7
+fastapi>=0.115
+uvicorn>=0.30

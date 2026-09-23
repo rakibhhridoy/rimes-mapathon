@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fermium Hazard Mapper</title>
+<meta name="description" content="Flood risk to mapped infrastructure and landslide susceptibility in Bangladesh, validated against observed floods.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<!-- Sidebar: identity, provenance, layers, filters -->
+<aside id="sidebar">
+  <header class="brand">
+    <img src="/fermium_dark.png" alt="Fermium Systems" height="30">
+  </header>
+
+  <section class="identity">
+    <h1>FERMIUM HAZARD MAPPER</h1>
+    <p class="region-line" id="regionLine">Loading…</p>
+    <div class="warning">
+      <div class="warning-head">RESEARCH PROTOTYPE</div>
+      <div>Modelled susceptibility, not a forecast or an official warning.
+        For warnings use FFWC and BMD; in an emergency dial 999.</div>
+    </div>
+    <p class="credits">Map data © OpenStreetMap contributors · Tiles © Esri</p>
+  </section>
+
+  <section>
+    <h2>Data &amp; model</h2>
+    <dl id="provenance" class="stats"></dl>
+    <div id="observed" class="observed" hidden></div>
+  </section>
+
+  <section>
+    <h2>Map layers</h2>
+    <div id="layers" class="layers"></div>
+  </section>
+
+  <section>
+    <h2>Filters</h2>
+    <label class="field">
+      <span>Minimum score</span>
+      <input type="range" id="minScore" min="0" max="1" step="0.05" value="0">
+      <output id="minScoreOut">0.00</output>
+    </label>
+    <div id="typeFilter" class="chips-small"></div>
+  </section>
+</aside>
+
+<!-- The map fills the rest of the window -->
+<main id="main">
+  <div id="map"></div>
+
+  <div class="float regions" id="regionChips"></div>
+
+  <div class="float search">
+    <input type="search" id="search" placeholder="Search assets by name or type…"
+           autocomplete="off" aria-label="Search assets">
+    <ul id="searchResults" class="results" hidden></ul>
+  </div>
+
+  <div class="float counters" id="counters"></div>
+
+  <div class="float legend">
+    <div class="legend-title">Susceptibility</div>
+    <div><i style="background:#15803d"></i>Low (&lt;0.30)</div>
+    <div><i style="background:#a16207"></i>Moderate (0.30–0.50)</div>
+    <div><i style="background:#b45309"></i>High (0.50–0.70)</div>
+    <div><i style="background:#c62828"></i>Very high (≥0.70)</div>
+  </div>
+
+  <nav class="float panels" id="panelButtons">
+    <button data-panel="rankings">Rankings &amp; export</button>
+    <button data-panel="preparedness">Preparedness</button>
+    <button data-panel="about">About the data</button>
+  </nav>
+
+  <article class="float detail" id="detail" hidden></article>
+
+  <section class="sheet" id="sheet" hidden>
+    <header>
+      <h2 id="sheetTitle"></h2>
+      <button id="sheetClose">Close</button>
+    </header>
+    <div id="sheetBody"></div>
+  </section>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-label" id="loadingLabel">Loading…</div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pmtiles@3.2.1/dist/pmtiles.js"></script>
+<script src="/app.js" type="module"></script>
+</body>
+</html>

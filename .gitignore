@@ -46,3 +46,6 @@ docs/figures/chain_d3/node_modules/
 
 # Superseded version-1 diagrams, kept on disk but not in the repo
 docs/archive_v1/legacy_figures/
+
+# Built artefacts of the web application: rebuild with scripts/build_web.py
+web/data/

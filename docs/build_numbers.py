@@ -90,6 +90,7 @@ def region_numbers(region_id: str) -> list[str]:
         _macro(f"{prefix}LabelRate", _pct(meta.get("label_positive_rate"))),
         _macro(f"{prefix}ValAUC", validation.get("val_auc_roc")),
         _macro(f"{prefix}ValAP", validation.get("val_average_precision")),
+        _macro(f"{prefix}ValAPLift", validation.get("val_ap_lift")),
         _macro(f"{prefix}ValBrier", validation.get("val_brier")),
         _macro(f"{prefix}ValBrierCalibrated", validation.get("val_brier_calibrated")),
         _macro(f"{prefix}ValBrierBaseRate", validation.get("val_brier_base_rate")),

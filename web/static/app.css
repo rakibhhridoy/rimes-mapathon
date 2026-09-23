@@ -1,0 +1,225 @@
+/* Fermium Hazard Mapper — light theme.
+   The palette matches the technical document's figures, so the dashboard and
+   the paper look like one product. Colours are defined once, here. */
+
+:root {
+  --bg: #f7f9fb;
+  --surface: #ffffff;
+  --surface-alt: #eef2f7;
+  --border: #dbe3ec;
+  --text: #0f172a;
+  --muted: #55637a;
+  --dim: #6b7a91;
+  --accent: #2a78d6;
+  --chip: #9b1c1c;
+  --chip-soft: #fbeaea;
+  --risk-low: #15803d;
+  --risk-moderate: #a16207;
+  --risk-high: #b45309;
+  --risk-very-high: #c62828;
+  --glass: rgba(255, 255, 255, 0.93);
+  --shadow: 0 6px 24px rgba(15, 23, 42, 0.10);
+  --sidebar-width: 300px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
+#sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--sidebar-width);
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 0 18px 28px;
+}
+
+.brand {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 0 10px;
+  margin-bottom: 16px;
+  z-index: 2;
+}
+
+.identity { border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 16px; }
+.identity h1 {
+  font-family: 'DM Mono', monospace;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.region-line { color: var(--muted); font-size: 10.5px; margin: 4px 0 9px; }
+.warning { background: #fdf3e3; border: 1px solid #dea03c66; border-radius: 6px; padding: 8px 10px; }
+.warning-head { color: #b45309; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; margin-bottom: 4px; }
+.warning div:last-child { color: #8a6524; font-size: 10px; line-height: 1.5; }
+.credits { color: var(--dim); font-size: 8.5px; line-height: 1.4; margin: 9px 0 0; }
+
+#sidebar h2 {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 0 0 8px;
+}
+#sidebar section { margin-bottom: 18px; }
+
+.stats {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0;
+  font-size: 11px;
+}
+.stats .row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--surface); }
+.stats .row:last-child { border-bottom: none; }
+.stats .label { color: var(--muted); }
+.stats .value { font-family: 'DM Mono', monospace; font-weight: 600; }
+.stats .note { color: var(--dim); font-size: 9px; margin: -2px 0 4px; }
+
+.observed { background: #e8f6ee; border: 1px solid #15803d33; border-radius: 8px; padding: 10px 12px; margin-top: 12px; font-size: 11px; }
+.observed .head { color: var(--risk-low); font-weight: 700; letter-spacing: 0.1em; font-size: 9.5px; margin-bottom: 6px; }
+.observed .row { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; }
+.observed .label { color: var(--muted); }
+.observed .value { font-family: 'DM Mono', monospace; font-weight: 600; }
+
+.layers label, .chips-small label { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 4px 0; cursor: pointer; }
+.field { display: block; font-size: 12px; color: var(--muted); }
+.field input[type="range"] { width: 100%; margin: 6px 0 0; accent-color: var(--accent); }
+.field output { font-family: 'DM Mono', monospace; color: var(--text); }
+.chips-small { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; }
+
+/* ── Map and floating furniture ──────────────────────────────────────── */
+#main { position: fixed; inset: 0 0 0 var(--sidebar-width); }
+#map { position: absolute; inset: 0; }
+
+.float {
+  position: absolute;
+  z-index: 5;
+  background: var(--glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.regions { top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 7px; padding: 7px 10px; }
+.regions button {
+  border: 1.4px solid var(--chip);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--chip);
+  font: 600 12px Inter, sans-serif;
+  padding: 4px 15px;
+  cursor: pointer;
+}
+.regions button:hover { background: var(--chip-soft); }
+.regions button[aria-pressed="true"] { background: var(--chip); color: #fff; }
+
+.search { top: 74px; left: 50%; transform: translateX(-50%); width: min(380px, 34vw); padding: 7px 10px; }
+.search input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font: 400 12.5px Inter, sans-serif;
+  color: var(--text);
+  background: var(--surface);
+}
+.search input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.results { list-style: none; margin: 6px 0 0; padding: 0; max-height: 40vh; overflow-y: auto; }
+.results li { padding: 6px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+.results li:hover { background: var(--surface-alt); }
+.results .type { color: var(--dim); font-size: 10.5px; }
+
+.counters { top: 50%; right: 16px; transform: translateY(-50%); width: 178px; padding: 10px 12px; }
+.counters .row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 5px 2px; border-bottom: 1px solid var(--border); }
+.counters .row:last-child { border-bottom: none; }
+.counters .value { font-family: 'DM Mono', monospace; font-size: 1.05rem; font-weight: 700; }
+.counters .label { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; text-align: right; }
+
+.legend { bottom: 18px; left: 16px; padding: 9px 12px; font: 400 10px 'DM Mono', monospace; color: #475569; }
+.legend-title { color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+.legend div { display: flex; align-items: center; gap: 6px; line-height: 1.6; }
+.legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+.panels { bottom: 18px; right: 16px; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
+.panels button {
+  width: 176px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: 500 12px Inter, sans-serif;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.panels button:hover { border-color: var(--accent); }
+.panels button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.detail { bottom: 18px; left: 50%; transform: translateX(-50%); width: 380px; max-height: 60vh; overflow-y: auto; padding: 14px 16px; }
+.detail h3 { margin: 6px 0 2px; font-size: 15px; }
+.detail .meta { color: var(--muted); font-size: 10.5px; margin-bottom: 10px; }
+.detail .probability { text-align: center; font-family: 'DM Mono', monospace; font-size: 26px; font-weight: 700; }
+.detail .probability-note { text-align: center; color: var(--muted); font-size: 10px; line-height: 1.45; margin-bottom: 10px; }
+.detail .factor { display: grid; grid-template-columns: 78px 1fr 44px; align-items: center; gap: 8px; font-size: 11px; margin: 4px 0; }
+.detail .bar { height: 7px; border-radius: 4px; background: var(--surface-alt); overflow: hidden; }
+.detail .bar span { display: block; height: 100%; }
+.detail .close { float: right; border: none; background: none; color: var(--muted); font-size: 16px; cursor: pointer; }
+.tag { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; background: var(--surface-alt); color: var(--muted); margin-right: 5px; }
+
+/* ── Panel sheet over the map ────────────────────────────────────────── */
+.sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  background: var(--surface);
+  overflow-y: auto;
+  padding: 18px 28px 40px;
+}
+.sheet header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.sheet h2 { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin: 0; }
+.sheet button { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 6px 16px; font: 500 12px Inter, sans-serif; cursor: pointer; }
+.sheet table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.sheet th, .sheet td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.sheet th { color: var(--muted); font-weight: 600; font-size: 11px; }
+.sheet td.num, .sheet th.num { text-align: right; font-family: 'DM Mono', monospace; }
+.sheet p { font-size: 13px; line-height: 1.65; max-width: 70ch; }
+.sheet h3 { font-size: 13px; margin: 20px 0 6px; }
+.sheet a { color: var(--accent); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.card .score { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 700; }
+
+/* ── Loading ─────────────────────────────────────────────────────────── */
+.loading { position: absolute; inset: 0; z-index: 9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(247, 249, 251, 0.72); }
+.loading[hidden] { display: none; }
+.spinner { width: 44px; height: 44px; border-radius: 50%; border: 3px solid rgba(42, 120, 214, 0.2); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-label { color: var(--muted); font-size: 12px; letter-spacing: 0.04em; }
+
+/* MapLibre's own controls, in the dashboard's idiom */
+.maplibregl-ctrl-group { border-radius: 8px !important; box-shadow: var(--shadow) !important; }
+
+@media (max-width: 860px) {
+  #sidebar { position: absolute; height: auto; width: 100%; border-right: none; }
+  #main { inset: auto 0 0 0; height: 70vh; }
+  .counters, .panels { display: none; }
+}
