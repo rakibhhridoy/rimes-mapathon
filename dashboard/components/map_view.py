@@ -264,7 +264,13 @@ def fill_frame(folium, m):
         # Credits and scale are drawn by the page instead, so the map keeps
         # its whole surface for data.
         ".leaflet-control-attribution,.leaflet-control-scale{"
-        "display:none!important}</style>"
+        "display:none!important}"
+        # Zoom sits under the layer box, in the same corner, with a gap.
+        # Pinned rather than moved with Leaflet's own setPosition, which does
+        # not take effect reliably inside the component frame.
+        ".leaflet-control-zoom{position:fixed!important;top:76px!important;"
+        "right:12px!important;left:auto!important;margin:0!important}"
+        "</style>"
     ))
     m.get_root().html.add_child(folium.Element(
         "<script>(function(){function fit(){for(var k in window){"
@@ -333,7 +339,7 @@ def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
     bbox = (cfg or {}).get("aoi", {}).get("bbox", [88.0, 24.0, 89.9, 26.7])
 
     m = folium.Map(location=center, zoom_start=zoom, tiles=None,
-                   control_scale=False, zoom_control=False)
+                   control_scale=False, zoom_control=True)
     m.get_root().html.add_child(folium.Element(_BROWSER_JS_GUARD))
 
     from folium import MacroElement
