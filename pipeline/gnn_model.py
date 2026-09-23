@@ -163,7 +163,7 @@ def fit_calibrator(model: FloodGNN, graph_data: Data):
     frequency of flooding on blocks the model did not train on, and is
     monotone, so rankings are unchanged.
     """
-    from sklearn.isotonic import IsotonicRegression
+    from pipeline.asset_model import fit_calibration
 
     calib = graph_data.calib_mask if "calib_mask" in graph_data else None
     if calib is None or int(calib.sum()) == 0:
@@ -176,10 +176,17 @@ def fit_calibrator(model: FloodGNN, graph_data: Data):
     if len(np.unique(labels)) < 2:
         logger.warning("Calibration blocks hold a single class; no calibration.")
         return None
-    calibrator = IsotonicRegression(y_min=0.0, y_max=1.0, out_of_bounds="clip")
-    calibrator.fit(scores, labels)
+    calibrate = fit_calibration(scores, labels)
     logger.info(f"Isotonic calibrator fitted on {int(calib.sum())} nodes")
-    return calibrator
+
+    class _Calibrator:
+        """Kept callable through .predict so existing callers are unchanged."""
+
+        @staticmethod
+        def predict(raw):
+            return calibrate(raw)
+
+    return _Calibrator
 
 
 def evaluate_model(model: FloodGNN, graph_data: Data, calibrator=None) -> dict:

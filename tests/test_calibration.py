@@ -103,3 +103,46 @@ class TestThreading:
         coords = np.random.default_rng(5).random((40_000, 2)) * 200_000
         train, calib, test = spatial_block_split_three(coords, 0.8, 10_000)
         assert int(train.sum()) + int(calib.sum()) + int(test.sum()) == 40_000
+
+
+class TestCalibrationExtremes:
+    """A level holding a handful of calibration points must not come back as
+    certainty. The dashboard prints these numbers as percentages, and "100%"
+    for three out of three points is not something the data supports."""
+
+    def test_a_tiny_all_positive_level_is_pulled_back(self):
+        from pipeline.asset_model import fit_calibration
+
+        # 60 points: the top three all flooded, everything else did not.
+        scores = np.linspace(0, 1, 60)
+        labels = np.zeros(60)
+        labels[-3:] = 1.0
+        calibrate = fit_calibration(scores, labels)
+        top = float(calibrate(np.array([1.0]))[0])
+        assert top < 0.95, f"three of three should not read as certainty: {top}"
+        assert top > 0.5, "but it should still rank as high risk"
+
+    def test_probabilities_stay_ordered_and_bounded(self):
+        from pipeline.asset_model import fit_calibration
+
+        rng = np.random.default_rng(3)
+        scores = rng.random(400)
+        labels = (rng.random(400) < scores).astype(float)
+        calibrate = fit_calibration(scores, labels)
+        probs = calibrate(np.linspace(0, 1, 50))
+        assert (np.diff(probs) >= -1e-9).all(), "calibration must stay monotone"
+        assert probs.min() >= 0.0 and probs.max() <= 1.0
+
+    def test_a_large_all_positive_level_stays_confident(self):
+        """Shrinkage must depend on the count: 200 of 200 is near certainty."""
+        from pipeline.asset_model import fit_calibration
+
+        scores = np.concatenate([np.zeros(200), np.ones(200)])
+        labels = np.concatenate([np.zeros(200), np.ones(200)])
+        top = float(fit_calibration(scores, labels)(np.array([1.0]))[0])
+        assert top > 0.99
+
+    def test_single_class_calibration_blocks_give_nothing(self):
+        from pipeline.asset_model import fit_calibration
+
+        assert fit_calibration(np.linspace(0, 1, 20), np.zeros(20)) is None

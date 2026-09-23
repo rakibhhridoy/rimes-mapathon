@@ -60,6 +60,51 @@ def _fit_tabular(kind: str, X, y, train, seed: int):
     return estimator
 
 
+def fit_calibration(scores, labels):
+    """Isotonic calibration, with the certainty taken out of its extremes.
+
+    Isotonic regression reports the observed frequency of each level it fits,
+    so a level holding three calibration points that all flooded comes back as
+    a probability of 1.0. Three out of three is not certainty, and the
+    dashboard then tells a visitor that a location floods every year.
+
+    Each level is therefore shrunk by the Jeffreys estimate,
+    (successes + 0.5) / (n + 1), which leaves a level with many points almost
+    unchanged and pulls a level with few points back towards the middle.
+
+    Returns a callable mapping scores to probabilities, or None when the
+    calibration blocks hold a single class.
+    """
+    import numpy as np
+    from sklearn.isotonic import IsotonicRegression
+
+    scores = np.asarray(scores, dtype=float)
+    labels = np.asarray(labels, dtype=float)
+    if len(np.unique(labels)) < 2:
+        return None
+
+    isotonic = IsotonicRegression(y_min=0.0, y_max=1.0, out_of_bounds="clip")
+    isotonic.fit(scores, labels)
+
+    fitted = isotonic.predict(scores)
+    levels = np.unique(fitted)
+    adjusted = np.empty_like(levels)
+    for i, level in enumerate(levels):
+        in_level = fitted == level
+        n = int(in_level.sum())
+        successes = float(labels[in_level].sum())
+        adjusted[i] = (successes + 0.5) / (n + 1.0)
+    # Jeffreys is applied level by level, so enforce the monotonicity that
+    # isotonic regression guarantees and this step could otherwise disturb.
+    adjusted = np.maximum.accumulate(adjusted)
+
+    def calibrate(raw):
+        return np.interp(isotonic.predict(np.asarray(raw, dtype=float)),
+                         levels, adjusted)
+
+    return calibrate
+
+
 def _metrics(y_true, scores, calibrated=None) -> dict:
     from sklearn.metrics import (average_precision_score, brier_score_loss,
                                  roc_auc_score)
@@ -108,17 +153,12 @@ def fit_asset_model(graph_data, cfg: dict):
         metrics["model_type"] = kind
         return scores, probability, metrics, model
 
-    from sklearn.isotonic import IsotonicRegression
-
     X = graph_data.x.numpy()
     fitted = _fit_tabular(kind, X, y, train, seed)
     scores = fitted.predict_proba(X)[:, 1]
 
-    calibrator = None
-    if calib.sum() and len(np.unique(y[calib])) > 1:
-        calibrator = IsotonicRegression(y_min=0.0, y_max=1.0, out_of_bounds="clip")
-        calibrator.fit(scores[calib], y[calib])
-    probability = calibrator.predict(scores) if calibrator is not None else None
+    calibrator = fit_calibration(scores[calib], y[calib]) if calib.sum() else None
+    probability = calibrator(scores) if calibrator is not None else None
 
     metrics = _metrics(y[test], scores[test],
                        probability[test] if probability is not None else None)
