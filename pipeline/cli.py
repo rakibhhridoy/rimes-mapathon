@@ -4,8 +4,17 @@ Provides step-by-step commands and a full `run` command.
 """
 
 import logging
+import os
 import sys
 from pathlib import Path
+
+# Two OpenMP runtimes are loaded in this environment (PyTorch carries its own
+# alongside the one numba and scikit-learn use), and PyTorch's threaded
+# reductions crash once a tensor exceeds its 32,768-element grain size. One
+# thread costs little here — the graphs have tens of thousands of nodes — and
+# the setting must precede the first import of torch.
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
 
 import click
 import numpy as np
@@ -19,9 +28,56 @@ logging.basicConfig(
 logger = logging.getLogger("sgmdi")
 
 
+def _merge(base: dict, override: dict) -> dict:
+    """Recursively merge `override` into `base` (override wins)."""
+    out = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(out.get(key), dict):
+            out[key] = _merge(out[key], value)
+        else:
+            out[key] = value
+    return out
+
+
 def _load_config(config_path: str) -> dict:
-    with open(config_path) as f:
-        return yaml.safe_load(f)
+    """Load a config, following an `extends:` chain.
+
+    A region config states only what differs from the base, so the shared
+    model settings stay in one place:
+
+        extends: ../config.yaml
+        aoi: {name: sylhet, bbox: [...]}
+    """
+    path = Path(config_path)
+    with open(path) as f:
+        cfg = yaml.safe_load(f) or {}
+
+    parent = cfg.pop("extends", None)
+    if parent:
+        parent_path = (path.parent / parent).resolve()
+        cfg = _merge(_load_config(str(parent_path)), cfg)
+    return cfg
+
+
+def _dir(cfg: dict, kind: str) -> Path:
+    """Directory for raw / processed / output data.
+
+    Defaults keep the single-region layout (data/raw, data/processed,
+    data/output); a region config overrides them under `paths:` so several
+    study areas can live side by side.
+    """
+    default = f"data/{kind}"
+    path = Path((cfg.get("paths", {}) or {}).get(f"{kind}_dir", default))
+    return path
+
+
+def _infra_path(cfg: dict) -> Path:
+    return _dir(cfg, "raw") / "infrastructure_raw.gpkg"
+
+
+def cfg_has_landslide(cfg: dict) -> bool:
+    """True when the region config asks for the landslide model."""
+    return bool((cfg.get("landslide") or {}).get("enabled", False))
 
 
 class ConfigGroup(click.Group):
@@ -59,7 +115,7 @@ def download(ctx):
     from pipeline.data_download import download_all
 
     cfg = ctx.obj["config"]
-    raw_dir = Path("data/raw")
+    raw_dir = _dir(cfg, "raw")
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("=== Step 0: Data Download ===")
@@ -78,7 +134,7 @@ def ingest(ctx):
     from pipeline.data_ingest import fetch_osm_infrastructure
 
     cfg = ctx.obj["config"]
-    raw_dir = Path("data/raw")
+    raw_dir = _dir(cfg, "raw")
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     # Ensure required datasets are downloaded before ingestion
@@ -99,8 +155,8 @@ def preprocess(ctx):
     from pipeline.data_ingest import preprocess_all
 
     cfg = ctx.obj["config"]
-    raw_dir = Path("data/raw")
-    processed_dir = Path("data/processed")
+    raw_dir = _dir(cfg, "raw")
+    processed_dir = _dir(cfg, "processed")
 
     logger.info("=== Step 2: Preprocessing ===")
     outputs = preprocess_all(cfg, raw_dir, processed_dir)
@@ -118,10 +174,10 @@ def features(ctx):
     from pipeline.feature_extract import extract_features
 
     cfg = ctx.obj["config"]
-    processed_dir = Path("data/processed")
-    raw_dir = Path("data/raw")
+    processed_dir = _dir(cfg, "processed")
+    raw_dir = _dir(cfg, "raw")
 
-    infra_path = raw_dir / "infrastructure_raw.gpkg"
+    infra_path = _infra_path(cfg)
     if not infra_path.exists():
         click.echo("Error: Run 'ingest' first.", err=True)
         sys.exit(1)
@@ -145,11 +201,11 @@ def graph(ctx):
     from pipeline.graph_build import build_spatial_graph, save_graph
 
     cfg = ctx.obj["config"]
-    processed_dir = Path("data/processed")
-    output_dir = Path("data/output")
+    processed_dir = _dir(cfg, "processed")
+    output_dir = _dir(cfg, "output")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    infra = gpd.read_file(str(Path("data/raw/infrastructure_raw.gpkg")))
+    infra = gpd.read_file(str(_infra_path(cfg)))
     X, coords, y, _ = extract_features(cfg, infra, processed_dir)
 
     logger.info("=== Step 4: Graph Construction ===")
@@ -166,15 +222,16 @@ def graph(ctx):
 @cli.command()
 @click.pass_context
 def train(ctx):
-    """Step 5-6: Train GraphSAGE and extract embeddings."""
+    """Step 5-6: Fit the asset model (see asset_model.type) and score assets."""
+    import json
+
     import numpy as np
+
+    from pipeline.asset_model import fit_asset_model, model_type
     from pipeline.graph_build import load_graph
-    from pipeline.gnn_model import (
-        train_model, extract_embeddings_and_scores, save_model,
-    )
 
     cfg = ctx.obj["config"]
-    output_dir = Path("data/output")
+    output_dir = _dir(cfg, "output")
 
     graph_path = output_dir / "spatial_graph.pt"
     if not graph_path.exists():
@@ -182,15 +239,30 @@ def train(ctx):
         sys.exit(1)
 
     graph_data = load_graph(str(graph_path))
+    kind = model_type(cfg)
 
-    logger.info("=== Step 5: Training GraphSAGE ===")
-    model = train_model(graph_data, cfg)
-    save_model(model, str(output_dir / "gnn_model.pt"))
+    logger.info(f"=== Step 5: Training the asset model ({kind}) ===")
+    risk_scores, probability, metrics, fitted = fit_asset_model(graph_data, cfg)
+    with open(output_dir / "gnn_metrics.json", "w") as f:
+        json.dump(metrics, f, indent=2)
 
-    logger.info("=== Step 6: Extracting Embeddings ===")
-    embeddings, risk_scores = extract_embeddings_and_scores(model, graph_data)
-    np.save(str(output_dir / "node_embeddings.npy"), embeddings)
+    if kind == "graph_sage":
+        from pipeline.gnn_model import extract_embeddings_and_scores, save_model
+
+        save_model(fitted, str(output_dir / "gnn_model.pt"))
+        embeddings, _ = extract_embeddings_and_scores(fitted, graph_data)
+        np.save(str(output_dir / "node_embeddings.npy"), embeddings)
+    else:
+        import joblib
+
+        joblib.dump(fitted, str(output_dir / "asset_model.joblib"))
+
+    # The file names are historical: every downstream step reads them, and
+    # they now hold the scores of whichever model was configured.
     np.save(str(output_dir / "gnn_risk_scores.npy"), risk_scores)
+    if probability is not None:
+        np.save(str(output_dir / "gnn_flood_probability.npy"), probability)
+        logger.info(f"Calibrated flood probability: mean={probability.mean():.3f}")
 
     click.echo(
         f"Model trained. Risk scores: mean={risk_scores.mean():.3f}, "
@@ -214,10 +286,10 @@ def krige(ctx):
     )
 
     cfg = ctx.obj["config"]
-    output_dir = Path("data/output")
+    output_dir = _dir(cfg, "output")
 
     risk_scores = np.load(str(output_dir / "gnn_risk_scores.npy"))
-    infra = gpd.read_file(str(Path("data/raw/infrastructure_raw.gpkg")))
+    infra = gpd.read_file(str(_infra_path(cfg)))
     infra = compute_centroids(infra)
     coords = np.column_stack([infra["lon"].values, infra["lat"].values])
 
@@ -249,23 +321,25 @@ def krige(ctx):
 @click.pass_context
 def risk(ctx):
     """Step 8-9: Composite risk, aggregation, hotspots, ranking."""
+    import json
     import geopandas as gpd
     import numpy as np
     from pipeline.risk_score import (
         create_risk_grid, compute_exposure_grid, compute_vulnerability_grid,
-        compute_composite_risk, aggregate_to_admin, detect_hotspots, rank_assets,
+        compute_population_exposure_grid, compute_composite_risk,
+        aggregate_to_admin, detect_hotspots, rank_assets, assign_risk_classes,
     )
     from pipeline.export import (
-        export_ranked_csv, export_geojson, export_union_summary,
+        export_ranked_csv, export_geojson,
         export_hotspots, generate_pdf_report,
     )
     from pipeline.feature_extract import compute_centroids
 
     cfg = ctx.obj["config"]
-    output_dir = Path("data/output")
+    output_dir = _dir(cfg, "output")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    infra = gpd.read_file(str(Path("data/raw/infrastructure_raw.gpkg")))
+    infra = gpd.read_file(str(_infra_path(cfg)))
     infra = compute_centroids(infra)
     risk_scores = np.load(str(output_dir / "gnn_risk_scores.npy"))
 
@@ -273,19 +347,61 @@ def risk(ctx):
     grid_res = cfg["kriging"].get("grid_resolution_deg", 0.005)
 
     logger.info("=== Step 8: Composite Risk ===")
+    processed_dir = _dir(cfg, "processed")
     grid_gdf = create_risk_grid(bounds, grid_res)
 
-    # Sample kriged hazard at grid cells
-    hazard = _sample_raster_at_grid(
+    # Hazard per grid cell. Two surfaces are available: the kriged GNN
+    # scores, and a terrain model evaluated at each cell. Which one the
+    # composite uses is a config choice, and both are kept on the grid so the
+    # difference can be inspected.
+    from pipeline.hazard_model import (
+        fit_hazard_model, predict_hazard_at, write_hazard_raster,
+    )
+
+    hazard_kriged = _sample_raster_at_grid(
         str(output_dir / "flood_risk_kriged.tif"), grid_gdf
     )
+    grid_gdf["hazard_kriged"] = hazard_kriged
+
+    hazard_source = cfg["risk"].get("hazard_source", "kriged")
+    hazard_terrain = None
+    try:
+        fitted = fit_hazard_model(cfg, processed_dir, output_dir, _infra_path(cfg))
+        b = grid_gdf.geometry.bounds
+        centres = list(zip((b.minx + b.maxx) / 2, (b.miny + b.maxy) / 2))
+        hazard_terrain = predict_hazard_at(fitted, processed_dir, centres)
+        grid_gdf["hazard_terrain"] = hazard_terrain
+        write_hazard_raster(fitted, processed_dir,
+                            output_dir / "flood_hazard_terrain.tif")
+    except Exception as exc:
+        logger.warning(f"Terrain hazard model unavailable: {exc}")
+        if hazard_source == "terrain_model":
+            logger.warning("Falling back to the kriged hazard surface.")
+            hazard_source = "kriged"
+
+    hazard = hazard_terrain if hazard_source == "terrain_model" else hazard_kriged
+    logger.info(f"Composite risk uses the '{hazard_source}' hazard surface "
+                f"(mean {np.mean(hazard):.3f}, std {np.std(hazard):.3f})")
     exposure = compute_exposure_grid(infra, grid_gdf, cfg)
-    vulnerability = compute_vulnerability_grid(grid_gdf, infra, cfg)
+    vulnerability, vuln_weights = compute_vulnerability_grid(grid_gdf, infra, cfg)
+    with open(output_dir / "vulnerability_weights.json", "w") as f:
+        json.dump(vuln_weights, f, indent=2)
 
     grid_gdf["hazard"] = hazard
     grid_gdf["exposure"] = exposure
     grid_gdf["vulnerability"] = vulnerability
     grid_gdf["composite_risk"] = compute_composite_risk(hazard, exposure, vulnerability)
+    grid_gdf["risk_class"] = assign_risk_classes(grid_gdf["composite_risk"].values)
+
+    # Second reading of the same hazard: who is exposed, rather than what.
+    population_exposure = compute_population_exposure_grid(grid_gdf, cfg)
+    grid_gdf["population_exposure"] = population_exposure
+    grid_gdf["composite_risk_people"] = compute_composite_risk(
+        hazard, population_exposure, vulnerability
+    )
+    grid_gdf["risk_class_people"] = assign_risk_classes(
+        grid_gdf["composite_risk_people"].values
+    )
 
     logger.info("=== Step 9: Aggregation & Ranking ===")
 
@@ -295,19 +411,37 @@ def risk(ctx):
     )
 
     # Rank individual assets
-    ranked_infra = rank_assets(
-        infra, risk_scores, cfg["risk"].get("high_risk_threshold", 0.7)
-    )
+    threshold = cfg["risk"].get("high_risk_threshold", 0.7)
+    ranked_infra = rank_assets(infra, risk_scores, threshold, grid_gdf=grid_gdf)
+    prob_path = output_dir / "gnn_flood_probability.npy"
+    if prob_path.exists():
+        probability = np.load(prob_path)
+        if len(probability) == len(ranked_infra):
+            # rank_assets sorted the frame; align by original index.
+            ranked_infra["flood_probability"] = probability[ranked_infra.index.values]
 
-    # Aggregate to union level (if boundaries available)
-    union_path = cfg["data"]["vulnerability"].get("admin_boundaries_l3", "")
-    union_gdf = None
-    if Path(union_path).exists():
-        admin_gdf = gpd.read_file(union_path)
-        union_gdf = aggregate_to_admin(grid_gdf, admin_gdf, infra)
-        export_union_summary(union_gdf, output_dir)
+    # Aggregate to each administrative level that has boundaries on disk.
+    # geoBoundaries ADM4/ADM3/ADM2 = union / upazila / district.
+    admin_paths = cfg["data"].get("admin_boundaries", {})
+    summaries = {}
+    for level in ("union", "upazila", "district"):
+        path = admin_paths.get(level, "")
+        if not path or not Path(path).exists():
+            logger.warning(f"No {level} boundaries at {path} — skipping.")
+            continue
+        admin_gdf = gpd.read_file(path)
+        summary = aggregate_to_admin(grid_gdf, admin_gdf, infra,
+                                     high_risk_threshold=threshold)
+        summaries[level] = summary
 
-    # Export everything
+        export_geojson(summary, str(output_dir / f"{level}_risk_summary.geojson"))
+        cols = [c for c in summary.columns if c != "geometry"]
+        summary[cols].to_csv(
+            str(output_dir / f"{level}_risk_summary.csv"), index=False
+        )
+        logger.info(f"{level.title()} risk summary exported ({len(summary)} units)")
+
+    # Export everything else
     export_ranked_csv(ranked_infra, str(output_dir / "risk_ranked_assets.csv"))
     export_geojson(ranked_infra, str(output_dir / "risk_ranked_assets.geojson"))
     export_geojson(ranked_infra, str(output_dir / "top50_risk_assets.geojson"),
@@ -315,26 +449,10 @@ def risk(ctx):
     export_hotspots(grid_gdf, str(output_dir / "hotspot_clusters.geojson"))
     export_geojson(grid_gdf, str(output_dir / "risk_grid.geojson"))
 
-    # PDF report
     generate_pdf_report(
-        union_gdf, ranked_infra,
+        summaries.get("upazila", summaries.get("union")), ranked_infra,
         str(output_dir / "situation_report.pdf")
     )
-
-    # Upazila aggregation (L2)
-    upazila_path = cfg["data"]["vulnerability"].get("admin_boundaries_l2", "")
-    if Path(upazila_path).exists():
-        from pipeline.risk_score import aggregate_to_upazila
-        upazila_gdf = gpd.read_file(upazila_path)
-        upazila_summary = aggregate_to_upazila(grid_gdf, upazila_gdf, infra)
-        # Export GeoJSON
-        export_geojson(upazila_summary, str(output_dir / "upazila_risk_summary.geojson"))
-        # Export CSV for dashboard loader
-        cols = [c for c in upazila_summary.columns if c != "geometry"]
-        upazila_summary[cols].to_csv(
-            str(output_dir / "upazila_risk_summary.csv"), index=False
-        )
-        logger.info("Upazila risk summary exported")
 
     click.echo("Risk assessment complete. Outputs in data/output/")
 
@@ -349,8 +467,8 @@ def metadata(ctx):
     from pipeline.metadata import compute_confidence_metadata, export_metadata
 
     cfg = ctx.obj["config"]
-    output_dir = Path("data/output")
-    processed_dir = Path("data/processed")
+    output_dir = _dir(cfg, "output")
+    processed_dir = _dir(cfg, "processed")
 
     logger.info("=== Pipeline Metadata ===")
     meta = compute_confidence_metadata(cfg, str(output_dir), str(processed_dir))
@@ -369,11 +487,109 @@ def landslide(ctx):
 
     cfg = ctx.obj["config"]
     logger.info("=== Landslide Susceptibility ===")
-    result = run_landslide_pipeline(cfg)
-    if result:
-        click.echo(f"Landslide pipeline complete: {result}")
-    else:
-        click.echo("Landslide pipeline failed.", err=True)
+    result = run_landslide_pipeline(
+        cfg, _dir(cfg, "raw"), _dir(cfg, "processed"), _dir(cfg, "output")
+    )
+    click.echo(f"Landslide pipeline complete: {result}")
+
+
+# ---------------------------------------------------------------------------
+# Sentinel-1 — observed flood extents
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.pass_context
+def sentinel1(ctx):
+    """Map observed flood extents from Sentinel-1 SAR (needs Earth Engine)."""
+    from pipeline.sentinel1 import run_sentinel1_pipeline
+
+    cfg = ctx.obj["config"]
+    logger.info("=== Sentinel-1 Observed Flood Extents ===")
+    outputs = run_sentinel1_pipeline(cfg, _dir(cfg, "raw"))
+    click.echo(f"Mapped {len(outputs) - 1} events → data/raw/")
+    click.echo("Set data.labels.source: observed in config.yaml, then rerun "
+               "`preprocess`, `features`, `graph`, `train`, `krige`, `risk`.")
+
+
+# ---------------------------------------------------------------------------
+# Validation — model vs observed floods
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.pass_context
+def validate(ctx):
+    """Validate model scores against Sentinel-1 observed flood extents."""
+    from pipeline.validate import run_validation
+
+    cfg = ctx.obj["config"]
+    logger.info("=== Validation Against Observed Floods ===")
+    results = run_validation(cfg, _dir(cfg, "output"),
+                             _dir(cfg, "processed"), _dir(cfg, "raw"))
+    assets = results["assets_vs_observed"]
+    held = assets.get("held_out_blocks") or assets["all_assets"]
+    click.echo(f"Observed flooded share: {assets['observed_flooded_share']:.2%}")
+    if "auc_roc" in held:
+        click.echo(f"AUC: {held['auc_roc']:.3f} | AP: {held['average_precision']:.3f}")
+    click.echo("Full metrics: data/output/validation_metrics.json")
+
+
+# ---------------------------------------------------------------------------
+# Benchmark — the graph model against ordinary tabular models
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.option("--seeds", default=None,
+              help="Comma-separated block-split seeds (default: five seeds).")
+@click.pass_context
+def benchmark(ctx, seeds):
+    """Compare the graph model with tabular baselines over repeated splits."""
+    from pipeline.benchmark import SEEDS, run_benchmark, run_label_comparison
+
+    cfg = ctx.obj["config"]
+    chosen = tuple(int(s) for s in seeds.split(",")) if seeds else SEEDS
+    logger.info("=== Benchmark: graph model against tabular baselines ===")
+    results = run_benchmark(cfg, _dir(cfg, "processed"), _dir(cfg, "output"),
+                            _infra_path(cfg), seeds=chosen)
+    labels = run_label_comparison(cfg, _dir(cfg, "processed"), _dir(cfg, "output"),
+                                  _infra_path(cfg), seeds=chosen)
+    gap = labels["summary"].get("observed_minus_proxy") or {}
+    if gap:
+        click.echo(f"observed minus proxy labels: {gap['mean']:+.3f} AUC "
+                   f"(ahead in {gap['seeds_observed_ahead']} of "
+                   f"{gap['n_seeds']} splits)")
+    for name, stats in results["summary"].items():
+        if name == "graph_vs_best_baseline":
+            click.echo(f"graph minus {stats['best_baseline']}: "
+                       f"{stats['auc_difference_mean']:+.3f} AUC "
+                       f"(ahead in {stats['seeds_graph_ahead']} of "
+                       f"{stats['n_seeds']} splits)")
+        else:
+            sd = stats["auc_sd"]
+            spread = f" ± {sd:.3f}" if sd is not None else ""
+            click.echo(f"{name:22s} AUC {stats['auc_mean']:.3f}{spread}")
+    click.echo("Full metrics: <output>/benchmark.json")
+
+
+# ---------------------------------------------------------------------------
+# Sensitivity — how much the composite depends on its chosen weights
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.option("--draws", default=20, show_default=True,
+              help="Random weight perturbations to draw.")
+@click.pass_context
+def sensitivity(ctx, draws):
+    """Recompute composite risk under other weights and report rank movement."""
+    from pipeline.sensitivity import run_sensitivity
+
+    cfg = ctx.obj["config"]
+    logger.info("=== Weight sensitivity of the composite risk ===")
+    results = run_sensitivity(cfg, _dir(cfg, "output"), _infra_path(cfg),
+                              n_draws=draws)
+    for name, stats in results["scenarios"].items():
+        click.echo(f"{name:34s} rho {stats['spearman']:.3f}  "
+                   f"top decile kept {stats['top_decile_overlap']:.2f}")
+    random_draws = results["random_perturbation"]
+    click.echo(f"random weights ({draws} draws): rho "
+               f"{random_draws['spearman_mean']:.3f} "
+               f"(min {random_draws['spearman_min']:.3f})")
+    click.echo("Full metrics: <output>/sensitivity.json")
 
 
 # ---------------------------------------------------------------------------
@@ -398,7 +614,8 @@ def _sample_raster_at_grid(raster_path: str, grid_gdf) -> np.ndarray:
     """Sample raster value at each grid cell centroid."""
     import rasterio
 
-    centroids = [(g.centroid.x, g.centroid.y) for g in grid_gdf.geometry]
+    b = grid_gdf.geometry.bounds
+    centroids = list(zip((b.minx + b.maxx) / 2, (b.miny + b.maxy) / 2))
     if not Path(raster_path).exists():
         logger.warning(f"Raster not found: {raster_path}. Using zeros.")
         return np.zeros(len(grid_gdf))
@@ -429,7 +646,20 @@ def run(ctx):
     ctx.invoke(krige)
     ctx.invoke(risk)
     ctx.invoke(metadata)
-    ctx.invoke(landslide)
+
+    # Validation needs Sentinel-1 extents; skip cleanly when absent.
+    if (_dir(ctx.obj["config"], "raw") / "s1_flood_frequency.tif").exists():
+        ctx.invoke(validate)
+    else:
+        logger.warning(
+            "No Sentinel-1 flood extents — skipping validation. "
+            "Run `python -m pipeline.cli sentinel1` to enable it."
+        )
+
+    if cfg_has_landslide(ctx.obj["config"]):
+        ctx.invoke(landslide)
+    else:
+        logger.info("Region has no landslide section — skipping that model.")
 
     click.echo("\nPipeline complete! Launch dashboard with:")
     click.echo("  streamlit run dashboard/app.py -- --config config.yaml")

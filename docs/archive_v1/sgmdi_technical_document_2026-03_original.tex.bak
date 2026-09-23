@@ -1,0 +1,1807 @@
+\documentclass[11pt,a4paper]{article}
+
+% ── Geometry ────────────────────────────────────────────────
+\usepackage[margin=1.8cm, top=2cm, bottom=2cm]{geometry}
+
+% ── Fonts & encoding ────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% ── Math ────────────────────────────────────────────────────
+\usepackage{amsmath, amssymb, amsfonts}
+
+% ── Graphics & colors ──────────────────────────────────────
+\usepackage{graphicx}
+\usepackage[dvipsnames,svgnames,x11names]{xcolor}
+\usepackage{tikz}
+
+% ── Tables ──────────────────────────────────────────────────
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{multirow}
+
+% ── Lists & formatting ─────────────────────────────────────
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+
+% ── Code / file references ─────────────────────────────────
+\usepackage{listings}
+\usepackage{textcomp}
+
+% ── Hyperlinks ──────────────────────────────────────────────
+\usepackage[colorlinks=true, linkcolor=NavyBlue, urlcolor=RoyalBlue,
+            citecolor=ForestGreen, bookmarks=true]{hyperref}
+
+% ── Custom colors ───────────────────────────────────────────
+\definecolor{accent}{HTML}{0ea5e9}
+\definecolor{sectionbg}{HTML}{f0f9ff}
+\definecolor{codebg}{HTML}{f8fafc}
+\definecolor{darkbg}{HTML}{1e293b}
+\definecolor{funccolor}{HTML}{7c3aed}
+\definecolor{filecolor}{HTML}{0369a1}
+\definecolor{warnred}{HTML}{dc2626}
+\definecolor{okgreen}{HTML}{16a34a}
+\definecolor{pipebg}{HTML}{fef3c7}
+
+% ── Section formatting ─────────────────────────────────────
+\titleformat{\section}
+  {\Large\bfseries\sffamily\color{darkbg}}
+  {\thesection}{0.8em}{}
+  [\vspace{-0.5em}\textcolor{accent}{\rule{\textwidth}{1.5pt}}]
+
+\titleformat{\subsection}
+  {\large\bfseries\sffamily\color{darkbg!90}}
+  {\thesubsection}{0.6em}{}
+
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\sffamily\color{darkbg!80}}
+  {\thesubsubsection}{0.5em}{}
+
+% ── Header / Footer ────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\sffamily\textcolor{gray}{SGMDI Technical Document}}
+\fancyhead[R]{\small\sffamily\textcolor{gray}{Fermium Hazard Mapper}}
+\fancyfoot[C]{\small\sffamily\textcolor{gray}{Page \thepage\ of \pageref{LastPage}}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.2pt}
+
+% ── Listings style for file/function references ─────────────
+\lstset{
+  basicstyle=\small\ttfamily,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{gray!30},
+  breaklines=true,
+  columns=fullflexible,
+}
+
+% ── Allow line breaks in monospace ──────────────────────────
+% Make _ a valid breakpoint in \texttt (only in text mode)
+\makeatletter
+\let\orig@texttt\texttt
+\renewcommand{\texttt}[1]{%
+  \ifmmode
+    \text{\orig@texttt{#1}}%
+  \else
+    \begingroup
+    \ttfamily
+    \def\_{\textunderscore\allowbreak}%
+    #1%
+    \endgroup
+  \fi
+}
+\makeatother
+
+% ── Custom commands ─────────────────────────────────────────
+\newcommand{\funcref}[2]{%
+  \textcolor{funccolor}{\texttt{#1}}%
+  \allowbreak\,(\textcolor{filecolor}{\texttt{#2}})%
+}
+\newcommand{\fileref}[1]{\textcolor{filecolor}{\texttt{#1}}}
+\newcommand{\param}[1]{{\ttfamily\textbf{#1}}}
+\newcommand{\val}[1]{{\ttfamily #1}}
+
+% ── Pipeline stage box ──────────────────────────────────────
+\newcommand{\pipestage}[2]{%
+  \noindent\fcolorbox{accent!50}{accent!8}{%
+    \parbox{\dimexpr\textwidth-2\fboxsep-2\fboxrule}{%
+      \textbf{\sffamily\textcolor{accent!80!black}{STAGE #1:}} \textbf{\sffamily #2}%
+    }%
+  }\vspace{0.3em}%
+}
+
+% ── Function signature box ──────────────────────────────────
+\newcommand{\funcsig}[3]{%
+  \vspace{0.3em}%
+  \noindent\colorbox{codebg}{%
+    \parbox{\dimexpr\textwidth-2\fboxsep}{%
+      \raggedright\small\textcolor{funccolor}{\texttt{#1}} \textcolor{gray}{--- #2}\\
+      \textcolor{filecolor}{\texttt{#3}}%
+    }%
+  }\vspace{0.2em}%
+}
+
+% ════════════════════════════════════════════════════════════
+\begin{document}
+\sloppy  % prevent text from overflowing margins
+
+% ── TITLE PAGE ──────────────────────────────────────────────
+\begin{titlepage}
+\centering
+\vspace*{1cm}
+
+\includegraphics[width=35mm]{../fermium.png}
+
+\vspace{0.8cm}
+
+{\Huge\bfseries\sffamily\textcolor{darkbg}{Smart Geospatial Mapping \&\\[6pt] Disaster Impact Intelligence}}
+
+\vspace{0.6cm}
+{\LARGE\sffamily\textcolor{accent}{SGMDI}}
+
+\vspace{1cm}
+{\large\sffamily Technical Document \& Application Manual}
+
+\vspace{0.4cm}
+\textcolor{accent}{\rule{0.6\textwidth}{2pt}}
+
+\vspace{1.2cm}
+
+{\large\sffamily
+\textbf{Fermium Hazard Mapper}\\[4pt]
+Multi-Hazard Flood \& Landslide Risk Intelligence Pipeline\\[4pt]
+for Rangpur, Rajshahi \& Chittagong Hill Tracts, Bangladesh
+}
+
+\vspace{1.5cm}
+
+\begin{tabular}{rl}
+\textbf{Pipeline:} & 10-stage geospatial processing \\
+\textbf{ML Core:} & GraphSAGE GNN + Ordinary Kriging hybrid \\
+\textbf{Dashboard:} & Streamlit + Folium + Leaflet.js \\
+\textbf{Coverage:} & Flood (primary) + Landslide (CHT) \\
+\textbf{Competition:} & RIMES Mapathon 2025 \\
+\end{tabular}
+
+\vspace{1.5cm}
+
+{\large\sffamily\bfseries Team Fermium}\\[8pt]
+{\normalsize\sffamily
+Md Rakib Hasan\\[3pt]
+Shoumik Zubyer\\[3pt]
+Fazla Zawadul Arabi
+}
+
+\end{titlepage}
+
+% ── TABLE OF CONTENTS ──────────────────────────────────────
+\tableofcontents
+\newpage
+
+% ════════════════════════════════════════════════════════════
+\section{Introduction}
+% ════════════════════════════════════════════════════════════
+
+The \textbf{Smart Geospatial Mapping \& Disaster Impact Intelligence (SGMDI)} system is a comprehensive, end-to-end geospatial analytics pipeline designed for multi-hazard risk assessment in Bangladesh. The system integrates 10+ geospatial data sources, processes them through a 10-stage pipeline, applies machine learning (Graph Neural Networks) combined with geostatistical interpolation (Ordinary Kriging), and produces actionable risk intelligence through an interactive web dashboard.
+
+\subsection{Problem Context}
+
+Bangladesh faces recurrent flooding across the Teesta--Brahmaputra floodplains (Rangpur, Rajshahi divisions) and monsoon-triggered landslides in the Chittagong Hill Tracts (CHT). Existing risk assessment systems are fragmented: satellite data, hydrological models, and socioeconomic indicators are analysed in isolation. SGMDI unifies these into a single, automated pipeline that:
+
+\begin{itemize}[nosep]
+  \item Downloads and preprocesses 10+ geospatial datasets automatically
+  \item Constructs a spatial graph of infrastructure assets (hospitals, schools, bridges, roads)
+  \item Trains a Graph Neural Network to predict per-asset flood risk
+  \item Interpolates risk across the landscape using Ordinary Kriging
+  \item Computes composite risk as Hazard $\times$ Exposure $\times$ Vulnerability
+  \item Detects spatial hotspots using Getis-Ord $G_i^*$ statistics
+  \item Assesses landslide susceptibility via logistic slope transforms
+  \item Presents results through a 5-tab interactive dashboard with animated temporal views
+\end{itemize}
+
+\subsection{Study Area}
+
+The system covers three primary hazard zones and one secondary zone:
+
+\begin{longtable}{llll}
+\toprule
+\textbf{Zone} & \textbf{Region} & \textbf{Hazard Type} & \textbf{Risk Level} \\
+\midrule
+NW Rangpur & Teesta--Brahmaputra basin & Fluvial flooding & \textcolor{warnred}{\textbf{RED}} \\
+NE Sylhet & Surma--Kushiyara basin & Flash flooding & \textcolor{orange}{\textbf{ORANGE}} \\
+SW Coastal & Sundarban--Bagerhat & Tidal / cyclonic & \textcolor{yellow!80!black}{\textbf{YELLOW}} \\
+CHT & Rangamati--Khagrachari--Bandarban & Landslide & \textcolor{purple}{\textbf{RED}} \\
+\bottomrule
+\end{longtable}
+
+The primary Area of Interest (AOI) for the flood pipeline is defined as:
+\begin{itemize}[nosep]
+  \item Bounding box: $[88.0^{\circ}\text{E},\ 24.0^{\circ}\text{N}]$ to $[89.9^{\circ}\text{E},\ 26.7^{\circ}\text{N}]$
+  \item Divisions: Rangpur, Rajshahi
+  \item CRS: EPSG:32646 (UTM Zone 46N)
+  \item Grid resolution: 500\,m
+\end{itemize}
+
+The landslide pipeline covers the CHT with bounding box $[91.5^{\circ}\text{E},\ 21.5^{\circ}\text{N}]$ to $[92.7^{\circ}\text{E},\ 23.5^{\circ}\text{N}]$.
+
+
+% ════════════════════════════════════════════════════════════
+\section{System Architecture}
+% ════════════════════════════════════════════════════════════
+
+The SGMDI system is organized into two major components: the \textbf{processing pipeline} (\fileref{pipeline/} directory) and the \textbf{interactive dashboard} (\fileref{dashboard/} directory). Configuration is managed through a central \fileref{config.yaml} file.
+
+\subsection{Architecture Overview}
+
+Figure~\ref{fig:arch} presents the complete system architecture across six processing lanes.
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\textwidth]{architecture_diagram.png}
+\caption{SGMDI full system architecture. Six lanes: Data Sources $\to$ Ingestion $\to$ Features $\to$ ML Models $\to$ Risk $\to$ Dashboard. Upper half: flood pipeline. Lower half: landslide pipeline. Dashed arrows indicate long-distance data flows (cache $\to$ loader, confidence $\to$ sidebar).}
+\label{fig:arch}
+\end{figure}
+
+\subsection{Directory Structure}
+
+\begin{lstlisting}
+mapathon/
+  pipeline/                  # 10-step processing pipeline
+    cli.py                   # Click CLI entry point
+    data_download.py         # Stage 0: download all sources
+    data_ingest.py           # Stages 1-2: OSM + DEM preprocessing
+    feature_extract.py       # Stage 3: feature matrix construction
+    graph_build.py           # Stage 4: k-NN spatial graph
+    gnn_model.py             # Stages 5-6: GNN training + inference
+    kriging.py               # Stage 7: Ordinary Kriging interpolation
+    risk_score.py            # Stages 8-9: composite risk + aggregation
+    export.py                # Export: GeoJSON, CSV, PDF
+    metadata.py              # Confidence metrics (MC-Dropout)
+    landslide.py             # Landslide susceptibility pipeline
+    alphaearth.py            # Google satellite embeddings
+  dashboard/                 # Streamlit web UI
+    app.py                   # Main entry (5 tabs, theme, layout)
+    components/
+      map_view.py            # Folium interactive maps
+      risk_cards.py          # KPI metric strip
+      risk_panels.py         # Alert banners, tables, charts
+      sidebar.py             # Filter controls, analytics overlay
+      cofactors.py           # AHP factor displays
+      temporal_map.py        # JS animated temporal player
+      detail_panel.py        # Asset inspector side drawer
+    data/
+      constants.py           # Region data, stages, weights
+      loader.py              # Data loading with caching
+  config.yaml                # All pipeline parameters
+  data/
+    raw/                     # Downloaded source datasets
+    processed/               # DEM derivatives, flood labels
+    output/                  # Pipeline results
+  docs/                      # Architecture diagrams
+\end{lstlisting}
+
+\subsection{Configuration}
+
+All pipeline parameters are centralized in \fileref{config.yaml}. Key configuration groups:
+
+\begin{longtable}{p{3cm}p{4cm}p{3cm}p{5cm}}
+\toprule
+\textbf{Group} & \textbf{Parameter} & \textbf{Value} & \textbf{Description} \\
+\midrule
+\endhead
+\texttt{aoi} & \texttt{bbox} & [88.0, 24.0, 89.9, 26.7] & West, South, East, North \\
+& \texttt{divisions} & Rangpur, Rajshahi & Admin Level 1 filter \\
+& \texttt{crs} & EPSG:32646 & UTM Zone 46N \\
+& \texttt{grid\_resolution\_m} & 500 & Grid cell spacing \\
+\midrule
+\texttt{graph} & \texttt{k\_neighbors} & 6 & k-NN connectivity \\
+& \texttt{max\_edge\_distance\_m} & 5000 & Maximum edge length \\
+& \texttt{edge\_weight} & inverse\_distance & $w_{ij} = 1/d_{ij}$ \\
+& \texttt{train\_split} & 0.8 & 80\% train, 20\% val \\
+\midrule
+\texttt{gnn} & \texttt{hidden\_channels} & 64 & Hidden layer dimension \\
+& \texttt{dropout} & 0.3 & Dropout probability \\
+& \texttt{learning\_rate} & 0.001 & Adam optimizer LR \\
+& \texttt{epochs} & 200 & Maximum training epochs \\
+& \texttt{patience} & 20 & Early stopping patience \\
+& \texttt{seed} & 42 & Reproducibility seed \\
+\midrule
+\texttt{kriging} & \texttt{variogram\_model} & spherical & Variogram model type \\
+& \texttt{nlags} & 15 & Semivariogram lag bins \\
+& \texttt{grid\_resolution\_deg} & 0.005 & $\approx$500\,m at 25$^{\circ}$N \\
+\midrule
+\texttt{risk} & \texttt{hotspot\_confidence} & 0.95 & Getis-Ord significance \\
+& \texttt{high\_risk\_threshold} & 0.7 & High-risk classification \\
+\midrule
+\texttt{alphaearth} & \texttt{year} & 2024 & Satellite embedding year \\
+& \texttt{scale} & 256 & Resolution in metres \\
+& \texttt{n\_clusters} & 8 & KMeans cluster count \\
+\midrule
+\texttt{landslide} & \texttt{bbox} & [91.5, 21.5, 92.7, 23.5] & CHT bounding box \\
+\midrule
+\texttt{dashboard} & \texttt{port} & 2020 & Streamlit server port \\
+& \texttt{map\_zoom} & 8 & Initial map zoom \\
+& \texttt{map\_center} & [25.5, 89.0] & Initial map centre \\
+\bottomrule
+\end{longtable}
+
+
+% ════════════════════════════════════════════════════════════
+\section{Pipeline Stage 0: Data Download}
+% ════════════════════════════════════════════════════════════
+
+\pipestage{0}{Data Download --- Acquiring 10+ Geospatial Sources}
+
+The first stage downloads all required geospatial datasets from public repositories. This is orchestrated by \funcref{download\_all()}{pipeline/data\_download.py:L180}, which calls individual downloaders for each source and returns a dictionary mapping dataset names to local file paths.
+
+\subsection{GADM Administrative Boundaries}
+
+\funcsig{download\_gadm\_boundaries()}{Download admin boundary shapefiles}{pipeline/data\_download.py:L25}
+
+Downloads GADM v4.1 administrative boundaries at two levels:
+\begin{itemize}[nosep]
+  \item \textbf{Level 2 (Upazila):} Sub-district boundaries for spatial aggregation
+  \item \textbf{Level 3 (Union):} Finest admin unit for risk ranking
+\end{itemize}
+
+Source URL: \texttt{https://geodata.ucdavis.edu/gadm/gadm4.1/json/}
+
+The function downloads the full Bangladesh GeoJSON, then filters to only the configured divisions (Rangpur, Rajshahi) using the \texttt{NAME\_1} field. Output format: GeoJSON.
+
+\subsection{SRTM Digital Elevation Model}
+
+\funcsig{download\_srtm\_dem()}{Download and merge SRTM 30m DEM tiles}{pipeline/data\_download.py:L65}
+
+Downloads Shuttle Radar Topography Mission (SRTM) 30-metre resolution elevation data. The AOI spans six tiles covering latitudes 24$^{\circ}$--26$^{\circ}$N and longitudes 88$^{\circ}$--89$^{\circ}$E:
+
+\begin{center}
+\texttt{N24E088, N24E089, N25E088, N25E089, N26E088, N26E089}
+\end{center}
+
+Tiles are downloaded from AWS S3 (\texttt{elevation-tiles-prod.s3.amazonaws.com/skadi/}), converted from raw \texttt{.hgt} format (1201$\times$1201 or 3601$\times$3601 signed 16-bit integers) to GeoTIFF via the helper \funcref{\_hgt\_to\_geotiff()}{pipeline/data\_download.py:L98}, then merged and clipped to the AOI.
+
+\subsection{JRC Global Surface Water}
+
+\funcsig{download\_jrc\_water()}{Download water occurrence raster}{pipeline/data\_download.py:L110}
+
+Downloads the Joint Research Centre Global Surface Water dataset (v1.4, 2021). This provides per-pixel water occurrence as a percentage (0--100\%) at 30\,m resolution, representing how often water was detected at each location from 1985 to 2020. Used as one of four ensemble flood proxy sources.
+
+\subsection{WorldPop Population Density}
+
+\funcsig{download\_worldpop()}{Download constrained population density}{pipeline/data\_download.py:L125}
+
+Downloads WorldPop 2020 constrained population density for Bangladesh at 100\,m resolution. ``Constrained'' means population is allocated only to built-up areas, providing more realistic density estimates than unconstrained grids. Used in vulnerability and exposure calculations.
+
+\subsection{GloFAS River Discharge}
+
+\funcsig{download\_glofas\_flood\_extent()}{Download river discharge data}{pipeline/data\_download.py:L140}
+
+Downloads Global Flood Awareness System (GloFAS) historical river discharge data via the Copernicus Climate Data Store (CDS) API. Resolution is approximately 5\,km. Requires CDS API credentials (\texttt{CDSAPI\_URL}, \texttt{CDSAPI\_KEY}). This is an optional source --- the pipeline continues if credentials are unavailable.
+
+\subsection{Sentinel-1 SAR Flood Extent}
+
+\funcsig{download\_sentinel1\_flood\_extent()}{Download SAR backscatter for flood mapping}{pipeline/data\_download.py:L155}
+
+Downloads Sentinel-1 Ground Range Detected (GRD) SAR imagery via CDSE OData API or ASF (Alaska Satellite Facility). Extracts the VH (cross-polarization) band and applies Otsu thresholding to produce a binary water mask:
+
+\begin{equation}
+\text{water}(x) = \begin{cases} 1 & \text{if } \text{VH}(x) \leq \text{Otsu}(\text{VH histogram}) \\ 0 & \text{otherwise} \end{cases}
+\end{equation}
+
+The \funcref{\_otsu\_threshold()}{pipeline/data\_download.py:L170} function implements a simplified Otsu algorithm that finds the threshold minimizing intra-class variance between water (low dB) and land (high dB) pixels. Resolution: 10\,m. This is also optional.
+
+\subsection{Download Orchestration}
+
+The master function \funcref{download\_all()}{pipeline/data\_download.py:L180} calls each downloader sequentially. The helper \funcref{\_download\_file()}{pipeline/data\_download.py:L15} streams HTTP downloads with 1\,MB chunks and a 300-second timeout, logging progress. If a source fails, it logs a warning and continues --- the ensemble labelling step handles missing sources gracefully.
+
+
+% ════════════════════════════════════════════════════════════
+\section{Pipeline Stage 1: Data Ingestion}
+% ════════════════════════════════════════════════════════════
+
+\pipestage{1}{Data Ingestion --- OSM Infrastructure Extraction}
+
+\subsection{OpenStreetMap Infrastructure Query}
+
+\funcsig{fetch\_osm\_infrastructure()}{Query OSM for lifeline infrastructure}{pipeline/data\_ingest.py:L20}
+
+This function queries the OpenStreetMap Overpass API via the \texttt{osmnx} library to extract infrastructure assets within the AOI. To avoid API timeouts, queries are split into three priority batches:
+
+\begin{longtable}{clp{8cm}}
+\toprule
+\textbf{Batch} & \textbf{Priority} & \textbf{Assets Queried} \\
+\midrule
+1 --- Lifeline & P1 & Hospitals, clinics, schools, colleges, bridges, embankments, dams, flood shelters (20 tag combinations) \\
+2 --- Transport & P1 & Primary, secondary, tertiary, trunk roads; railway stations; ferry terminals \\
+3 --- Agriculture & P2 & Farmland, aquaculture, irrigation canals, marketplaces, cropland \\
+\bottomrule
+\end{longtable}
+
+Each batch issues an Overpass QL query filtered by the AOI bounding box. Results are merged into a single GeoDataFrame.
+
+\subsection{Asset Classification}
+
+\funcsig{\_classify\_asset()}{Map OSM tags to simplified types}{pipeline/data\_ingest.py:L85}
+
+Each OSM feature carries raw tags (e.g., \texttt{amenity=hospital}, \texttt{highway=primary}). The classifier maps these to 11 standardized asset types:
+
+\begin{center}
+\small
+\begin{tabular}{llll}
+hospital & school & bridge & road \\
+embankment & shelter & dam & cropland \\
+aquaculture & marketplace & building & \\
+\end{tabular}
+\end{center}
+
+The helper \funcref{\_detect\_source\_tag()}{pipeline/data\_ingest.py:L75} first identifies which OSM tag matched for each row, then \texttt{\_classify\_asset()} maps it to the canonical type.
+
+\textbf{Output:} GeoDataFrame with columns: \texttt{geometry}, \texttt{name}, \texttt{asset\_type}, \texttt{source\_tag}, \texttt{priority}, \texttt{division}. Saved as GeoPackage (\texttt{infrastructure\_raw.gpkg}).
+
+
+% ════════════════════════════════════════════════════════════
+\section{Pipeline Stage 2: Preprocessing}
+% ════════════════════════════════════════════════════════════
+
+\pipestage{2}{Preprocessing --- DEM Derivatives, CRS Alignment, Flood Labels}
+
+This stage transforms raw data into analysis-ready products. It is orchestrated by \funcref{preprocess\_all()}{pipeline/data\_ingest.py:L210}.
+
+\subsection{CRS Reprojection}
+
+\funcsig{reproject\_raster()}{Reproject raster to UTM 46N}{pipeline/data\_ingest.py:L105}
+
+All rasters are reprojected to EPSG:32646 (UTM Zone 46N) to enable distance calculations in metres. Uses \texttt{rasterio.warp.reproject} with nearest-neighbour resampling.
+
+\funcsig{clip\_raster\_to\_aoi()}{Clip raster to AOI polygon}{pipeline/data\_ingest.py:L120}
+
+Clips each raster to the AOI bounding box using \texttt{rasterio.mask.mask}, eliminating data outside the study area and reducing memory footprint.
+
+\subsection{DEM Derivative Computation}
+
+\funcsig{compute\_dem\_derivatives()}{Compute slope, TWI, HAND, flow accumulation}{pipeline/data\_ingest.py:L135}
+
+From the SRTM DEM, four terrain derivatives are computed:
+
+\subsubsection{Slope}
+
+Slope angle in degrees, computed via \texttt{numpy.gradient}:
+
+\begin{equation}
+\frac{\partial z}{\partial x},\ \frac{\partial z}{\partial y} = \texttt{numpy.gradient}(\text{DEM},\ \Delta y,\ \Delta x)
+\end{equation}
+\begin{equation}
+\theta = \arctan\!\left(\sqrt{\left(\frac{\partial z}{\partial x}\right)^{\!2} + \left(\frac{\partial z}{\partial y}\right)^{\!2}}\right) \times \frac{180}{\pi}
+\end{equation}
+
+\subsubsection{Topographic Wetness Index (TWI)}
+
+TWI quantifies the tendency of water to accumulate at a location:
+
+\begin{equation}
+\text{TWI} = \ln\!\left(\frac{A}{\tan\theta}\right)
+\end{equation}
+
+where $A$ is the upslope contributing area (computed from flow accumulation):
+\begin{equation}
+A = (\text{flow\_accumulation} + 1) \times \text{cell\_area}
+\end{equation}
+
+Slope values below $0.001$ radians are clamped to avoid division by zero. Higher TWI values indicate greater water accumulation potential.
+
+\subsubsection{Height Above Nearest Drainage (HAND)}
+
+HAND measures the vertical distance from each cell to the nearest drainage channel:
+
+\begin{equation}
+\text{HAND}(i) = \max\!\big(0,\ z_i - z_{\text{nearest drainage}}\big)
+\end{equation}
+
+Drainage cells are identified as those with flow accumulation above the 90th percentile. The nearest drainage cell is found using \texttt{scipy.ndimage.distance\_transform\_edt}. Implemented in \funcref{\_compute\_hand()}{pipeline/data\_ingest.py:L165}. Low HAND values indicate flood-prone locations close to drainage level.
+
+\subsubsection{Flow Accumulation}
+
+D8 flow direction and accumulation, implemented in \funcref{\_simple\_flow\_accumulation()}{pipeline/data\_ingest.py:L150}:
+
+\begin{enumerate}[nosep]
+  \item Sort all cells by elevation (ascending)
+  \item For each cell, find the steepest downhill neighbour among 8 directions
+  \item Route accumulated flow to that neighbour
+\end{enumerate}
+
+All derivatives are saved as GeoTIFF files in \texttt{data/processed/}.
+
+\subsection{Ensemble Flood Label Construction}
+
+\funcsig{build\_ensemble\_flood\_labels()}{Majority voting from 4 proxy sources}{pipeline/data\_ingest.py:L180}
+
+Since ground-truth flood extent data is unavailable for most of the AOI, the pipeline constructs proxy flood labels by majority voting across four independent sources:
+
+\begin{longtable}{p{3.5cm}p{5cm}p{3cm}}
+\toprule
+\textbf{Source} & \textbf{Flood Criterion} & \textbf{Threshold} \\
+\midrule
+DEM Derivatives & $\text{TWI} > 8.0 \ \wedge\ \text{HAND} < 5.0\,\text{m}$ & TWI $>$ 8, HAND $<$ 5 \\
+JRC Water & Water occurrence $> 25\%$ & 25\% \\
+GloFAS Discharge & Discharge $>$ 50th percentile & $P_{50}$ \\
+Sentinel-1 SAR & $\text{VH} \leq \text{Otsu threshold}$ & Otsu auto \\
+\bottomrule
+\end{longtable}
+
+Each source produces a binary vote (flood / no-flood). The ensemble label is computed as:
+
+\begin{equation}
+y_i = \mathbb{1}\!\left[\sum_{s=1}^{n} \text{vote}_s(i) \geq 2\right]
+\end{equation}
+
+where $n$ is the number of available sources (up to 4). A pixel is labelled as flood-prone if at least 2 sources agree. Missing sources are excluded from the vote count. The helper \funcref{\_resample\_to\_ref()}{pipeline/data\_ingest.py:L195} resamples all source rasters to a common reference grid before voting.
+
+Output: \texttt{flood\_proxy\_labels.tif} --- a binary GeoTIFF raster.
+
+\subsection{Data Caching}
+
+\funcsig{preprocess\_cache.py}{Convert to fast-access formats}{pipeline/data\_ingest.py}
+
+After preprocessing, data is cached for dashboard performance:
+\begin{itemize}[nosep]
+  \item GeoJSON $\to$ GeoParquet (5--10$\times$ faster loading)
+  \item Pre-rendered raster overlays as PNG tiles
+  \item In-memory cache with 600-second TTL
+\end{itemize}
+
+
+% ════════════════════════════════════════════════════════════
+\section{Pipeline Stage 3: Feature Extraction}
+% ════════════════════════════════════════════════════════════
+
+\pipestage{3}{Feature Extraction --- Building the 11-Dimensional Feature Matrix}
+
+This stage constructs a feature matrix $\mathbf{X} \in \mathbb{R}^{N \times D}$ where $N$ is the number of infrastructure assets and $D = 11$ is the feature dimensionality. Orchestrated by \funcref{extract\_features()}{pipeline/feature\_extract.py:L90}.
+
+\subsection{Centroid Computation}
+
+\funcsig{compute\_centroids()}{Convert polygons to point locations}{pipeline/feature\_extract.py:L10}
+
+OSM features include polygons (buildings, farmland), lines (roads), and points (hospitals). All are converted to representative points using Shapely's \texttt{representative\_point()} method, which guarantees the point lies within the geometry (unlike centroids, which may fall outside concave polygons).
+
+\subsection{Raster Sampling}
+
+\funcsig{sample\_raster\_at\_points()}{Bilinear interpolation at infrastructure locations}{pipeline/feature\_extract.py:L25}
+
+For each infrastructure point, six raster values are sampled via bilinear interpolation:
+
+\begin{center}
+\begin{tabular}{cll}
+\toprule
+\textbf{Index} & \textbf{Feature} & \textbf{Source} \\
+\midrule
+1 & Elevation (m) & SRTM DEM \\
+2 & Slope (degrees) & DEM derivative \\
+3 & TWI & DEM derivative \\
+4 & HAND (m) & DEM derivative \\
+5 & Flow accumulation & DEM derivative \\
+6 & Population density (persons/km$^2$) & WorldPop 2020 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+NaN and sentinel values ($\leq -9000$) are replaced with zero.
+
+\subsection{Distance Features}
+
+\funcsig{compute\_distances\_to\_features()}{Nearest-neighbour distance to asset types}{pipeline/feature\_extract.py:L50}
+
+For each infrastructure point, the Euclidean distance to the nearest asset of five target types is computed using \texttt{scipy.spatial.cKDTree}:
+
+\begin{center}
+\begin{tabular}{cll}
+\toprule
+\textbf{Index} & \textbf{Feature} & \textbf{Target Type} \\
+\midrule
+7 & dist\_hospital & hospital \\
+8 & dist\_school & school \\
+9 & dist\_shelter & shelter \\
+10 & dist\_road & road \\
+11 & dist\_water & water body \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+If a target type has no instances in the dataset, the distance defaults to zero.
+
+\subsection{Feature Standardization}
+
+All 11 features are standardized using \texttt{sklearn.preprocessing.StandardScaler}:
+
+\begin{equation}
+x'_j = \frac{x_j - \mu_j}{\sigma_j}
+\end{equation}
+
+where $\mu_j$ and $\sigma_j$ are the mean and standard deviation of feature $j$ across all $N$ nodes. Any remaining NaN or $\pm\infty$ values are replaced with zero after scaling.
+
+\subsection{Label Assignment}
+
+Flood labels are assigned by sampling the ensemble flood label raster (\texttt{flood\_proxy\_labels.tif}) at each infrastructure location. A threshold of 0.5 binarizes the sampled values:
+
+\begin{equation}
+y_i = \mathbb{1}\!\left[\text{flood\_proxy}(x_i, y_i) \geq 0.5\right]
+\end{equation}
+
+\textbf{Output:} \texttt{node\_features.parquet} containing the feature matrix, coordinates, and labels for all $N$ infrastructure assets.
+
+
+% ════════════════════════════════════════════════════════════
+\section{Pipeline Stage 4: Spatial Graph Construction}
+% ════════════════════════════════════════════════════════════
+
+\pipestage{4}{Graph Construction --- k-NN Spatial Graph for GNN Input}
+
+\funcsig{build\_spatial\_graph()}{Construct k-NN graph with distance weights}{pipeline/graph\_build.py:L10}
+
+Infrastructure assets are connected into a spatial graph for the Graph Neural Network. The graph encodes spatial relationships between nearby assets.
+
+\subsection{k-Nearest Neighbours}
+
+For each of the $N$ nodes, the $k = 6$ nearest spatial neighbours are identified using \texttt{scipy.spatial.cKDTree} on projected UTM coordinates. Edges are filtered by a maximum distance threshold:
+
+\begin{equation}
+\mathcal{E} = \big\{(i, j) \mid j \in \text{kNN}_k(i) \wedge d(i, j) \leq 5000\,\text{m} \wedge i \neq j\big\}
+\end{equation}
+
+Self-loops are excluded.
+
+\subsection{Edge Weights}
+
+Each edge is assigned an inverse-distance weight:
+
+\begin{equation}
+w_{ij} = \frac{1}{\max(d_{ij},\ 10^{-6})}
+\end{equation}
+
+The $10^{-6}$ floor prevents division by zero for co-located assets. Closer assets receive higher weights, encoding the intuition that nearby infrastructure shares similar flood risk.
+
+\subsection{Train/Validation Split}
+
+Nodes are randomly split into training (80\%) and validation (20\%) sets using a fixed random seed (42) for reproducibility:
+
+\begin{equation}
+\text{train\_mask} = \text{perm}[0 : 0.8N], \quad \text{val\_mask} = \text{perm}[0.8N : N]
+\end{equation}
+
+\subsection{PyTorch Geometric Data Object}
+
+The graph is packaged as a \texttt{torch\_geometric.data.Data} object with fields:
+
+\begin{center}
+\begin{tabular}{llp{7cm}}
+\toprule
+\textbf{Field} & \textbf{Shape} & \textbf{Description} \\
+\midrule
+\texttt{x} & $(N, 11)$ & Node feature matrix \\
+\texttt{edge\_index} & $(2, |\mathcal{E}|)$ & Source-target index pairs \\
+\texttt{edge\_attr} & $(|\mathcal{E}|, 1)$ & Inverse-distance edge weights \\
+\texttt{y} & $(N,)$ & Binary flood labels \\
+\texttt{train\_mask} & $(N,)$ & Boolean training mask \\
+\texttt{val\_mask} & $(N,)$ & Boolean validation mask \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Saved via \funcref{save\_graph()}{pipeline/graph\_build.py:L55} as \texttt{spatial\_graph.pt}.
+
+
+% ════════════════════════════════════════════════════════════
+\section{Pipeline Stages 5--6: GNN Training \& Inference}
+% ════════════════════════════════════════════════════════════
+
+\pipestage{5--6}{GNN Training \& Inference --- FloodGNN (2-Layer GraphSAGE)}
+
+\subsection{Model Architecture}
+
+The \funcref{FloodGNN}{pipeline/gnn\_model.py:L15} class implements a 2-layer GraphSAGE architecture:
+
+\begin{equation}
+\mathbf{h}_i^{(0)} = \mathbf{x}_i \in \mathbb{R}^{11}
+\end{equation}
+
+\textbf{Layer 1:} SAGEConv aggregation followed by non-linearity:
+\begin{equation}
+\mathbf{h}_i^{(1)} = \text{Dropout}\Big(0.3,\ \text{ReLU}\big(\text{SAGEConv}(\mathbf{h}_i^{(0)},\ \{\mathbf{h}_j^{(0)} : j \in \mathcal{N}(i)\})\big)\Big) \in \mathbb{R}^{64}
+\end{equation}
+
+\textbf{Layer 2:} Second SAGEConv aggregation:
+\begin{equation}
+\mathbf{h}_i^{(2)} = \text{Dropout}\Big(0.3,\ \text{ReLU}\big(\text{SAGEConv}(\mathbf{h}_i^{(1)},\ \{\mathbf{h}_j^{(1)} : j \in \mathcal{N}(i)\})\big)\Big) \in \mathbb{R}^{64}
+\end{equation}
+
+\textbf{Classifier:} Linear projection to scalar logit:
+\begin{equation}
+z_i = \mathbf{w}^T \mathbf{h}_i^{(2)} + b \in \mathbb{R}, \qquad \hat{y}_i = \sigma(z_i) = \frac{1}{1 + e^{-z_i}} \in [0, 1]
+\end{equation}
+
+The SAGEConv operator (from PyTorch Geometric) computes:
+\begin{equation}
+\text{SAGEConv}(\mathbf{h}_i, \mathcal{N}(i)) = \mathbf{W}_1 \mathbf{h}_i + \mathbf{W}_2 \cdot \text{mean}_{j \in \mathcal{N}(i)} \mathbf{h}_j
+\end{equation}
+
+where $\mathbf{W}_1, \mathbf{W}_2$ are learnable weight matrices.
+
+\subsection{Training}
+
+\funcsig{train\_model()}{Train GNN with early stopping}{pipeline/gnn\_model.py:L55}
+
+\begin{longtable}{ll}
+\toprule
+\textbf{Hyperparameter} & \textbf{Value} \\
+\midrule
+Optimizer & Adam \\
+Learning rate & 0.001 \\
+Loss & BCEWithLogitsLoss \\
+Positive class weight & $w_{\text{pos}} = n_{\text{neg}} / n_{\text{pos}}$ \\
+Maximum epochs & 200 \\
+Early stopping patience & 20 (on validation AUC) \\
+Random seed & 42 \\
+\bottomrule
+\end{longtable}
+
+The positive class weight compensates for imbalanced flood labels (typically more non-flood than flood locations). Training is performed on nodes in the training mask; validation AUC-ROC (computed via \funcref{\_compute\_auc()}{pipeline/gnn\_model.py:L120}) monitors generalization. The best model (highest validation AUC) is saved.
+
+\subsection{Embedding \& Score Extraction}
+
+\funcsig{extract\_embeddings\_and\_scores()}{Get 64-D embeddings and risk scores}{pipeline/gnn\_model.py:L95}
+
+After training, the model is run in embedding mode:
+
+\begin{itemize}[nosep]
+  \item \textbf{Embeddings:} $\mathbf{h}^{(2)} \in \mathbb{R}^{N \times 64}$ --- the output of the second GraphSAGE layer (before the classifier). These encode spatial-contextual representations of each infrastructure asset.
+  \item \textbf{Risk Scores:} $\hat{y} = \sigma(z) \in [0, 1]^N$ --- per-asset flood risk probability.
+\end{itemize}
+
+Saved as \texttt{gnn\_model.pt} (weights), \texttt{node\_embeddings.npy}, and \texttt{gnn\_risk\_scores.npy}.
+
+
+% ════════════════════════════════════════════════════════════
+\section{Pipeline Stage 7: Kriging Interpolation}
+% ════════════════════════════════════════════════════════════
+
+\pipestage{7}{Kriging --- Spatial Interpolation of Flood Risk}
+
+While the GNN provides risk scores at infrastructure locations, risk between these points is unknown. Ordinary Kriging interpolates a continuous risk surface across the entire AOI.
+
+\subsection{Ordinary Kriging}
+
+\funcsig{fit\_and\_execute\_kriging()}{Fit variogram and interpolate}{pipeline/kriging.py:L15}
+
+\subsubsection{Subsampling}
+
+If the number of infrastructure points exceeds 3000, a random subsample is taken to avoid memory issues during variogram fitting. The subsample preserves the spatial distribution.
+
+\subsubsection{Variogram Fitting}
+
+The empirical semivariogram is computed and fitted with a spherical model:
+
+\begin{equation}
+\gamma(h) = \begin{cases}
+c_0 + c\left[\dfrac{3h}{2a} - \dfrac{h^3}{2a^3}\right] & \text{if } 0 < h \leq a \\[8pt]
+c_0 + c & \text{if } h > a \\[4pt]
+0 & \text{if } h = 0
+\end{cases}
+\end{equation}
+
+where:
+\begin{itemize}[nosep]
+  \item $c_0$ = nugget (micro-scale variance, measurement noise)
+  \item $c$ = partial sill (spatially structured variance)
+  \item $a$ = range (distance beyond which spatial correlation vanishes)
+  \item $\phi = c_0 + c$ = total sill (maximum semi-variance)
+\end{itemize}
+
+The variogram is estimated with 15 lag bins (\texttt{nlags=15}) using the \texttt{pykrige} library.
+
+\subsubsection{Grid Interpolation}
+
+A regular grid is created at $0.005^{\circ}$ resolution ($\approx$500\,m at 25$^{\circ}$N), bounded by the AOI extent. Maximum grid dimensions are capped at 200$\times$200 cells. At each grid cell, the kriging estimator predicts:
+
+\begin{equation}
+\hat{Z}(s_0) = \sum_{i=1}^{n} \lambda_i \cdot Z(s_i)
+\end{equation}
+
+where $\lambda_i$ are kriging weights determined by solving the kriging system (minimizing estimation variance under the unbiasedness constraint $\sum \lambda_i = 1$).
+
+The kriging variance at each prediction location is:
+\begin{equation}
+\sigma^2_K(s_0) = \sum_{i=1}^{n} \lambda_i \gamma(s_i - s_0) + \mu_L
+\end{equation}
+
+where $\mu_L$ is the Lagrange multiplier. This provides a built-in uncertainty measure.
+
+\subsection{Hybrid GNN--Kriging Fusion}
+
+\funcsig{hybrid\_fusion()}{Residual kriging for GNN-kriging fusion}{pipeline/kriging.py:L70}
+
+The hybrid fusion strategy ensures GNN predictions dominate at observed locations while kriging provides smooth spatial interpolation between them:
+
+\begin{enumerate}[nosep]
+  \item Sample the kriged surface at infrastructure node locations
+  \item Compute residuals: $r_i = \hat{y}_{\text{GNN}}(s_i) - \hat{Z}_{\text{OK}}(s_i)$
+  \item Fit a second variogram on the residuals
+  \item Krige the residuals onto the same grid
+  \item Combine: $\hat{Z}_{\text{final}} = \text{clip}\big(\hat{Z}_{\text{OK}} + \hat{Z}_{\text{residual}},\ 0,\ 1\big)$
+\end{enumerate}
+
+This two-stage kriging (kriging of the base surface + kriging of GNN residuals) is a form of \textit{regression kriging} that leverages the GNN's ability to capture non-linear spatial patterns while maintaining the spatial smoothness properties of kriging.
+
+\textbf{Outputs:}
+\begin{itemize}[nosep]
+  \item \texttt{flood\_risk\_kriged.tif} --- fused risk surface
+  \item \texttt{kriging\_variance.tif} --- interpolation uncertainty
+  \item \texttt{variogram\_params.json} --- fitted variogram parameters $\{c_0, c, a, \phi\}$
+\end{itemize}
+
+
+% ════════════════════════════════════════════════════════════
+\section{Pipeline Stages 8--9: Risk Scoring \& Aggregation}
+% ════════════════════════════════════════════════════════════
+
+\pipestage{8--9}{Risk Scoring --- Composite Risk, Hotspots, Admin Aggregation}
+
+\subsection{Risk Grid Construction}
+
+\funcsig{create\_risk\_grid()}{Build regular polygon grid}{pipeline/risk\_score.py:L15}
+
+A regular grid of square cells (500\,m resolution, configurable) is created across the AOI. If the total number of cells exceeds 150,000, the resolution is automatically coarsened to keep computation tractable. Each cell is a Shapely Polygon stored in a GeoDataFrame.
+
+\subsection{Hazard Component}
+
+The hazard value at each grid cell is obtained by sampling the fused kriged risk surface (\texttt{flood\_risk\_kriged.tif}) at cell centroids:
+
+\begin{equation}
+H(c) = \hat{Z}_{\text{fused}}(\text{centroid}(c)), \quad H \in [0, 1]
+\end{equation}
+
+\subsection{Exposure Component}
+
+\funcsig{compute\_exposure\_grid()}{Asset-density weighted exposure}{pipeline/risk\_score.py:L45}
+
+For each grid cell, the number and type of infrastructure assets falling within the cell are counted. Asset types receive differential weights reflecting their importance:
+
+\begin{equation}
+E(c) = \frac{\sum_{a \in \text{assets}(c)} w_{\text{type}(a)}}{\max_c\!\left(\sum_{a} w_{\text{type}(a)}\right)}
+\end{equation}
+
+\begin{longtable}{lr}
+\toprule
+\textbf{Asset Category} & \textbf{Weight} \\
+\midrule
+Building count & 0.25 \\
+Hospital / School & 0.20 \\
+Road length & 0.15 \\
+Bridge & 0.15 \\
+Cropland & 0.15 \\
+Embankment / Shelter & 0.10 \\
+\midrule
+\textbf{Total} & \textbf{1.00} \\
+\bottomrule
+\end{longtable}
+
+\subsection{Vulnerability Component}
+
+\funcsig{compute\_vulnerability\_grid()}{Multi-factor vulnerability index}{pipeline/risk\_score.py:L75}
+
+Vulnerability is a weighted combination of six socioeconomic indicators, computed per grid cell:
+
+\begin{equation}
+V(c) = \sum_{f=1}^{6} w_f \cdot x_f(c)
+\end{equation}
+
+\begin{longtable}{lrl}
+\toprule
+\textbf{Factor} & \textbf{Weight} & \textbf{Interpretation} \\
+\midrule
+Population density & 0.30 & Higher density $\to$ more exposed people \\
+Distance to hospital & 0.20 & Farther $\to$ less access to emergency care \\
+Distance to flood shelter & 0.15 & Farther $\to$ less evacuation capacity \\
+Night light proxy & 0.15 & Lower $\to$ less economic development \\
+Elderly/child ratio & 0.10 & Higher $\to$ more vulnerable demographics \\
+Distance to primary road & 0.10 & Farther $\to$ less evacuation route access \\
+\midrule
+\textbf{Total} & \textbf{1.00} & \\
+\bottomrule
+\end{longtable}
+
+Distance features are normalized via \funcref{\_normalize\_dist()}{pipeline/risk\_score.py:L110}:
+\begin{equation}
+d'_f = \frac{d_f - d_{f,\min}}{d_{f,\max} - d_{f,\min}}
+\end{equation}
+
+Larger distances indicate higher vulnerability (further from services).
+
+\subsection{Composite Risk}
+
+\funcsig{compute\_composite\_risk()}{H $\times$ E $\times$ V multiplicative risk}{pipeline/risk\_score.py:L100}
+
+The composite risk score combines all three components multiplicatively:
+
+\begin{equation}
+R(c) = H(c) \times E(c) \times V(c)
+\end{equation}
+
+\begin{equation}
+R_{\text{norm}}(c) = \frac{R(c)}{\max_c R(c)} \in [0, 1]
+\end{equation}
+
+The multiplicative formulation ensures that a location must have \textit{all three} --- hazard, exposure, and vulnerability --- to receive a high risk score. A location with high hazard but no assets (zero exposure) receives zero risk.
+
+\subsection{Hotspot Detection}
+
+\funcsig{detect\_hotspots()}{Getis-Ord $G_i^*$ spatial clustering}{pipeline/risk\_score.py:L120}
+
+Spatial clustering of high-risk areas is detected using the local Getis-Ord $G_i^*$ statistic:
+
+\begin{equation}
+G_i^* = \frac{\sum_{j=1}^{n} w_{ij} x_j - \bar{X} \sum_{j=1}^{n} w_{ij}}{S \sqrt{\frac{n \sum_{j=1}^{n} w_{ij}^2 - \left(\sum_{j=1}^{n} w_{ij}\right)^2}{n-1}}}
+\end{equation}
+
+where:
+\begin{itemize}[nosep]
+  \item $w_{ij}$ = spatial weight from KNN($k=8$), row-standardized (via \texttt{libpysal.weights.KNN})
+  \item $x_j$ = composite risk at cell $j$
+  \item $\bar{X}$ = mean risk across all cells
+  \item $S$ = standard deviation of risk values
+\end{itemize}
+
+A grid cell is flagged as a hotspot if:
+\begin{equation}
+G_i^* > 1.96 \quad \wedge \quad p < 0.05 \qquad \text{(95\% confidence)}
+\end{equation}
+
+Implemented using \texttt{esda.getisord.G\_Local}.
+
+\subsection{Administrative Aggregation}
+
+\funcsig{aggregate\_to\_admin()}{Roll up grid risk to admin boundaries}{pipeline/risk\_score.py:L145}
+
+Grid-level risk is aggregated to administrative boundaries (Union and Upazila levels) via spatial join:
+
+\begin{itemize}[nosep]
+  \item \textbf{mean\_risk}: Average composite risk across all grid cells intersecting the admin unit
+  \item \textbf{max\_risk}: Maximum risk in any cell
+  \item \textbf{asset\_count}: Total infrastructure assets within the unit
+  \item \textbf{high\_risk\_count}: Assets with risk $> 0.7$
+  \item \textbf{risk\_rank}: Ordinal rank by descending mean risk
+\end{itemize}
+
+\subsection{Asset Ranking}
+
+\funcsig{rank\_assets()}{Classify and rank infrastructure by risk}{pipeline/risk\_score.py:L170}
+
+Individual infrastructure assets are ranked by their GNN risk score:
+
+\begin{equation}
+\text{is\_high\_risk}(i) = \mathbb{1}\!\left[\hat{y}_i > 0.7\right]
+\end{equation}
+
+Assets are sorted in descending order of \texttt{flood\_risk}. The top-50 highest-risk assets are exported separately for rapid action prioritization.
+
+
+% ════════════════════════════════════════════════════════════
+\section{Export \& Reporting}
+% ════════════════════════════════════════════════════════════
+
+\pipestage{--}{Export --- Multi-Format Output Generation}
+
+\funcref{export.py}{pipeline/export.py} provides functions to export pipeline results in multiple formats:
+
+\subsection{Output Files}
+
+\begin{longtable}{p{5.5cm}lp{5cm}}
+\toprule
+\textbf{File} & \textbf{Format} & \textbf{Contents} \\
+\midrule
+\texttt{risk\_ranked\_assets.csv} & CSV & Ranked infrastructure with risk scores \\
+\texttt{risk\_ranked\_assets.geojson} & GeoJSON & Same, with geometry for mapping \\
+\texttt{top50\_risk\_assets.geojson} & GeoJSON & Top 50 highest-risk assets \\
+\texttt{risk\_grid.geojson} & GeoJSON & Grid cells with composite risk \\
+\texttt{hotspot\_clusters.geojson} & GeoJSON & Getis-Ord hotspot cells \\
+\texttt{union\_risk\_summary.geojson} & GeoJSON & Union-level aggregation \\
+\texttt{union\_risk\_summary.csv} & CSV & Same, tabular \\
+\texttt{upazila\_risk\_summary.geojson} & GeoJSON & Upazila-level aggregation \\
+\texttt{situation\_report.pdf} & PDF & Briefing document (fpdf2) \\
+\texttt{flood\_risk\_kriged.tif} & GeoTIFF & Kriged risk surface \\
+\texttt{kriging\_variance.tif} & GeoTIFF & Kriging uncertainty \\
+\texttt{variogram\_params.json} & JSON & Variogram parameters \\
+\texttt{pipeline\_metadata.json} & JSON & Confidence metrics \\
+\bottomrule
+\end{longtable}
+
+\subsection{PDF Situation Report}
+
+\funcsig{generate\_pdf\_report()}{Auto-generated situational briefing}{pipeline/export.py:L80}
+
+The \texttt{fpdf2} library generates a PDF containing:
+\begin{enumerate}[nosep]
+  \item \textbf{Summary:} Total asset count, high-risk count, number of unions analysed
+  \item \textbf{Top-10 Unions:} Ranked by mean risk with asset counts
+  \item \textbf{Top-20 Assets:} Individual infrastructure ranked by flood risk
+\end{enumerate}
+
+Non-Latin characters (Bengali text from OSM) are transliterated to ASCII via \funcref{\_safe\_text()}{pipeline/export.py:L105}.
+
+
+% ════════════════════════════════════════════════════════════
+\section{Confidence \& Uncertainty Quantification}
+% ════════════════════════════════════════════════════════════
+
+\pipestage{--}{Metadata --- MC-Dropout, Kriging Variance, Data Density}
+
+Uncertainty quantification is critical for decision-makers. The pipeline produces four complementary confidence metrics, managed by \funcref{compute\_confidence\_metadata()}{pipeline/metadata.py:L50}.
+
+\subsection{MC-Dropout Inference}
+
+\funcsig{mc\_dropout\_inference()}{Monte Carlo dropout for epistemic uncertainty}{pipeline/metadata.py:L10}
+
+The trained GNN is run $T = 30$ times with dropout \textit{enabled} (model in training mode). Each pass produces slightly different predictions due to randomly dropped neurons:
+
+\begin{equation}
+\hat{y}_i^{(t)} = \sigma\!\left(\text{FloodGNN}_{\text{dropout}}(\mathbf{x}_i)\right), \quad t = 1, \ldots, 30
+\end{equation}
+
+Per-node statistics:
+\begin{align}
+\mu_i &= \frac{1}{T} \sum_{t=1}^{T} \hat{y}_i^{(t)} \qquad \text{(mean prediction)} \\
+\sigma_i &= \sqrt{\frac{1}{T-1} \sum_{t=1}^{T} \left(\hat{y}_i^{(t)} - \mu_i\right)^2} \qquad \text{(epistemic uncertainty)} \\
+\text{CI}_{90,i} &= 2 \times 1.645 \times \sigma_i \qquad \text{(90\% confidence interval width)}
+\end{align}
+
+A wider CI indicates greater model uncertainty at that location --- typically in regions with sparse training data or ambiguous features.
+
+\subsection{Kriging Variance}
+
+The Ordinary Kriging procedure inherently produces a variance surface $\sigma^2_K(s)$:
+
+\begin{equation}
+\overline{\sigma^2_K} = \frac{1}{|\mathcal{G}|} \sum_{s \in \mathcal{G}} \sigma^2_K(s)
+\end{equation}
+
+Lower kriging variance indicates that nearby observed points provide strong spatial constraints; higher variance occurs in data-sparse areas. If the kriging variance raster is unavailable, the fallback is the variance of GNN risk scores.
+
+\subsection{Ensemble Interquartile Range}
+
+The spread of GNN risk scores across the infrastructure network:
+
+\begin{equation}
+\text{IQR} = Q_{75}(\hat{y}) - Q_{25}(\hat{y})
+\end{equation}
+
+A narrow IQR suggests the model produces similar risk scores everywhere (potentially underfit); a wide IQR indicates good discrimination.
+
+\subsection{Data Density}
+
+The percentage of grid cells containing at least one infrastructure node:
+
+\begin{equation}
+\text{density} = \frac{|\{c \in \mathcal{G} : |\text{assets}(c)| \geq 1\}|}{|\mathcal{G}|} \times 100\%
+\end{equation}
+
+Higher density means the ML model has more training evidence; lower density implies heavier reliance on kriging interpolation.
+
+\subsection{Confidence Tiers}
+
+The dashboard displays confidence as tiered badges:
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+\textbf{Metric} & \textbf{HIGH} & \textbf{MEDIUM} & \textbf{LOW} \\
+\midrule
+Kriging variance & $< 0.05$ & $0.05$--$0.15$ & $> 0.15$ \\
+GNN 90\% CI width & $< 0.10$ & $0.10$--$0.20$ & $> 0.20$ \\
+Ensemble IQR & $< 0.08$ & $0.08$--$0.15$ & $> 0.15$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+% ════════════════════════════════════════════════════════════
+\section{Landslide Susceptibility Pipeline}
+% ════════════════════════════════════════════════════════════
+
+\pipestage{LS}{Landslide --- Slope-Based Susceptibility for CHT}
+
+The landslide pipeline is a separate, self-contained module targeting the Chittagong Hill Tracts. Orchestrated by \funcref{run\_landslide\_pipeline()}{pipeline/landslide.py:L160}.
+
+\subsection{CHT DEM Acquisition}
+
+\funcsig{download\_cht\_dem()}{Download SRTM for CHT region}{pipeline/landslide.py:L10}
+
+Downloads SRTM tiles for the CHT bounding box $[91.5^{\circ}\text{E},\ 21.5^{\circ}\text{N},\ 92.7^{\circ}\text{E},\ 23.5^{\circ}\text{N}]$. The helper \funcref{\_download\_srtm\_tiles()}{pipeline/landslide.py:L40} handles raw \texttt{.hgt.gz} decompression and GeoTIFF conversion.
+
+\subsection{Slope Computation}
+
+\funcsig{compute\_slope()}{Slope angle from DEM}{pipeline/landslide.py:L70}
+
+Same method as the flood pipeline:
+\begin{equation}
+\theta = \arctan\!\left(\sqrt{\left(\frac{\partial z}{\partial x}\right)^2 + \left(\frac{\partial z}{\partial y}\right)^2}\right) \times \frac{180}{\pi}
+\end{equation}
+
+\subsection{Susceptibility Transform}
+
+\funcsig{compute\_slope\_susceptibility()}{Logistic transform on slope angle}{pipeline/landslide.py:L90}
+
+A logistic function maps slope angle to landslide susceptibility:
+
+\begin{equation}
+S(\theta) = \frac{1}{1 + e^{-(\theta - 20) / 5}}
+\end{equation}
+
+\begin{itemize}[nosep]
+  \item $\theta = 20^{\circ}$ is the inflection point ($S = 0.5$)
+  \item $\theta > 30^{\circ}$: $S > 0.88$ (high susceptibility)
+  \item $\theta < 10^{\circ}$: $S < 0.12$ (low susceptibility)
+  \item The steepness parameter (5) controls how rapidly susceptibility transitions
+\end{itemize}
+
+The logistic form is motivated by empirical observations that landslide frequency increases sharply above $\sim$20$^{\circ}$ slope, following a sigmoidal pattern. Values are clipped to $[0, 1]$.
+
+\subsection{Conditioning Factors}
+
+The pipeline is informed by 11 AHP-weighted conditioning factors derived from peer-reviewed literature (Ahmed et al.\ 2024, Rabby 2022, and 4 additional studies):
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Factor} & \textbf{Type} \\
+\midrule
+Slope angle & Topographic \\
+Aspect & Topographic \\
+Curvature & Topographic \\
+DEM elevation & Topographic \\
+TWI & Hydrological \\
+Geology & Lithological \\
+Distance to road & Anthropogenic \\
+Distance to fault & Geological \\
+NDVI & Vegetation \\
+Rainfall intensity & Climatic \\
+Land cover / LULC & Land use \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Rainfall trigger threshold:} 71--282\,mm over 5 days (antecedent precipitation).
+
+\subsection{Upazila Aggregation \& CVI Classification}
+
+\funcsig{aggregate\_to\_upazila()}{Zonal stats per 12 CHT upazilas}{pipeline/landslide.py:L110}
+
+Mean susceptibility is computed per upazila using zonal statistics, then classified into Community Vulnerability Index (CVI) classes:
+
+\begin{equation}
+\text{CVI}(u) = f\!\left(\bar{S}_u\right)
+\end{equation}
+
+\begin{center}
+\begin{tabular}{cll}
+\toprule
+\textbf{Class} & \textbf{Range} & \textbf{Label} \\
+\midrule
+1 & $\bar{S} < 0.2$ & Very Low \\
+2 & $0.2 \leq \bar{S} < 0.4$ & Low \\
+3 & $0.4 \leq \bar{S} < 0.6$ & Moderate \\
+4 & $0.6 \leq \bar{S} < 0.8$ & High \\
+5 & $\bar{S} \geq 0.8$ & Very High \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The 12 CHT upazilas covered: Rangamati, Khagrachari, Bandarban, Lama, Ruma, Thanchi, Rowangchhari, Rajasthali, Langadu, Baghaichhari, Dighinala, Mahalchhari.
+
+\textbf{Outputs:} \texttt{landslide\_susceptibility.tif} (raster), \texttt{landslide\_upazila.json} (per-upazila stats and CVI classes).
+
+
+% ════════════════════════════════════════════════════════════
+\section{AlphaEarth Satellite Embeddings}
+% ════════════════════════════════════════════════════════════
+
+\pipestage{AE}{AlphaEarth --- Google Satellite Embedding Clustering}
+
+\funcref{run\_alphaearth\_pipeline()}{pipeline/alphaearth.py:L120} provides an additional layer of analysis using Google's AlphaEarth satellite embeddings.
+
+\subsection{Embedding Download}
+
+\funcsig{download\_embeddings()}{Fetch GEE satellite embeddings}{pipeline/alphaearth.py:L25}
+
+Accesses the Google Earth Engine collection \texttt{GOOGLE/SATELLITE\_EMBEDDING/V1/ANNUAL} for the configured year (2024). Each 256\,m tile produces a 64-dimensional embedding vector capturing spectral, textural, and contextual features learned by Google's foundation model. Authentication is via \funcref{check\_ee\_auth()}{pipeline/alphaearth.py:L10}.
+
+\subsection{Clustering}
+
+\funcsig{cluster\_embeddings()}{UMAP + KMeans clustering}{pipeline/alphaearth.py:L70}
+
+\begin{enumerate}[nosep]
+  \item \textbf{Dimensionality Reduction:} UMAP ($64 \to 2$ dimensions) for visualization
+  \item \textbf{Clustering:} KMeans with $k = 8$ clusters on the full 64-D embeddings
+  \item \textbf{Interpretation:} Clusters approximate land cover / land use categories without supervised labels
+\end{enumerate}
+
+\subsection{Output}
+
+\funcsig{export\_clusters\_geojson()}{Export cluster assignments}{pipeline/alphaearth.py:L95}
+
+GeoJSON point features with cluster labels, UMAP coordinates, and colour coding. The dashboard displays these as an optional ``AlphaEarth Clusters'' layer.
+
+
+% ════════════════════════════════════════════════════════════
+\section{Command-Line Interface}
+% ════════════════════════════════════════════════════════════
+
+\pipestage{CLI}{Pipeline Execution via Click CLI}
+
+The pipeline is exposed as a Click command-line interface in \fileref{pipeline/cli.py}:
+
+\begin{lstlisting}
+# Run full pipeline (all stages)
+python -m pipeline.cli run [--config config.yaml]
+
+# Individual stages
+python -m pipeline.cli download      # Stage 0
+python -m pipeline.cli ingest        # Stage 1
+python -m pipeline.cli preprocess    # Stage 2
+python -m pipeline.cli features      # Stage 3
+python -m pipeline.cli graph         # Stage 4
+python -m pipeline.cli train         # Stages 5-6
+python -m pipeline.cli krige         # Stage 7
+python -m pipeline.cli risk          # Stages 8-9
+python -m pipeline.cli metadata      # Confidence metrics
+python -m pipeline.cli landslide     # Landslide pipeline
+python -m pipeline.cli alphaearth    # AlphaEarth pipeline
+\end{lstlisting}
+
+Each command reads configuration from \texttt{config.yaml} (or a custom path via \texttt{--config}), creates output directories as needed, and logs progress. The \texttt{run} command executes all stages sequentially, skipping already-completed stages if outputs exist.
+
+
+% ════════════════════════════════════════════════════════════
+\section{Dashboard: Fermium Hazard Mapper}
+% ════════════════════════════════════════════════════════════
+
+\pipestage{UI}{Interactive Dashboard --- Streamlit + Folium + Leaflet.js}
+
+The dashboard (\fileref{dashboard/app.py}) presents pipeline results as an interactive web application accessible at \texttt{http://localhost:2020} (or \texttt{fermium.systems/hazmapper} in production).
+
+\subsection{Application Configuration}
+
+The main Streamlit app configures:
+\begin{itemize}[nosep]
+  \item \textbf{Page layout:} Wide mode (full browser width)
+  \item \textbf{Theme:} Dark (default) with light toggle
+  \item \textbf{CSS:} Custom glassmorphism styling with Inter/DM Sans fonts
+  \item \textbf{Accessibility:} WCAG AA colour contrast compliance
+\end{itemize}
+
+Theme colours:
+\begin{center}
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Element} & \textbf{Dark} & \textbf{Light} \\
+\midrule
+Primary background & \texttt{\#0a0e14} & \texttt{\#f8fafc} \\
+Secondary background & \texttt{\#0d1822} & \texttt{\#ffffff} \\
+Accent & \texttt{\#00d4ff} & \texttt{\#0ea5e9} \\
+Text & \texttt{\#f0f6ff} & \texttt{\#1e293b} \\
+Border & \texttt{\#1e3a52} & \texttt{\#cbd5e1} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Data Loading}
+
+\fileref{dashboard/data/loader.py} provides cached data loading functions:
+
+\begin{itemize}[nosep]
+  \item \textbf{GeoParquet preference:} Loads \texttt{.parquet} files (5--10$\times$ faster) with GeoJSON fallback
+  \item \textbf{TTL caching:} 600-second time-to-live using \texttt{@st.cache\_data}
+  \item \textbf{Mock fallback:} If pipeline outputs are missing, generates realistic synthetic data for dashboard demonstration
+  \item \textbf{Raster loading:} Kriged surfaces loaded as in-memory NumPy arrays; pre-rendered PNG overlays for map display
+\end{itemize}
+
+\subsection{Sidebar}
+
+\funcsig{render\_sidebar()}{Filter controls, confidence panel, layer toggles}{dashboard/components/sidebar.py:L10}
+
+The sidebar contains five sections:
+
+\subsubsection{Pipeline Status}
+
+Live-updating indicator showing:
+\begin{itemize}[nosep]
+  \item Pipeline sync status (active/stale)
+  \item Last Sentinel-1 pass time and next scheduled pass
+  \item BWDB gauge status (e.g., ``43 / 45 live'')
+\end{itemize}
+
+\subsubsection{Mapping Confidence}
+
+Displays four confidence metrics (kriging variance, GNN CI, ensemble IQR, data density) with colour-coded tier badges (HIGH/MEDIUM/LOW) using thresholds from Section~10.5.
+
+\subsubsection{Map Layer Toggles}
+
+17 toggleable map layers organized in three groups:
+
+\begin{center}
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{OSM Infrastructure} & \textbf{Physiographic} & \textbf{Socioeconomic} \\
+\midrule
+Roads \& Highways & DEM Elevation & Population Density \\
+Bridges & Slope & CVI Choropleth \\
+Schools & HAND Index & AlphaEarth Clusters \\
+Hospitals & Land Cover (LULC) & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{Forecast Controls}
+
+\begin{itemize}[nosep]
+  \item \textbf{Forecast horizon:} 1--5 day slider (default: 3 days)
+  \item \textbf{Climate scenario:} Current (2025), SSP2-4.5 (+0.5m SLR), SSP5-8.5 (+1.2m SLR)
+\end{itemize}
+
+\subsubsection{Data Filters}
+
+Interactive filters for the infrastructure dataset:
+\begin{itemize}[nosep]
+  \item \textbf{Asset type:} Multi-select from available types
+  \item \textbf{Risk range:} Dual slider [0.0, 1.0]
+  \item \textbf{Division:} Multi-select (Rangpur, Rajshahi)
+  \item \textbf{Count display:} ``Showing X / Y'' with per-division breakdown
+\end{itemize}
+
+\funcsig{render\_analytics\_overlay()}{Floating charts next to map}{dashboard/components/sidebar.py:L238}
+
+Renders two Plotly charts:
+\begin{itemize}[nosep]
+  \item Horizontal bar chart: asset counts by type
+  \item Donut chart: asset distribution by division
+\end{itemize}
+
+\subsection{Tab 1: Pipeline Data}
+
+Displays real pipeline outputs for the flood analysis:
+
+\subsubsection{Risk Cards}
+
+\funcsig{render\_risk\_cards()}{KPI metric strip}{dashboard/components/risk\_cards.py:L10}
+
+Four key performance indicators displayed as styled metric cards:
+\begin{itemize}[nosep]
+  \item Total infrastructure assets
+  \item High-risk assets (count and percentage)
+  \item Mean flood risk score
+  \item Data density percentage
+\end{itemize}
+
+\subsubsection{Interactive Map}
+
+\funcsig{render\_map()}{Folium map with asset overlays}{dashboard/components/map\_view.py:L15}
+
+A Folium interactive map with:
+\begin{itemize}[nosep]
+  \item \textbf{Base tiles:} CartoDB dark\_matter (dark mode) or CartoDB positron (light mode)
+  \item \textbf{Asset markers:} Colour-coded by risk level (green/yellow/orange/red)
+  \item \textbf{Heatmap layer:} \texttt{leaflet.heat} for risk density visualization
+  \item \textbf{Hotspot overlay:} Getis-Ord cluster polygons with significance shading
+  \item \textbf{Raster layers:} DEM, slope, HAND, flood risk as PNG overlays
+  \item \textbf{Cluster icons:} Custom donut-style marker clusters showing risk composition
+  \item \textbf{Popups:} Asset details including kriging CI, risk score, nearest services
+\end{itemize}
+
+A JavaScript guard ensures safe initialization:
+\begin{itemize}[nosep]
+  \item LayerControl patch: \texttt{let} $\to$ \texttt{var} for browser compatibility
+  \item Map container existence check before initialization
+  \item HeatLayer fallback if plugin not loaded
+\end{itemize}
+
+\subsubsection{Cofactors Panel}
+
+\funcsig{render\_flood\_cofactors()}{AHP flood factor display}{dashboard/components/cofactors.py:L10}
+
+Expandable display of 6 AHP-weighted flood factors:
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+\textbf{Factor} & \textbf{AHP Weight} \\
+\midrule
+DEM / Elevation & 25\% \\
+Distance to river/water & 20\% \\
+HAND Index & 18\% \\
+SAR flood extent & 15\% \\
+Rainfall intensity & 12\% \\
+Land use / Land cover & 10\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Tab 2: Flood Risk (Regional)}
+
+Region-specific flood analysis with three selectable zones:
+
+\begin{itemize}[nosep]
+  \item \textbf{NW Rangpur:} Teesta--Brahmaputra fluvial flooding (risk score: 0.72)
+  \item \textbf{NE Sylhet:} Surma--Kushiyara flash flooding (risk score: 0.85)
+  \item \textbf{SW Coastal:} Sundarban--Bagerhat tidal/cyclonic (risk score: 0.64)
+\end{itemize}
+
+Each region view includes:
+\begin{itemize}[nosep]
+  \item Alert banner with colour-coded severity
+  \item KPI metrics row
+  \item Regional map with asset overlays (\funcref{render\_region\_map()}{dashboard/components/map\_view.py:L120})
+  \item Infrastructure summary table
+  \item Vulnerability chart
+  \item Agricultural risk panel
+\end{itemize}
+
+\subsection{Tab 3: Landslide Risk}
+
+CHT-focused landslide susceptibility display:
+
+\begin{itemize}[nosep]
+  \item CHT slope-based hazard map
+  \item 12 upazila risk summary table
+  \item 11 AHP conditioning factors display (\funcref{render\_landslide\_cofactors()}{dashboard/components/cofactors.py:L60})
+  \item Rainfall trigger monitoring panel
+  \item Literature references panel (6 peer-reviewed papers)
+\end{itemize}
+
+\subsection{Tab 4: Temporal Analysis}
+
+\funcsig{render\_temporal\_map()}{Pure client-side JS animated map}{dashboard/components/temporal\_map.py:L15}
+
+A fully client-side animated temporal risk map covering 24 months (January 2024 -- December 2025). The implementation uses \texttt{streamlit.components.html()} to embed a self-contained HTML/JavaScript player with zero server round-trips.
+
+\subsubsection{Architecture}
+
+All frame data is pre-computed server-side and serialized as JSON:
+\begin{itemize}[nosep]
+  \item Asset positions, types, and risk scores per month
+  \item Monthly risk multipliers (seasonal patterns)
+  \item Time labels for the slider
+\end{itemize}
+
+The client-side player includes:
+\begin{itemize}[nosep]
+  \item \textbf{Leaflet map:} CartoDB dark tiles with CircleMarker assets and HeatLayer
+  \item \textbf{Controls:} Play/Pause toggle, Reset button, Speed selector (0.5$\times$ to 3$\times$)
+  \item \textbf{Slider:} Range input showing current month
+  \item \textbf{Animation:} \texttt{setTimeout} loop updating markers and heatmap per frame
+\end{itemize}
+
+\funcsig{render\_temporal\_chart()}{Monthly risk trend chart}{dashboard/components/temporal\_map.py:L180}
+
+Plotly line chart comparing 2024 vs 2025 monthly risk patterns using BMD, BWDB, and ReliefWeb data.
+
+\subsection{Tab 5: ACTION (Emergency Response)}
+
+Operational response tab with:
+
+\subsubsection{Emergency Shelters}
+
+Five shelter locations with capacity, current occupancy, status (ACTIVE/AT CAPACITY), and CVI vulnerability class:
+
+\begin{center}
+\small
+\begin{tabular}{llrl}
+\toprule
+\textbf{Shelter} & \textbf{Location} & \textbf{Capacity} & \textbf{Status} \\
+\midrule
+Kurigram Central & Kurigram & 500 & ACTIVE \\
+Gaibandha Flood Centre & Gaibandha & 350 & AT CAPACITY \\
+Lalmonirhat School & Lalmonirhat & 200 & ACTIVE \\
+Nilphamari Community & Nilphamari & 150 & ACTIVE \\
+Rangpur City Shelter & Rangpur & 400 & ACTIVE \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{Mobile Financing Programs}
+
+Five mobile-money and institutional financing channels:
+
+\begin{center}
+\small
+\begin{tabular}{lrll}
+\toprule
+\textbf{Program} & \textbf{Amount (BDT)} & \textbf{Target} & \textbf{Status} \\
+\midrule
+bKash Emergency Fund & 5,000 & Flood victims & ACTIVE \\
+Nagad Relief Transfer & 3,000 & Displaced families & ACTIVE \\
+PKSF Micro-Credit & 25,000 & Farmers & PENDING \\
+WFP Cash Voucher & 4,500 & Food-insecure HH & ACTIVE \\
+GoB Social Safety Net & 10,000 & Vulnerable elderly & ACTIVE \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{Export Options}
+
+Download buttons for CSV, GeoJSON, and PDF formats.
+
+\subsection{Detail Panel}
+
+\funcsig{render\_detail\_panel()}{Asset inspector side drawer}{dashboard/components/detail\_panel.py:L30}
+
+Clicking an infrastructure asset opens a side drawer panel showing:
+\begin{itemize}[nosep]
+  \item Asset name, type, and priority tier
+  \item Flood risk score with kriging confidence interval
+  \item Distance to nearest hospital, school, shelter, road
+  \item Risk tier classification (Very Low to Very High)
+  \item Division and union membership
+\end{itemize}
+
+Custom CSS is injected via \funcref{inject\_panel\_css()}{dashboard/components/detail\_panel.py:L10}.
+
+\subsection{Risk Panels}
+
+\fileref{dashboard/components/risk\_panels.py} provides reusable panel components:
+
+\begin{itemize}[nosep]
+  \item \funcref{render\_alert\_banner()}{dashboard/components/risk\_panels.py} --- Colour-coded alert strip (RED/ORANGE/YELLOW/GREEN) with severity message
+  \item \funcref{render\_metric\_row()}{dashboard/components/risk\_panels.py} --- Horizontal row of styled KPI cards
+  \item \funcref{render\_infrastructure\_table()}{dashboard/components/risk\_panels.py} --- Sortable table of infrastructure assets with risk scores
+  \item \funcref{render\_vulnerability\_chart()}{dashboard/components/risk\_panels.py} --- Plotly bar chart of CVI class distribution
+  \item \funcref{render\_agri\_risk\_panel()}{dashboard/components/risk\_panels.py} --- Agricultural crop loss risk display
+\end{itemize}
+
+
+% ════════════════════════════════════════════════════════════
+\section{Data Constants \& Region Definitions}
+% ════════════════════════════════════════════════════════════
+
+\fileref{dashboard/data/constants.py} defines all static data used by the dashboard.
+
+\subsection{Pipeline Stages}
+
+The \texttt{PIPELINE\_STAGES} dictionary documents 7 conceptual stages with detailed item lists (100+ components). This drives the ``Methodology'' tab display.
+
+\subsection{Vulnerability Class Framework}
+
+Five-class CVI framework with detailed descriptors:
+
+\begin{longtable}{clp{3cm}p{3cm}p{3cm}}
+\toprule
+\textbf{Class} & \textbf{Range} & \textbf{Housing} & \textbf{Agriculture} & \textbf{Infrastructure} \\
+\midrule
+1 (Very Low) & 0.00--0.20 & Concrete/brick & Diversified crops & Well-connected \\
+2 (Low) & 0.21--0.40 & Semi-pucca & Mixed agriculture & Moderate access \\
+3 (Moderate) & 0.41--0.60 & Tin/CI sheet & Rice-dependent & Limited services \\
+4 (High) & 0.61--0.80 & Bamboo/mud & Subsistence & Poor connectivity \\
+5 (Very High) & 0.81--1.00 & Temporary/char & Rain-fed only & Isolated \\
+\bottomrule
+\end{longtable}
+
+\subsection{Data Sources Per Region}
+
+Each of the three flood regions has 8 associated data sources with type, resolution, and coverage metadata. These are displayed in the regional flood risk tab.
+
+
+% ════════════════════════════════════════════════════════════
+\section{Key Thresholds \& Parameters Summary}
+% ════════════════════════════════════════════════════════════
+
+\begin{longtable}{p{4.5cm}p{3cm}p{7cm}}
+\toprule
+\textbf{Parameter} & \textbf{Value} & \textbf{Context} \\
+\midrule
+TWI flood threshold & $> 8.0$ & Ensemble flood label (DEM proxy) \\
+HAND flood threshold & $< 5.0$\,m & Ensemble flood label (drainage) \\
+JRC occurrence & $> 25\%$ & Ensemble flood label (water body) \\
+GloFAS discharge & $> P_{50}$ & Ensemble flood label (discharge) \\
+Ensemble voting & $\geq 2/n$ sources & Binary flood label construction \\
+\midrule
+k-NN neighbours & 6 & Spatial graph connectivity \\
+Max edge distance & 5000\,m & Spatial graph edge filter \\
+Train/val split & 80/20 & GNN training \\
+\midrule
+GNN hidden dim & 64 & GraphSAGE layer width \\
+GNN dropout & 0.3 & Regularization \\
+GNN learning rate & 0.001 & Adam optimizer \\
+GNN epochs & 200 & Maximum training iterations \\
+GNN patience & 20 & Early stopping trigger \\
+\midrule
+Kriging nlags & 15 & Variogram estimation bins \\
+Kriging grid & $0.005^{\circ}$ & $\approx$500\,m at 25$^{\circ}$N \\
+Max grid dims & $200 \times 200$ & OOM prevention \\
+Max krige points & 3000 & Subsample limit \\
+\midrule
+Risk threshold & $> 0.7$ & High-risk classification \\
+Hotspot confidence & 95\% & Getis-Ord $G_i^*$ ($z > 1.96$) \\
+KNN weights (hotspot) & $k = 8$ & Spatial autocorrelation \\
+Grid max cells & 150,000 & Auto-coarsen trigger \\
+\midrule
+MC-Dropout passes & 30 & Uncertainty estimation \\
+CI level & 90\% & $2 \times 1.645 \times \sigma$ \\
+\midrule
+Slope inflection & 20$^{\circ}$ & Landslide susceptibility midpoint \\
+Rainfall trigger & 71--282\,mm & 5-day antecedent (CHT) \\
+AlphaEarth clusters & 8 & KMeans on 64-D embeddings \\
+\bottomrule
+\end{longtable}
+
+
+% ════════════════════════════════════════════════════════════
+\section{Technology Stack}
+% ════════════════════════════════════════════════════════════
+
+\begin{longtable}{lp{10cm}}
+\toprule
+\textbf{Category} & \textbf{Libraries \& Tools} \\
+\midrule
+\textbf{ML / Deep Learning} & PyTorch, PyTorch Geometric (GraphSAGE, SAGEConv), scikit-learn (StandardScaler, AUC-ROC, KMeans), UMAP \\
+\midrule
+\textbf{Geostatistics} & pykrige (Ordinary Kriging), esda (Getis-Ord $G_i^*$), libpysal (spatial weights) \\
+\midrule
+\textbf{Geospatial} & GeoPandas, rasterio, shapely, pyproj, osmnx (Overpass API), earthengine-api (GEE) \\
+\midrule
+\textbf{Visualization} & Streamlit (dashboard framework), Folium (interactive maps), Leaflet.js (client-side maps), leaflet.heat (heatmaps), Plotly (charts) \\
+\midrule
+\textbf{Data Formats} & GeoParquet, GeoTIFF, GeoJSON, GeoPackage, NumPy (\texttt{.npy}), PyTorch (\texttt{.pt}), CSV, JSON, PDF \\
+\midrule
+\textbf{Data I/O} & requests (HTTP), CDS API (GloFAS), fpdf2 (PDF generation) \\
+\midrule
+\textbf{Deployment} & nginx reverse proxy, systemd service, SSL, port 2020 \\
+\bottomrule
+\end{longtable}
+
+
+% ════════════════════════════════════════════════════════════
+\section{Deployment \& Usage}
+% ════════════════════════════════════════════════════════════
+
+\subsection{Running the Pipeline}
+
+\begin{lstlisting}
+# Install dependencies
+pip install -r requirements.txt
+
+# Run full pipeline
+python -m pipeline.cli run --config config.yaml
+
+# Run individual stage
+python -m pipeline.cli train --config config.yaml
+\end{lstlisting}
+
+The pipeline creates \texttt{data/raw/}, \texttt{data/processed/}, and \texttt{data/output/} directories automatically. Each stage checks for existing outputs and skips if already completed.
+
+\subsection{Running the Dashboard}
+
+\begin{lstlisting}
+# Start Streamlit server
+streamlit run dashboard/app.py --server.port 2020
+
+# Access at http://localhost:2020
+\end{lstlisting}
+
+If pipeline outputs are not available, the dashboard falls back to synthetic mock data for demonstration purposes.
+
+\subsection{Production Deployment}
+
+The production instance runs at \texttt{fermium.systems/hazmapper} with:
+\begin{itemize}[nosep]
+  \item \textbf{Reverse proxy:} nginx with SSL termination
+  \item \textbf{Process manager:} systemd service for automatic restart
+  \item \textbf{Port:} 2020 (internal), 443 (external via nginx)
+  \item \textbf{Repository:} \texttt{github.com/rakibhhridoy/hazmapper}
+\end{itemize}
+
+
+% ════════════════════════════════════════════════════════════
+\section{Mathematical Reference}
+% ════════════════════════════════════════════════════════════
+
+This section consolidates all mathematical formulas used throughout the pipeline for quick reference.
+
+\subsection{Terrain Analysis}
+
+\begin{align}
+\text{Slope:} \quad & \theta = \arctan\!\left(\sqrt{dx^2 + dy^2}\right) \times \frac{180}{\pi} \\[6pt]
+\text{TWI:} \quad & \text{TWI} = \ln\!\left(\frac{(\text{FA}+1) \times A_{\text{cell}}}{\tan\theta}\right) \\[6pt]
+\text{HAND:} \quad & \text{HAND}(i) = \max(0,\ z_i - z_{\text{drain}})
+\end{align}
+
+\subsection{Flood Labelling}
+
+\begin{equation}
+y_i = \mathbb{1}\!\left[\sum_{s=1}^{n} \text{vote}_s(i) \geq 2\right], \quad \text{votes from: DEM, JRC, GloFAS, SAR}
+\end{equation}
+
+\subsection{Graph Neural Network}
+
+\begin{align}
+\mathbf{h}^{(l+1)}_i &= \text{Drop}\!\left(0.3,\ \text{ReLU}\!\left(\mathbf{W}_1^{(l)} \mathbf{h}^{(l)}_i + \mathbf{W}_2^{(l)} \cdot \text{mean}_{j \in \mathcal{N}(i)} \mathbf{h}^{(l)}_j\right)\right) \\[4pt]
+\hat{y}_i &= \sigma\!\left(\mathbf{w}^T \mathbf{h}^{(2)}_i + b\right)
+\end{align}
+
+\subsection{Kriging}
+
+\begin{align}
+\gamma(h) &= c_0 + c\left[\frac{3h}{2a} - \frac{h^3}{2a^3}\right] \quad (0 < h \leq a) \\[6pt]
+\hat{Z}(s_0) &= \sum_{i} \lambda_i Z(s_i), \quad \text{s.t. } \sum \lambda_i = 1 \\[6pt]
+\hat{Z}_{\text{fused}} &= \text{clip}\!\left(\hat{Z}_{\text{OK}} + \hat{Z}_{\text{residual}},\ 0,\ 1\right)
+\end{align}
+
+\subsection{Risk Scoring}
+
+\begin{align}
+R &= H \times E \times V, \quad R_{\text{norm}} = R / \max(R) \\[6pt]
+G_i^* &= \frac{\sum_j w_{ij} x_j - \bar{X} \sum_j w_{ij}}{S\sqrt{\frac{n\sum_j w_{ij}^2 - (\sum_j w_{ij})^2}{n-1}}}
+\end{align}
+
+\subsection{Uncertainty}
+
+\begin{align}
+\text{CI}_{90} &= 2 \times 1.645 \times \text{std}\!\left(\{\hat{y}^{(t)}\}_{t=1}^{30}\right) \\[6pt]
+\text{IQR} &= Q_{75}(\hat{y}) - Q_{25}(\hat{y})
+\end{align}
+
+\subsection{Landslide Susceptibility}
+
+\begin{equation}
+S(\theta) = \frac{1}{1 + e^{-(\theta - 20)/5}}, \quad S \in [0, 1]
+\end{equation}
+
+
+% ════════════════════════════════════════════════════════════
+\section*{Appendix A: Complete Output File Inventory}
+% ════════════════════════════════════════════════════════════
+\addcontentsline{toc}{section}{Appendix A: Output File Inventory}
+
+\begin{longtable}{p{5.5cm}lll}
+\toprule
+\textbf{File} & \textbf{Format} & \textbf{Stage} & \textbf{Size (typical)} \\
+\midrule
+\texttt{infrastructure\_raw.gpkg} & GeoPackage & 1 & 2--10 MB \\
+\texttt{dem\_reprojected.tif} & GeoTIFF & 2 & 50--200 MB \\
+\texttt{slope.tif} & GeoTIFF & 2 & 50--200 MB \\
+\texttt{twi.tif} & GeoTIFF & 2 & 50--200 MB \\
+\texttt{hand.tif} & GeoTIFF & 2 & 50--200 MB \\
+\texttt{flow\_accumulation.tif} & GeoTIFF & 2 & 50--200 MB \\
+\texttt{flood\_proxy\_labels.tif} & GeoTIFF & 2 & 10--50 MB \\
+\texttt{node\_features.parquet} & Parquet & 3 & 1--5 MB \\
+\texttt{spatial\_graph.pt} & PyTorch & 4 & 5--20 MB \\
+\texttt{gnn\_model.pt} & PyTorch & 5--6 & $<$ 1 MB \\
+\texttt{gnn\_risk\_scores.npy} & NumPy & 5--6 & $<$ 1 MB \\
+\texttt{node\_embeddings.npy} & NumPy & 5--6 & 1--5 MB \\
+\texttt{flood\_risk\_kriged.tif} & GeoTIFF & 7 & 1--10 MB \\
+\texttt{kriging\_variance.tif} & GeoTIFF & 7 & 1--10 MB \\
+\texttt{variogram\_params.json} & JSON & 7 & $<$ 1 KB \\
+\texttt{risk\_ranked\_assets.csv} & CSV & 8--9 & 1--5 MB \\
+\texttt{risk\_ranked\_assets.geojson} & GeoJSON & 8--9 & 5--20 MB \\
+\texttt{top50\_risk\_assets.geojson} & GeoJSON & 8--9 & $<$ 1 MB \\
+\texttt{risk\_grid.geojson} & GeoJSON & 8--9 & 10--50 MB \\
+\texttt{hotspot\_clusters.geojson} & GeoJSON & 8--9 & 1--5 MB \\
+\texttt{union\_risk\_summary.geojson} & GeoJSON & 8--9 & 1--5 MB \\
+\texttt{upazila\_risk\_summary.geojson} & GeoJSON & 8--9 & $<$ 1 MB \\
+\texttt{situation\_report.pdf} & PDF & Export & $<$ 1 MB \\
+\texttt{pipeline\_metadata.json} & JSON & Meta & $<$ 1 KB \\
+\texttt{landslide\_susceptibility.tif} & GeoTIFF & LS & 10--50 MB \\
+\texttt{landslide\_upazila.json} & JSON & LS & $<$ 1 KB \\
+\texttt{alphaearth\_clusters.geojson} & GeoJSON & AE & 1--5 MB \\
+\texttt{alphaearth\_embeddings.npy} & NumPy & AE & 1--10 MB \\
+\bottomrule
+\end{longtable}
+
+
+\end{document}

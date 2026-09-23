@@ -1,0 +1,62 @@
+# South-west coast (Khulna and Barishal divisions) — cyclone storm surge
+# and tidal flooding behind the polder embankments.
+extends: ../config.yaml
+
+paths:
+  raw_dir: "data/sw_coastal/raw"
+  processed_dir: "data/sw_coastal/processed"
+  output_dir: "data/sw_coastal/output"
+
+aoi:
+  name: "sw_coastal"
+  divisions: ["Khulna", "Barisal"]
+  bbox: [88.9, 21.5, 90.8, 23.2]
+  crs: "EPSG:32646"
+  grid_resolution_m: 500
+
+data:
+  # Storm-surge flooding drains within days and the 6-12 day Sentinel-1
+  # revisit misses much of it: the four cyclones map to 0.9-3.4 % of the area
+  # each and only 1.9 % of ground floods in two or more, too few positives to
+  # train on. One event is therefore enough here, at 6.2 % of the area.
+  labels:
+    min_events: 1
+  dem:
+    path: "data/sw_coastal/raw/dem_srtm_30m.tif"
+  admin_boundaries:
+    union: "data/sw_coastal/raw/bgd_union.gpkg"
+    upazila: "data/sw_coastal/raw/bgd_upazila.gpkg"
+    district: "data/sw_coastal/raw/bgd_district.gpkg"
+  vulnerability:
+    population_path: "data/sw_coastal/raw/worldpop_popdens.tif"
+
+# Surge events, dated from landfall (Amphan 20 May 2020, Yaas 26 May 2021,
+# Sitrang 24-25 October 2022, Remal 26-27 May 2024; ReliefWeb disaster
+# pages). Tidal flooding recurs between them, which the flood-frequency
+# layer picks up across several events.
+sentinel1:
+  events:
+    - name: "amphan_may2020"
+      start: "2020-05-20"
+      end: "2020-05-31"
+      baseline_start: "2020-02-01"
+      baseline_end: "2020-03-15"
+    - name: "yaas_may2021"
+      start: "2021-05-25"
+      end: "2021-06-04"
+      baseline_start: "2021-02-01"
+      baseline_end: "2021-03-15"
+    - name: "sitrang_oct2022"
+      start: "2022-10-23"
+      end: "2022-11-02"
+      baseline_start: "2022-02-01"
+      baseline_end: "2022-03-15"
+    - name: "remal_may2024"
+      start: "2024-05-26"
+      end: "2024-06-05"
+      baseline_start: "2024-02-01"
+      baseline_end: "2024-03-15"
+
+dashboard:
+  map_center: [22.4, 89.6]
+  map_zoom: 8

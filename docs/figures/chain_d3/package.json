@@ -1,0 +1,7 @@
+{
+  "name": "hazmapper-chain-d3",
+  "private": true,
+  "type": "module",
+  "description": "Processing-chain diagram for the Fermium Hazard Mapper article (after the GENESIS architecture figure).",
+  "dependencies": { "d3": "^7.9.0", "jsdom": "^29.1.1" }
+}

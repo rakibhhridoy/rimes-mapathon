@@ -16,7 +16,10 @@ def export_ranked_csv(infra: gpd.GeoDataFrame, output_path: str) -> None:
     """Export ranked infrastructure assets as CSV for responders."""
     cols = [
         "risk_rank", "asset_type", "name", "priority",
-        "flood_risk", "is_high_risk", "lon", "lat",
+        "flood_risk", "flood_probability", "is_high_risk", "lon", "lat",
+        "cell_hazard", "cell_exposure", "cell_vulnerability",
+        "cell_composite_risk", "risk_class",
+        "cell_population_exposure", "cell_composite_risk_people",
     ]
     available_cols = [c for c in cols if c in infra.columns]
     df = infra[available_cols].copy()

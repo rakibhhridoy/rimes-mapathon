@@ -3,7 +3,6 @@ Union-level risk cards for the Unions tab.
 """
 
 import streamlit as st
-import geopandas as gpd
 
 
 def _risk_color(score: float) -> str:
@@ -26,20 +25,32 @@ def _risk_label(score: float) -> str:
     return "LOW"
 
 
-def render_risk_cards(union_gdf: gpd.GeoDataFrame, is_dark: bool = True,
+def render_risk_cards(union_gdf, is_dark: bool = True,
                        n_display: int = 12):
-    """Render union risk cards in a grid layout."""
-    bg = "#1e293b" if is_dark else "#ffffff"
-    bg2 = "#0f172a" if is_dark else "#f8fafc"
-    text = "#f1f5f9" if is_dark else "#1e293b"
-    text2 = "#94a3b8" if is_dark else "#64748b"
-    border = "#334155" if is_dark else "#e2e8f0"
+    """Render union risk cards in a grid layout with gradient fill."""
+    text = "#f0f6ff" if is_dark else "#1e293b"
+    text2 = "#8ab4d4" if is_dark else "#64748b"
 
     if union_gdf is None or len(union_gdf) == 0:
-        st.info("No union-level data. Run the full pipeline to generate risk scores.")
+        st.info("No area summaries yet. Run the full pipeline to generate them.")
         return
 
-    top = union_gdf.sort_values("mean_risk", ascending=False).head(n_display)
+    # Units without mapped assets carry no score; they are listed separately
+    # below rather than ranked as if they were safe.
+    scored = union_gdf
+    n_no_data = 0
+    if "has_data" in union_gdf.columns:
+        scored = union_gdf[union_gdf["has_data"].fillna(False)]
+        n_no_data = int(len(union_gdf) - len(scored))
+    elif "mean_risk" in union_gdf.columns:
+        scored = union_gdf[union_gdf["mean_risk"].notna()]
+        n_no_data = int(len(union_gdf) - len(scored))
+
+    if len(scored) == 0:
+        st.info("No area has mapped assets to score yet.")
+        return
+
+    top = scored.sort_values("mean_risk", ascending=False).head(n_display)
 
     cards_per_row = 4
     rows = [top.iloc[i:i + cards_per_row] for i in range(0, len(top), cards_per_row)]
@@ -48,10 +59,13 @@ def render_risk_cards(union_gdf: gpd.GeoDataFrame, is_dark: bool = True,
         cols = st.columns(cards_per_row)
         for i, (_, row) in enumerate(row_data.iterrows()):
             score = row.get("mean_risk", 0)
+            score = 0.0 if score != score else score  # NaN guard
             color = _risk_color(score)
             label = _risk_label(score)
             rank = int(row.get("risk_rank", 0))
-            name = row.get("admin_name", "Unknown")
+            # Unit names repeat across the country, so show the parent too
+            # when the boundary file provides it.
+            name = row.get("admin_label") or row.get("admin_name") or "Unknown"
             pct = min(score * 100, 100)
 
             n_h = int(row.get("n_hospitals_exposed", 0))
@@ -61,39 +75,64 @@ def render_risk_cards(union_gdf: gpd.GeoDataFrame, is_dark: bool = True,
             n_c = int(row.get("n_cropland", 0))
             total = int(row.get("total_assets", 0))
 
+            # The two readings answer different questions and are shown side
+            # by side rather than one standing in for the other.
+            people = row.get("mean_risk_people")
+            people_txt = (f"{float(people):.3f}"
+                          if people is not None and people == people else "—")
+
             with cols[i]:
                 card_html = (
-                    f'<div style="background:{bg};border:1px solid {border};'
-                    f'border-left:4px solid {color};border-radius:10px;'
-                    f'padding:14px 16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">'
+                    f'<div style="background:linear-gradient(145deg,{color}18 0%,#0a0e14 70%);'
+                    f'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);'
+                    f'border:1px solid {color}30;border-radius:12px;'
+                    f'padding:14px 16px;margin-bottom:10px;'
+                    f'box-shadow:0 4px 20px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.03);'
+                    f'transition:all 0.25s ease;">'
                     f'<div style="display:flex;justify-content:space-between;align-items:center;">'
-                    f'<span style="font-size:0.6rem;color:{color};background:{color}15;'
-                    f'border:1px solid {color}30;padding:2px 8px;'
-                    f'border-radius:10px;font-weight:600;">{label}</span>'
-                    f'<span style="font-size:0.65rem;color:{text2};font-weight:600;">#{rank}</span>'
+                    f'<span style="font-size:0.58rem;color:{color};background:{color}18;'
+                    f'border:1px solid {color}35;padding:2px 8px;'
+                    f'border-radius:10px;font-weight:600;font-family:Inter,sans-serif;'
+                    f'letter-spacing:0.04em;">{label}</span>'
+                    f'<span style="font-size:0.62rem;color:{text2};font-weight:600;'
+                    f'font-family:DM Mono,monospace;">#{rank}</span>'
                     f'</div>'
-                    f'<div style="font-size:0.9rem;font-weight:600;color:{text};'
-                    f'margin:6px 0 2px 0;line-height:1.2;">{name}</div>'
+                    f'<div style="font-size:0.88rem;font-weight:600;color:{text};'
+                    f'margin:6px 0 2px 0;line-height:1.2;font-family:Inter,sans-serif;">{name}</div>'
                     f'<div style="font-size:1.3rem;font-weight:700;color:{color};'
-                    f'margin:2px 0 6px 0;">{score:.3f}</div>'
-                    f'<div style="background:{bg2};border-radius:4px;height:5px;'
+                    f'margin:2px 0 6px 0;font-family:DM Mono,monospace;">{score:.3f}</div>'
+                    f'<div style="background:rgba(255,255,255,0.06);border-radius:4px;height:4px;'
                     f'overflow:hidden;margin-bottom:8px;">'
-                    f'<div style="background:{color};width:{pct:.0f}%;height:5px;'
-                    f'border-radius:4px;"></div></div>'
+                    f'<div style="background:linear-gradient(90deg,{color}88,{color});'
+                    f'width:{pct:.0f}%;height:4px;border-radius:4px;"></div></div>'
+                    f'<div style="display:flex;justify-content:space-between;'
+                    f'font-size:0.6rem;color:{text2};margin-bottom:6px;'
+                    f'font-family:Inter,sans-serif;">'
+                    f'<span>infrastructure</span>'
+                    f'<span style="font-family:DM Mono,monospace;color:#8ab4d4;">'
+                    f'people {people_txt}</span></div>'
                     f'<div style="display:grid;grid-template-columns:1fr 1fr;'
-                    f'gap:2px 10px;font-size:0.68rem;color:{text2};">'
-                    f'<span>🏥 {n_h}</span><span>🏫 {n_s}</span>'
-                    f'<span>🌉 {n_b}</span><span>🛣️ {n_r}</span>'
-                    f'<span>🌾 {n_c}</span><span>📊 {total}</span>'
+                    f'gap:2px 10px;font-size:0.66rem;color:{text2};font-family:DM Mono,monospace;">'
+                    f'<span>H {n_h}</span><span>S {n_s}</span>'
+                    f'<span>B {n_b}</span><span>R {n_r}</span>'
+                    f'<span>C {n_c}</span><span>T {total}</span>'
                     f'</div></div>'
                 )
                 st.markdown(card_html, unsafe_allow_html=True)
+
+    if n_no_data:
+        st.caption(
+            f"{n_no_data:,} of {len(union_gdf):,} areas have no assets mapped in "
+            "OpenStreetMap, so they cannot be scored. That is missing data, not "
+            "an indication of safety."
+        )
 
     # Full table
     with st.expander("View full ranking table"):
         display_cols = [
             c for c in [
-                "risk_rank", "admin_name", "mean_risk", "max_risk",
+                "risk_rank", "admin_label", "admin_name", "mean_risk",
+                "mean_risk_people", "max_risk",
                 "n_high_risk", "n_hospitals_exposed", "n_schools_exposed",
                 "n_bridges_exposed", "n_roads", "n_cropland", "total_assets",
             ] if c in union_gdf.columns

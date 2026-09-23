@@ -150,6 +150,72 @@ def _compute_auc(y_true: np.ndarray, y_pred: np.ndarray) -> float:
         return 0.5
 
 
+def _test_mask(graph_data: Data):
+    """Blocks used for reporting: test_mask when present, else val_mask."""
+    return graph_data.test_mask if "test_mask" in graph_data else graph_data.val_mask
+
+
+def fit_calibrator(model: FloodGNN, graph_data: Data):
+    """Isotonic calibration of the sigmoid scores on the calibration blocks.
+
+    The class-weighted loss inflates every score, so the raw sigmoid is a
+    ranking, not a probability. Isotonic regression maps it onto the observed
+    frequency of flooding on blocks the model did not train on, and is
+    monotone, so rankings are unchanged.
+    """
+    from sklearn.isotonic import IsotonicRegression
+
+    calib = graph_data.calib_mask if "calib_mask" in graph_data else None
+    if calib is None or int(calib.sum()) == 0:
+        return None
+    model.eval()
+    with torch.no_grad():
+        logits = model(graph_data.x, graph_data.edge_index).squeeze(-1)
+    scores = torch.sigmoid(logits[calib]).numpy()
+    labels = graph_data.y[calib].numpy()
+    if len(np.unique(labels)) < 2:
+        logger.warning("Calibration blocks hold a single class; no calibration.")
+        return None
+    calibrator = IsotonicRegression(y_min=0.0, y_max=1.0, out_of_bounds="clip")
+    calibrator.fit(scores, labels)
+    logger.info(f"Isotonic calibrator fitted on {int(calib.sum())} nodes")
+    return calibrator
+
+
+def evaluate_model(model: FloodGNN, graph_data: Data, calibrator=None) -> dict:
+    """Metrics on the test blocks, raw and (if available) calibrated.
+
+    The key `val_*` is kept for compatibility with earlier output files; it
+    now refers to the test blocks.
+    """
+    from sklearn.metrics import average_precision_score, brier_score_loss
+
+    model.eval()
+    with torch.no_grad():
+        logits = model(graph_data.x, graph_data.edge_index).squeeze(-1)
+    mask = _test_mask(graph_data)
+    probs = torch.sigmoid(logits[mask]).numpy()
+    labels = graph_data.y[mask].numpy()
+
+    metrics = {
+        "n_train": int(graph_data.train_mask.sum()),
+        "n_calibration": int(graph_data.calib_mask.sum()) if "calib_mask" in graph_data else 0,
+        "n_val": int(mask.sum()),
+        "val_positive_rate": float(labels.mean()),
+        "val_auc_roc": _compute_auc(labels, probs),
+        "val_brier": float(brier_score_loss(labels, probs)),
+    }
+    if len(np.unique(labels)) > 1:
+        metrics["val_average_precision"] = float(average_precision_score(labels, probs))
+    if calibrator is not None:
+        calibrated = calibrator.predict(probs)
+        metrics["val_brier_calibrated"] = float(brier_score_loss(labels, calibrated))
+        metrics["val_brier_base_rate"] = float(
+            brier_score_loss(labels, np.full_like(probs, labels.mean())))
+    logger.info(f"Test blocks: {metrics}")
+    return metrics
+
+
 # ---------------------------------------------------------------------------
 # Step 6 — Inference: Embeddings + Risk Scores
 # ---------------------------------------------------------------------------
@@ -157,11 +223,12 @@ def _compute_auc(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 def extract_embeddings_and_scores(model: FloodGNN,
                                    graph_data: Data) -> tuple[np.ndarray, np.ndarray]:
     """
-    Extract node embeddings and flood risk probabilities.
+    Extract node embeddings and raw flood scores.
 
     Returns:
         embeddings: (N, 64) node embeddings
-        risk_scores: (N,) flood risk probability [0, 1]
+        risk_scores: (N,) sigmoid scores in [0, 1] — a ranking, not a
+            calibrated probability (see fit_calibrator)
     """
     model.eval()
     with torch.no_grad():

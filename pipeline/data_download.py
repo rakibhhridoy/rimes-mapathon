@@ -6,6 +6,7 @@ and WorldPop population density data required by the pipeline.
 """
 
 import gzip
+import math
 import io
 import logging
 import shutil
@@ -53,80 +54,138 @@ def _download_file(url: str, dest: Path, description: str = "") -> bool:
 # 1. GADM admin boundaries
 # ---------------------------------------------------------------------------
 
-_GADM_URLS = {
-    "union": "https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_BGD_3.json.zip",
-    "upazila": "https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_BGD_2.json.zip",
+# Administrative boundaries come from geoBoundaries (gbOpen, CC BY 4.0), which
+# may be redistributed — GADM's licence forbids it, so GADM cannot ship in the
+# open data archive. geoBoundaries also carries the level this project needs:
+#
+#   ADM2 = district (64)      ADM3 = upazila (544)      ADM4 = union (5160)
+#
+# The earlier GADM files were mislabelled: `gadm_union.shp` held upazilas
+# (GADM ENGTYPE_3 = "Upazilla") and `gadm_upazila.shp` held districts, so
+# every "union" figure the dashboard showed was really an upazila. GADM has no
+# union level for Bangladesh at all.
+_GEOBOUNDARIES_API = "https://www.geoboundaries.org/api/current/gbOpen/{iso}/{level}/"
+
+_ADMIN_LEVELS = {
+    "district": "ADM2",
+    "upazila": "ADM3",
+    "union": "ADM4",
 }
 
 
-def download_gadm_boundaries(cfg: dict, output_dir: Path) -> tuple:
-    """Download GADM Level 2 (upazila) and Level 3 (union) boundaries for
-    Rangpur & Rajshahi divisions and save as shapefiles.
+def download_admin_boundaries(cfg: dict, output_dir: Path) -> dict:
+    """Download geoBoundaries admin levels, clipped to the study area.
 
-    Returns (union_path, upazila_path) as strings.
+    Each output carries a standardised `admin_name` column plus the names of
+    its parent units, because geoBoundaries names are not unique on their own
+    (Bangladesh has many unions called "Abdullahpur").
+
+    Returns {level_name: path}.
     """
     import geopandas as gpd
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    divisions = cfg.get("aoi", {}).get("divisions", ["Rangpur", "Rajshahi"])
-
-    union_out = output_dir / "gadm_union.shp"
-    upazila_out = output_dir / "gadm_upazila.shp"
-
-    # If both already exist, skip
-    if union_out.exists() and upazila_out.exists():
-        logger.info("GADM boundaries already exist, skipping download.")
-        return str(union_out), str(upazila_out)
+    iso = cfg.get("aoi", {}).get("iso3", "BGD")
+    bbox = tuple(cfg["aoi"]["bbox"])
 
     results = {}
-    for level_name, url in _GADM_URLS.items():
-        out_path = union_out if level_name == "union" else upazila_out
+    frames = {}
+    for name, level in _ADMIN_LEVELS.items():
+        out_path = output_dir / f"{iso.lower()}_{name}.gpkg"
         if out_path.exists():
-            logger.info(f"GADM {level_name} already exists at {out_path}, skipping.")
-            results[level_name] = str(out_path)
+            logger.info(f"{name} boundaries already exist at {out_path}")
+            results[name] = str(out_path)
+            frames[name] = gpd.read_file(out_path)
             continue
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            zip_path = Path(tmpdir) / f"gadm_{level_name}.zip"
-            ok = _download_file(url, zip_path, f"GADM {level_name}")
-            if not ok:
-                results[level_name] = ""
+        # National files are cached and shared between regions: the ADM4 file
+        # alone is ~325 MB, and every region would otherwise re-download it.
+        cache_dir = Path("data/shared/geoboundaries")
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cached = cache_dir / f"{iso}_{level}.geojson"
+
+        if not cached.exists():
+            api_url = _GEOBOUNDARIES_API.format(iso=iso, level=level)
+            try:
+                meta = requests.get(api_url, timeout=120).json()
+                meta = meta[0] if isinstance(meta, list) else meta
+                download_url = meta["gjDownloadURL"]
+            except Exception as exc:
+                logger.warning(f"geoBoundaries API failed for {level}: {exc}")
+                results[name] = ""
                 continue
 
-            # Extract ZIP -> read GeoJSON
-            try:
-                with zipfile.ZipFile(zip_path, "r") as zf:
-                    json_names = [n for n in zf.namelist() if n.endswith(".json")]
-                    if not json_names:
-                        logger.warning(f"No JSON found in GADM {level_name} ZIP.")
-                        results[level_name] = ""
-                        continue
-                    zf.extract(json_names[0], tmpdir)
-                    json_path = Path(tmpdir) / json_names[0]
+            if not _download_file(download_url, cached, f"geoBoundaries {level}"):
+                cached.unlink(missing_ok=True)
+                results[name] = ""
+                continue
+        else:
+            logger.info(f"Using cached national {level} file: {cached}")
 
-                gdf = gpd.read_file(str(json_path))
+        # Read only what intersects the study area; the bbox filter keeps
+        # memory in check on the large national files.
+        gdf = gpd.read_file(cached, bbox=bbox)
 
-                # Filter to target divisions using NAME_1
-                if "NAME_1" in gdf.columns:
-                    gdf = gdf[gdf["NAME_1"].isin(divisions)].copy()
-                    logger.info(
-                        f"Filtered GADM {level_name} to {len(gdf)} features "
-                        f"in divisions: {divisions}"
-                    )
-                else:
-                    logger.warning(
-                        f"NAME_1 column not found in GADM {level_name}; "
-                        "saving all features."
-                    )
+        gdf = gdf.rename(columns={"shapeName": "admin_name"})
+        gdf["admin_level"] = name
+        keep = [c for c in ["admin_name", "admin_level", "shapeID", "geometry"]
+                if c in gdf.columns]
+        gdf = gdf[keep]
+        frames[name] = gdf
 
-                gdf.to_file(str(out_path))
-                logger.info(f"Saved GADM {level_name} -> {out_path}")
-                results[level_name] = str(out_path)
-            except Exception as exc:
-                logger.warning(f"Error processing GADM {level_name}: {exc}")
-                results[level_name] = ""
+        gdf.to_file(out_path, driver="GPKG")
+        logger.info(f"Saved {len(gdf)} {name} boundaries → {out_path}")
+        results[name] = str(out_path)
 
-    return results.get("union", ""), results.get("upazila", "")
+    _attach_parent_names(frames, results, output_dir, iso)
+    return results
+
+
+def _attach_parent_names(frames: dict, results: dict, output_dir: Path,
+                         iso: str) -> None:
+    """Label each unit with its parent units, so names are unambiguous.
+
+    geoBoundaries gives no parent field, so parents are found by locating each
+    unit's representative point inside the coarser level.
+    """
+    import geopandas as gpd
+
+    for child, parents in [("union", ["upazila", "district"]),
+                           ("upazila", ["district"])]:
+        child_gdf = frames.get(child)
+        if child_gdf is None or len(child_gdf) == 0:
+            continue
+        if all(f"{p}_name" in child_gdf.columns for p in parents):
+            continue
+
+        points = child_gdf[["geometry"]].copy()
+        points["geometry"] = points.geometry.representative_point()
+
+        for parent in parents:
+            parent_gdf = frames.get(parent)
+            if parent_gdf is None or len(parent_gdf) == 0:
+                continue
+            joined = gpd.sjoin(
+                points, parent_gdf[["admin_name", "geometry"]],
+                how="left", predicate="within",
+            )
+            joined = joined[~joined.index.duplicated(keep="first")]
+            child_gdf[f"{parent}_name"] = joined["admin_name"].reindex(
+                child_gdf.index).values
+
+        # "Gangachara (Rangpur Sadar)" reads unambiguously; a bare name does not.
+        parent_col = f"{parents[0]}_name"
+        if parent_col in child_gdf.columns:
+            child_gdf["admin_label"] = (
+                child_gdf["admin_name"].fillna("unnamed")
+                + child_gdf[parent_col].apply(
+                    lambda v: f" ({v})" if isinstance(v, str) and v else "")
+            )
+
+        out_path = output_dir / f"{iso.lower()}_{child}.gpkg"
+        child_gdf.to_file(out_path, driver="GPKG")
+        logger.info(f"Labelled {child} boundaries with parent names → {out_path}")
+        results[child] = str(out_path)
 
 
 # ---------------------------------------------------------------------------
@@ -134,11 +193,32 @@ def download_gadm_boundaries(cfg: dict, output_dir: Path) -> tuple:
 # ---------------------------------------------------------------------------
 
 # Tiles covering bbox [88.0, 24.0, 89.9, 26.7]
-_SRTM_TILES = [
-    (24, 88), (24, 89),
-    (25, 88), (25, 89),
-    (26, 88), (26, 89),
-]
+SHARED_DIR = Path("data/shared")
+
+
+def _shared_cache(subdir: str, filename: str) -> Path:
+    """Path in the cross-region cache for a national or tiled download.
+
+    The same WorldPop country raster and JRC 10-degree tiles serve every
+    region, so they are fetched once and clipped per region.
+    """
+    path = SHARED_DIR / subdir / filename
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _srtm_tiles_for_bbox(bbox) -> list[tuple[int, int]]:
+    """1-degree SRTM tiles covering a bbox [west, south, east, north].
+
+    Derived rather than hardcoded so a different study region works without
+    code changes. Tiles are named by their south-west corner.
+    """
+    west, south, east, north = bbox
+    return [
+        (lat, lon)
+        for lat in range(math.floor(south), math.ceil(north))
+        for lon in range(math.floor(west), math.ceil(east))
+    ]
 
 _SRTM_URL_TEMPLATE = (
     "https://elevation-tiles-prod.s3.amazonaws.com/skadi/"
@@ -164,7 +244,7 @@ def download_srtm_dem(cfg: dict, output_dir: Path) -> str:
 
     tile_paths = []
     with tempfile.TemporaryDirectory() as tmpdir:
-        for lat, lon in _SRTM_TILES:
+        for lat, lon in _srtm_tiles_for_bbox(cfg["aoi"]["bbox"]):
             tile_name = f"N{lat:02d}E{lon:03d}"
             url = _SRTM_URL_TEMPLATE.format(lat=lat, lon=lon)
             gz_path = Path(tmpdir) / f"{tile_name}.hgt.gz"
@@ -260,10 +340,24 @@ def _hgt_to_geotiff(hgt_path: Path, tif_path: Path, lat: int, lon: int):
 # 3. JRC Global Surface Water
 # ---------------------------------------------------------------------------
 
-_JRC_URL = (
+_JRC_URL_TEMPLATE = (
     "https://storage.googleapis.com/global-surface-water/downloads2021/"
-    "occurrence/occurrence_80E_30Nv1_4_2021.tif"
+    "occurrence/occurrence_{lon}E_{lat}Nv1_4_2021.tif"
 )
+
+
+def _jrc_tiles_for_bbox(bbox) -> list[str]:
+    """JRC Global Surface Water tile URLs covering a bbox.
+
+    Tiles are 10 degrees square, named by their north-west corner.
+    """
+    west, south, east, north = bbox
+    lons = range(int(math.floor(west / 10) * 10), int(math.ceil(east / 10) * 10), 10)
+    lats = range(int(math.ceil(south / 10) * 10), int(math.ceil(north / 10) * 10) + 10, 10)
+    return [
+        _JRC_URL_TEMPLATE.format(lon=lon, lat=lat)
+        for lat in sorted(set(lats)) for lon in lons
+    ]
 
 
 def download_jrc_water(cfg: dict, output_dir: Path) -> str:
@@ -283,11 +377,40 @@ def download_jrc_water(cfg: dict, output_dir: Path) -> str:
 
     bbox = cfg.get("aoi", {}).get("bbox", [88.0, 24.0, 89.9, 26.7])
 
+    urls = _jrc_tiles_for_bbox(bbox)
+    logger.info(f"JRC tiles covering the study area: {len(urls)}")
+
     with tempfile.TemporaryDirectory() as tmpdir:
-        raw_path = Path(tmpdir) / "jrc_raw.tif"
-        ok = _download_file(_JRC_URL, raw_path, "JRC Global Surface Water")
-        if not ok:
+        # A study area can straddle two 10-degree tiles (Sylhet and the CHT do),
+        # so download each and mosaic before clipping.
+        tile_paths = []
+        for url in urls:
+            name = url.rsplit("/", 1)[-1]
+            tile_path = _shared_cache("jrc", name)
+            if tile_path.exists():
+                logger.info(f"Using cached JRC tile {name}")
+                tile_paths.append(tile_path)
+            elif _download_file(url, tile_path, f"JRC tile {name}"):
+                tile_paths.append(tile_path)
+            else:
+                tile_path.unlink(missing_ok=True)
+        if not tile_paths:
             return ""
+
+        raw_path = Path(tmpdir) / "jrc_raw.tif"
+        if len(tile_paths) == 1:
+            raw_path = tile_paths[0]
+        else:
+            from rasterio.merge import merge
+            datasets = [rasterio.open(str(t)) for t in tile_paths]
+            mosaic, transform = merge(datasets, bounds=tuple(bbox))
+            profile = datasets[0].profile.copy()
+            profile.update(width=mosaic.shape[2], height=mosaic.shape[1],
+                           transform=transform, compress="deflate")
+            for ds in datasets:
+                ds.close()
+            with rasterio.open(str(raw_path), "w", **profile) as dst:
+                dst.write(mosaic[0], 1)
 
         # Clip to AOI bbox
         try:
@@ -341,6 +464,8 @@ def download_worldpop(cfg: dict, output_dir: Path) -> str:
 
     Returns path to the downloaded file.
     """
+    import shutil
+
     output_dir.mkdir(parents=True, exist_ok=True)
     pop_path = output_dir / "worldpop_popdens.tif"
 
@@ -348,10 +473,40 @@ def download_worldpop(cfg: dict, output_dir: Path) -> str:
         logger.info(f"WorldPop data already exists at {pop_path}, skipping.")
         return str(pop_path)
 
-    ok = _download_file(_WORLDPOP_URL, pop_path, "WorldPop population density")
-    if ok:
-        return str(pop_path)
-    return ""
+    # One national raster serves every region, so cache it centrally and clip
+    # a regional copy from it.
+    cached = _shared_cache("worldpop", _WORLDPOP_URL.rsplit("/", 1)[-1])
+    if not cached.exists():
+        if not _download_file(_WORLDPOP_URL, cached,
+                              "WorldPop population density"):
+            cached.unlink(missing_ok=True)
+            return ""
+    else:
+        logger.info(f"Using cached WorldPop raster: {cached}")
+
+    bbox = cfg.get("aoi", {}).get("bbox")
+    try:
+        import rasterio
+        from rasterio.windows import from_bounds as window_from_bounds
+
+        with rasterio.open(cached) as src:
+            window = window_from_bounds(*bbox, transform=src.transform)
+            window = window.intersection(
+                rasterio.windows.Window(0, 0, src.width, src.height)
+            )
+            data = src.read(1, window=window)
+            profile = src.profile.copy()
+            profile.update(width=data.shape[1], height=data.shape[0],
+                           transform=src.window_transform(window),
+                           compress="deflate")
+        with rasterio.open(pop_path, "w", **profile) as dst:
+            dst.write(data, 1)
+        logger.info(f"WorldPop clipped to the study area → {pop_path}")
+    except Exception as exc:
+        logger.warning(f"Could not clip WorldPop ({exc}); copying the full raster.")
+        shutil.copy(cached, pop_path)
+
+    return str(pop_path)
 
 
 # ---------------------------------------------------------------------------
@@ -782,9 +937,8 @@ def download_all(cfg: dict, output_dir: Path) -> dict:
     results = {}
 
     logger.info("--- Downloading GADM admin boundaries ---")
-    union_path, upazila_path = download_gadm_boundaries(cfg, output_dir)
-    results["gadm_union"] = union_path
-    results["gadm_upazila"] = upazila_path
+    for level, path in download_admin_boundaries(cfg, output_dir).items():
+        results[f"admin_{level}"] = path
 
     logger.info("--- Downloading SRTM DEM ---")
     results["srtm_dem"] = download_srtm_dem(cfg, output_dir)

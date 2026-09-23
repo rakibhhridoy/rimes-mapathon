@@ -1,0 +1,39 @@
+[Unit]
+Description=Fermium HazMapper - public flood risk dashboard (SGMDI)
+After=network.target
+
+[Service]
+Type=simple
+User=webuser
+Group=webuser
+WorkingDirectory=/var/www/hazmapper
+# Server options live in .streamlit/config.toml (loopback bind, XSRF, no uploads).
+ExecStart=/usr/local/bin/streamlit run dashboard/app.py -- --config config.yaml
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+Environment=HOME=/var/www/hazmapper
+
+# Public service: cap resources so one visitor cannot exhaust the host.
+# Each Streamlit session holds its data in memory; MemoryMax stops the box
+# from swapping to death and lets systemd restart a runaway process.
+MemoryMax=4G
+MemoryHigh=3G
+CPUQuota=200%
+TasksMax=512
+
+# Hardening — the app only reads its own directory.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/www/hazmapper/data /var/www/hazmapper/.streamlit
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

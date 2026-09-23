@@ -4,15 +4,90 @@
 # Hazard Focus: Flood Only
 # ============================================================
 
+# Where this region's data lives. Override per region to run several study
+# areas side by side (e.g. data/sylhet/raw, data/sylhet/output).
+paths:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  output_dir: "data/output"
+
 aoi:
   name: "rangpur_rajshahi"
+  iso3: "BGD"
   divisions: ["Rangpur", "Rajshahi"]
   bbox: [88.0, 24.0, 89.9, 26.7]          # [west, south, east, north]
   crs: "EPSG:32646"                         # UTM Zone 46N
   grid_resolution_m: 500
 
+# Earth Engine is needed for the Sentinel-1 flood mapping (pipeline/sentinel1.py).
+# Find the project id at https://code.earthengine.google.com (top right), or
+# set EARTHENGINE_PROJECT in the environment instead.
+earthengine:
+  project: "ee-arsenicbd"
+
+# Observed flood extents from Sentinel-1 SAR. Event windows are flood peaks
+# taken from ReliefWeb situation reports (source given per event); each is
+# compared against a dry-season baseline of the same year.
+sentinel1:
+  polarisation: "VV"
+  water_threshold_db: -16.0                 # open water is dark in VV
+  backscatter_drop_db: -3.0                 # fall vs dry-season baseline
+  speckle_filter_m: 50                      # focal-mean speckle suppression
+  max_slope_deg: 5.0                        # radar shadow mimics water
+  permanent_water_pct: 50                   # JRC occurrence: rivers, not floods
+  min_connected_pixels: 8                   # drop speckle-sized specks
+  export_scale_m: 100                       # keeps the AOI under the pixel cap
+  events:
+    - name: "aug2017"
+      # Second monsoon flood began 12 August; Dinajpur, Kurigram, Lalmonirhat,
+      # Rangpur among the worst affected.
+      source: "https://reliefweb.int/report/bangladesh/monsoon-floods-bangladesh-situation-report-02-16-august-2017"
+      start: "2017-08-12"
+      end: "2017-08-26"
+      baseline_start: "2017-02-01"
+      baseline_end: "2017-03-15"
+    - name: "jul2019"
+      # Heavy rain from 9 July; Brahmaputra-Jamuna rising to 18 July, Kurigram
+      # more than 1 m above danger level on 16 July.
+      source: "https://reliefweb.int/report/bangladesh/briefing-note-northern-bangladesh-river-flooding-17-july-2019"
+      start: "2019-07-12"
+      end: "2019-07-26"
+      baseline_start: "2019-02-01"
+      baseline_end: "2019-03-15"
+    - name: "jul2020"
+      # Second phase from 9-10 July, peak about 18 July, 27 Brahmaputra-basin
+      # gauges above danger level into late July.
+      source: "https://reliefweb.int/report/bangladesh/bangladesh-monsoon-flood-2020-situation-report-3-26-july-2020"
+      start: "2020-07-11"
+      end: "2020-07-31"
+      baseline_start: "2020-02-01"
+      baseline_end: "2020-03-15"
+    - name: "jul2024"
+      # Northern floods from mid-June; Brahmaputra above danger at Nunkhawa,
+      # Hatia and Chilmari in early July.
+      source: "https://reliefweb.int/report/bangladesh/bangladesh-flood-2024-situation-report-01-l-7-july-2024-1400-hrs"
+      start: "2024-06-28"
+      end: "2024-07-16"
+      baseline_start: "2024-02-01"
+      baseline_end: "2024-03-15"
+    - name: "oct2024"
+      # Teesta flooding of Lalmonirhat, Nilphamari, Kurigram and Rangpur from
+      # late September into early October.
+      source: "https://reliefweb.int/report/bangladesh/bangladesh-situation-overview-northcentral-flood-2024-potential-inundation-exposed-and-affected-population-version-1st-update-07-october-2024"
+      start: "2024-09-27"
+      end: "2024-10-12"
+      baseline_start: "2024-02-01"
+      baseline_end: "2024-03-15"
+
 data:
   osm:
+    # Overpass answers small areas reliably; a whole division times out.
+    tile_span_deg: 0.75
+    # Failed queries are retried with a growing pause. Public mirrors hung or
+    # refused connections when tested (2026-09-22), so only the main endpoint
+    # is listed; add a reliable mirror here if one is available.
+    overpass_endpoints:
+      - "https://overpass-api.de/api"
     # Priority 1 — Lifeline Infrastructure
     lifeline_tags:
       - "amenity=hospital"
@@ -45,6 +120,15 @@ data:
     path: "data/raw/dem_srtm_30m.tif"
     derivatives: ["slope", "twi", "hand", "flow_accumulation"]
 
+  labels:
+    # "observed": Sentinel-1 flood extents (independent of the terrain
+    # features, so no circularity). "proxy": the terrain/JRC ensemble below,
+    # kept for comparison in the technical document.
+    source: "observed"
+    min_events: 2                           # flooded in >= N mapped events;
+                                            # 2 of 5 keeps single-event paddy
+                                            # inundation out of the positives
+
   proxy_labels:
     # Ensemble flood labels (no ground truth available)
     dem_flood_fill: true                    # TWI + HAND thresholds
@@ -56,16 +140,28 @@ data:
     hand_threshold_m: 5.0                   # HAND < this → flood-prone
     jrc_occurrence_pct: 25                  # Water occurrence > 25%
 
+  # Administrative boundaries from geoBoundaries (gbOpen, CC BY 4.0 —
+  # redistributable, unlike GADM). ADM4 = union, ADM3 = upazila, ADM2 = district.
+  admin_boundaries:
+    union: "data/raw/bgd_union.gpkg"
+    upazila: "data/raw/bgd_upazila.gpkg"
+    district: "data/raw/bgd_district.gpkg"
+
   vulnerability:
     population_path: "data/raw/worldpop_popdens.tif"
-    admin_boundaries_l2: "data/raw/gadm_upazila.shp"
-    admin_boundaries_l3: "data/raw/gadm_union.shp"
+    # Further vulnerability rasters (name must match a vulnerability_weights key).
+    # Components listed in vulnerability_weights without data are excluded and
+    # the remaining weights renormalised.
+    extra_rasters: {}
+    #   night_light_proxy: "data/raw/viirs_ntl.tif"
+    #   elderly_child_ratio: "data/raw/worldpop_dependency_ratio.tif"
 
 graph:
   k_neighbors: 6
   max_edge_distance_m: 5000
   edge_weight: "inverse_distance"
   train_split: 0.8
+  block_size_m: 10000                       # spatial-block validation split
 
 kriging:
   variogram_model: "spherical"
@@ -73,7 +169,19 @@ kriging:
   weight: true
   grid_resolution_deg: 0.005               # ~500m at this latitude
 
+# Which model scores each asset. A comparison on identical features, assets
+# and blocks (python -m pipeline.cli benchmark) found a gradient-boosted tree
+# matching or beating the graph network in every region, so the tree is the
+# default. Options: gradient_boosting, random_forest, logistic_regression,
+# graph_sage.
+asset_model:
+  type: gradient_boosting
+
 gnn:
+  # Features withheld from the model. With proxy labels, twi/hand are the
+  # very quantities the labels were thresholded from; excluding them tests
+  # whether the model learns anything beyond the labelling rule.
+  exclude_features: []
   # Model: 2-layer GraphSAGE (hardcoded in gnn_model.py)
   hidden_channels: 64
   dropout: 0.3
@@ -83,14 +191,22 @@ gnn:
   seed: 42
 
 risk:
-  hazard_weight: 1.0                        # From kriged flood surface
-  exposure_weights:
-    building_count: 0.25
+  # Where hazard per grid cell comes from:
+  #   kriged        - ordinary Kriging of the GNN scores at mapped assets
+  #   terrain_model - logistic regression on the cell's own terrain
+  # Kriging smooths towards the regional average wherever the scores carry
+  # little spatial structure; on the current runs the nugget is about half
+  # the sill in both flood regions and the kriged surface varies about half
+  # as much as the terrain model. Both surfaces are written to the grid.
+  hazard_source: "terrain_model"
+  hazard_weight: 1.0
+  exposure_weights:                         # per mapped asset in a cell
     road_length_km: 0.15
     bridge_presence: 0.15
     cropland_area_km2: 0.15
     hospital_school_presence: 0.20
     embankment_shelter_presence: 0.10
+    other_asset: 0.05
   vulnerability_weights:
     population_density: 0.30
     dist_hospital: 0.20
@@ -108,11 +224,20 @@ alphaearth:
   output_dir: "data/output"
 
 landslide:
-  bbox: [91.5, 21.5, 92.7, 23.5]           # CHT region
-  output_dir: "data/output"
+  # Off for the flood regions; configs/cht.yaml switches it on.
+  enabled: false
+  # Logistic regression fitted to the NASA COOLR inventory against randomly
+  # sampled background points, validated on held-out spatial blocks.
+  background_ratio: 2                       # background points per landslide
+  background_exclusion_m: 500               # keep background off mapped slides
+  domain_buffer_m: 5000                     # background stays inside the
+                                            # mapped area (see mapped_domain)
+  block_size_m: 10000
+  train_split: 0.8
+  seed: 42
 
 dashboard:
-  port: 8501
+  port: 2020
   map_zoom: 8
   map_center: [25.5, 89.0]                 # Approx center of study area
   export_formats: ["csv", "geotiff", "geojson", "pdf"]

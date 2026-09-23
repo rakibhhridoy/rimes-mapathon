@@ -1,8 +1,24 @@
 """
-Landslide susceptibility — slope-based logistic model for CHT region.
+Landslide susceptibility for the Chittagong Hill Tracts, fitted to an
+observed inventory.
 
-Downloads separate SRTM DEM for Chittagong Hill Tracts (outside main AOI),
-computes slope-based susceptibility, and aggregates to upazila level.
+The earlier version applied a hand-picked logistic curve to slope
+(centred on 20 degrees, scale 5) that was never fitted to anything, and when
+upazila boundaries were missing it sliced the raster into horizontal bands,
+labelled them with real upazila names and invented their populations with a
+random number generator. None of that survives here.
+
+Instead: mapped landslide locations come from NASA's Cooperative Open Online
+Landslide Repository (COOLR), a logistic regression is fitted to terrain at
+those locations against randomly sampled background points, and the fit is
+scored on spatially held-out blocks so the reported skill is not inflated by
+the clustering of landslides.
+
+Reference:
+    Juang, C. S., Stanley, T. A., & Kirschbaum, D. B. (2019). Using citizen
+    science to expand the global map of landslides: Introducing the
+    Cooperative Open Online Landslide Repository (COOLR). PLOS ONE, 14(7),
+    e0218657. https://doi.org/10.1371/journal.pone.0218657
 """
 
 import json
@@ -13,338 +29,480 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# CHT bounding box (outside main pipeline AOI)
-CHT_BBOX = [91.5, 21.5, 92.7, 23.5]
-CHT_UPAZILAS = [
-    "Rangamati Sadar", "Khagrachhari Sadar", "Bandarban Sadar",
-    "Lama", "Ruma", "Thanchi", "Rowangchhari", "Rajasthali",
-    "Langadu", "Baghaichhari", "Dighinala", "Mahalchhari",
-]
+# COOLR moved to NASA's Earthdata GIS portal; the events layer holds the
+# satellite-mapped inventories, the reports layer citizen and media reports.
+COOLR_EVENTS = (
+    "https://gis.earthdata.nasa.gov/portal/rest/services/Landslides/"
+    "COOLR_Events_Points/FeatureServer/0/query"
+)
+COOLR_PAGE_SIZE = 2000
+
+CITATION = (
+    "Juang, C.S., Stanley, T.A., & Kirschbaum, D.B. (2019). Using citizen "
+    "science to expand the global map of landslides: Introducing the "
+    "Cooperative Open Online Landslide Repository (COOLR). PLOS ONE 14(7): "
+    "e0218657. doi:10.1371/journal.pone.0218657"
+)
 
 
-def download_cht_dem(output_dir: str, bbox: list = None) -> str | None:
+# ---------------------------------------------------------------------------
+# Inventory
+# ---------------------------------------------------------------------------
+
+def download_landslide_inventory(cfg: dict, raw_dir: Path) -> Path:
+    """Download COOLR landslide points over the study area.
+
+    Returns the path to a GeoJSON of mapped landslide locations.
     """
-    Download SRTM DEM for CHT region using elevation library.
+    import geopandas as gpd
+    import requests
 
-    Returns path to downloaded DEM, or None on failure.
-    """
-    bbox = bbox or CHT_BBOX
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    dem_path = output_dir / "cht_dem_srtm.tif"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    out_path = raw_dir / "coolr_landslides.geojson"
+    if out_path.exists():
+        logger.info(f"Landslide inventory already present: {out_path}")
+        return out_path
 
-    if dem_path.exists():
-        logger.info(f"CHT DEM already exists: {dem_path}")
-        return str(dem_path)
+    west, south, east, north = cfg["aoi"]["bbox"]
+    envelope = json.dumps({
+        "xmin": west, "ymin": south, "xmax": east, "ymax": north,
+        "spatialReference": {"wkid": 4326},
+    })
 
-    try:
-        import elevation
-        west, south, east, north = bbox
-        elevation.clip(
-            bounds=(west, south, east, north),
-            output=str(dem_path),
-            product="SRTM3",
+    features, offset = [], 0
+    while True:
+        params = {
+            "where": "1=1",
+            "geometry": envelope,
+            "geometryType": "esriGeometryEnvelope",
+            "inSR": "4326",
+            "spatialRel": "esriSpatialRelIntersects",
+            "outFields": ",".join([
+                "event_id", "event_date", "event_title", "landslide_category",
+                "landslide_trigger", "method", "source_name", "source_link",
+                "country_name",
+            ]),
+            "outSR": "4326",
+            "f": "geojson",
+            "resultOffset": offset,
+            "resultRecordCount": COOLR_PAGE_SIZE,
+        }
+        resp = requests.get(COOLR_EVENTS, params=params, timeout=300,
+                            headers={"User-Agent": "fermium-hazmapper"})
+        resp.raise_for_status()
+        page = resp.json()
+        batch = page.get("features", [])
+        features.extend(batch)
+        logger.info(f"COOLR: fetched {len(features)} points")
+        if len(batch) < COOLR_PAGE_SIZE:
+            break
+        offset += COOLR_PAGE_SIZE
+
+    if not features:
+        raise RuntimeError(
+            "COOLR returned no landslide points for this area — a model cannot "
+            "be fitted without an inventory."
         )
-        logger.info(f"CHT DEM downloaded → {dem_path}")
-        return str(dem_path)
-    except ImportError:
-        logger.warning("elevation package not installed, trying rasterio directly")
-    except Exception as e:
-        logger.warning(f"elevation download failed: {e}")
 
-    # Fallback: try to use existing DEM and crop, or use a simple HTTP download
+    gdf = gpd.GeoDataFrame.from_features(features, crs="EPSG:4326")
+    gdf = gdf[gdf.geometry.notna() & ~gdf.geometry.is_empty]
+    gdf.to_file(out_path, driver="GeoJSON")
+    (raw_dir / "coolr_citation.txt").write_text(CITATION + "\n")
+    logger.info(f"Landslide inventory: {len(gdf)} points → {out_path}")
+    return out_path
+
+
+def mapped_domain(inventory, buffer_m: float, crs: str):
+    """The area an inventory actually covers, as a WGS84 polygon.
+
+    COOLR inventories are mapped campaign by campaign: the CHT set comes from
+    one storm and covers part of the region. Sampling background points over
+    the whole bounding box would put "never mapped" ground in the negative
+    class, and the model would learn the mapping footprint — east versus
+    west — instead of terrain. So the negatives are drawn only from the
+    convex hull of the inventory, buffered outwards.
+    """
+    import geopandas as gpd
+
+    hull = gpd.GeoSeries([inventory.unary_union], crs="EPSG:4326")
+    hull_m = hull.to_crs(crs).convex_hull.buffer(buffer_m)
+    return hull_m.to_crs("EPSG:4326").iloc[0]
+
+
+def sample_background_points(bbox, n: int, inventory, exclusion_m: float,
+                             crs: str, seed: int = 42, domain=None):
+    """Random points for the negative class, away from mapped landslides.
+
+    Susceptibility models need locations where landslides were not recorded.
+    Points near an inventory point are dropped, because "not recorded" there
+    may only mean the mapping stopped at the scarp edge. Draws are confined
+    to `domain` when given (see mapped_domain).
+    """
+    import geopandas as gpd
+    from scipy.spatial import cKDTree
+    from shapely.geometry import Point
+    from shapely.prepared import prep
+
+    from pipeline.feature_extract import project_coords
+
+    if domain is not None:
+        west, south, east, north = domain.bounds
+        inside = prep(domain)
+    else:
+        west, south, east, north = bbox
+        inside = None
+    rng = np.random.default_rng(seed)
+
+    inv_m = project_coords(
+        np.column_stack([inventory.geometry.x, inventory.geometry.y]), crs
+    )
+    tree = cKDTree(inv_m)
+
+    kept: list[Point] = []
+    # Oversample and filter; landslide points are clustered so most draws pass.
+    while len(kept) < n:
+        draw = max(n * 2, 1000)
+        lons = rng.uniform(west, east, draw)
+        lats = rng.uniform(south, north, draw)
+        pts_m = project_coords(np.column_stack([lons, lats]), crs)
+        dist, _ = tree.query(pts_m, k=1)
+        for lon, lat, d in zip(lons, lats, dist):
+            if d <= exclusion_m:
+                continue
+            point = Point(lon, lat)
+            if inside is not None and not inside.contains(point):
+                continue
+            kept.append(point)
+            if len(kept) >= n:
+                break
+
+    logger.info(f"Sampled {len(kept)} background points "
+                f"(>{exclusion_m:.0f} m from any mapped landslide)")
+    return gpd.GeoDataFrame(geometry=kept, crs="EPSG:4326")
+
+
+# ---------------------------------------------------------------------------
+# Features
+# ---------------------------------------------------------------------------
+
+def terrain_features_at(points, processed_dir: Path, cfg: dict
+                        ) -> tuple[np.ndarray, list[str]]:
+    """Sample terrain rasters at points; returns (X, feature_names).
+
+    Rasters come from the shared preprocessing step, so the landslide model
+    uses the same derivations (and the same CRS-aware sampling) as the flood
+    model rather than its own copy.
+    """
+    from pipeline.feature_extract import sample_raster_at_points
+
+    coords = list(zip(points.geometry.x, points.geometry.y))
+    rasters = {
+        "elevation": processed_dir / "dem_reprojected.tif",
+        "slope": processed_dir / "dem_derivatives" / "slope.tif",
+        "twi": processed_dir / "dem_derivatives" / "twi.tif",
+        "hand": processed_dir / "dem_derivatives" / "hand.tif",
+        "flow_acc": processed_dir / "dem_derivatives" / "flow_accumulation.tif",
+    }
+
+    columns, names = [], []
+    for name, path in rasters.items():
+        if not path.exists():
+            logger.warning(f"{path} missing — excluded from the landslide model")
+            continue
+        columns.append(sample_raster_at_points(str(path), coords))
+        names.append(name)
+
+    if not columns:
+        raise FileNotFoundError(
+            f"No terrain rasters in {processed_dir}. Run `preprocess` first."
+        )
+    return np.column_stack(columns), names
+
+
+# ---------------------------------------------------------------------------
+# Model
+# ---------------------------------------------------------------------------
+
+def fit_susceptibility_model(X: np.ndarray, y: np.ndarray, coords_m: np.ndarray,
+                             cfg: dict) -> dict:
+    """Fit logistic regression with spatially blocked validation.
+
+    Returns a dict with the fitted pipeline, validation metrics and the
+    standardised coefficients (which are what a reader can interpret).
+    """
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import average_precision_score, roc_auc_score
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    from pipeline.graph_build import spatial_block_split
+
+    ls_cfg = cfg.get("landslide", {})
+    train_mask, val_mask = spatial_block_split(
+        coords_m,
+        train_ratio=ls_cfg.get("train_split", 0.8),
+        block_size_m=ls_cfg.get("block_size_m", 10_000),
+        seed=ls_cfg.get("seed", 42),
+    )
+    train = train_mask.numpy().astype(bool)
+    val = val_mask.numpy().astype(bool)
+
+    model = make_pipeline(
+        StandardScaler(),
+        LogisticRegression(max_iter=1000, class_weight="balanced"),
+    )
+    model.fit(X[train], y[train])
+
+    scores = model.predict_proba(X[val])[:, 1]
+    metrics = {
+        "n_train": int(train.sum()),
+        "n_val": int(val.sum()),
+        "val_positive_rate": float(y[val].mean()),
+    }
+    if len(np.unique(y[val])) > 1:
+        metrics["val_auc_roc"] = float(roc_auc_score(y[val], scores))
+        metrics["val_average_precision"] = float(
+            average_precision_score(y[val], scores))
+    else:
+        metrics["note"] = "validation blocks hold a single class"
+
+    logger.info(f"Landslide model (spatial blocks): {metrics}")
+    return {"model": model, "metrics": metrics}
+
+
+def predict_susceptibility_raster(model, processed_dir: Path, output_path: Path,
+                                  feature_names: list[str],
+                                  rows_per_block: int = 512) -> Path:
+    """Apply the fitted model across the region, a horizontal strip at a time.
+
+    The CHT DEM is tens of millions of pixels; stacking every feature band in
+    memory and predicting in one call would need several gigabytes, so the
+    raster is streamed in blocks of rows.
+    """
+    import rasterio
+
+    rasters = {
+        "elevation": processed_dir / "dem_reprojected.tif",
+        "slope": processed_dir / "dem_derivatives" / "slope.tif",
+        "twi": processed_dir / "dem_derivatives" / "twi.tif",
+        "hand": processed_dir / "dem_derivatives" / "hand.tif",
+        "flow_acc": processed_dir / "dem_derivatives" / "flow_accumulation.tif",
+    }
+
+    sources = {name: rasterio.open(rasters[name]) for name in feature_names}
     try:
-        _download_srtm_tiles(bbox, str(dem_path))
-        return str(dem_path)
-    except Exception as e:
-        logger.error(f"Could not download CHT DEM: {e}")
-        return None
+        reference = sources[feature_names[0]]
+        profile = reference.profile.copy()
+        profile.update(dtype="float32", count=1, nodata=-9999.0, compress="lzw")
+        height, width = reference.height, reference.width
 
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        total_valid, total_sum = 0, 0.0
 
-def _download_srtm_tiles(bbox: list, output_path: str):
-    """Download and merge SRTM tiles for bbox using rasterio."""
-    import rasterio
-    from rasterio.merge import merge
-    from rasterio.warp import calculate_default_transform, reproject, Resampling
-    import requests as _req
-    import tempfile
-    import math
+        with rasterio.open(output_path, "w", **profile) as dst:
+            for row_start in range(0, height, rows_per_block):
+                rows = min(rows_per_block, height - row_start)
+                window = rasterio.windows.Window(0, row_start, width, rows)
 
-    west, south, east, north = bbox
-    tiles = []
+                bands, invalid = [], None
+                for name in feature_names:
+                    src = sources[name]
+                    data = src.read(1, window=window).astype(np.float32)
+                    bad = ~np.isfinite(data) | (data < -9000)
+                    if src.nodata is not None:
+                        bad |= data == src.nodata
+                    invalid = bad if invalid is None else (invalid | bad)
+                    bands.append(np.nan_to_num(data, nan=0.0))
 
-    for lat in range(math.floor(south), math.ceil(north)):
-        for lon in range(math.floor(west), math.ceil(east)):
-            lat_prefix = "N" if lat >= 0 else "S"
-            lon_prefix = "E" if lon >= 0 else "W"
-            tile_name = f"{lat_prefix}{abs(lat):02d}{lon_prefix}{abs(lon):03d}"
-            url = f"https://elevation-tiles-prod.s3.amazonaws.com/skadi/{tile_name[:3]}/{tile_name}.hgt.gz"
+                stack = np.stack(bands, axis=-1)
+                probs = model.predict_proba(
+                    stack.reshape(-1, stack.shape[-1])
+                )[:, 1].reshape(rows, width).astype(np.float32)
+                probs[invalid] = -9999.0
 
-            try:
-                logger.info(f"Downloading SRTM tile {tile_name}...")
-                resp = _req.get(url, timeout=30)
-                resp.raise_for_status()
-                tmp = tempfile.NamedTemporaryFile(suffix=".hgt.gz", delete=False)
-                tmp.write(resp.content)
-                tmp.close()
-                tiles.append(tmp.name)
-            except Exception as e:
-                logger.warning(f"Could not download tile {tile_name}: {e}")
+                dst.write(probs, 1, window=window)
+                valid = probs[probs >= 0]
+                total_valid += valid.size
+                total_sum += float(valid.sum())
 
-    if not tiles:
-        raise RuntimeError("No SRTM tiles downloaded")
+            dst.update_tags(
+                description="Landslide susceptibility, logistic regression "
+                            "fitted to the COOLR inventory",
+                citation=CITATION,
+            )
+    finally:
+        for src in sources.values():
+            src.close()
 
-    # For simplicity, if tiles exist, just use the first valid one
-    # A full implementation would merge all tiles
-    import gzip
-    import shutil
-
-    for tile_gz in tiles:
-        try:
-            hgt_path = tile_gz.replace(".gz", "")
-            with gzip.open(tile_gz, "rb") as f_in:
-                with open(hgt_path, "wb") as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-
-            with rasterio.open(hgt_path) as src:
-                profile = src.profile.copy()
-                data = src.read(1)
-                profile.update(driver="GTiff")
-                with rasterio.open(output_path, "w", **profile) as dst:
-                    dst.write(data, 1)
-            logger.info(f"SRTM tile written to {output_path}")
-            return
-        except Exception as e:
-            logger.warning(f"Failed to process tile: {e}")
-
-    raise RuntimeError("Could not process any SRTM tiles")
-
-
-def compute_slope(dem_path: str, output_path: str = None) -> str:
-    """Compute slope in degrees from DEM using numpy gradient."""
-    import rasterio
-
-    with rasterio.open(dem_path) as src:
-        dem = src.read(1).astype(np.float32)
-        transform = src.transform
-        profile = src.profile.copy()
-
-        # Cell size in meters (approximate for geographic CRS)
-        cell_x = abs(transform.a) * 111000  # degrees to meters
-        cell_y = abs(transform.e) * 111000
-
-    # Replace nodata
-    dem[dem < -100] = np.nan
-
-    # Compute gradient
-    dy, dx = np.gradient(dem, cell_y, cell_x)
-    slope_rad = np.arctan(np.sqrt(dx**2 + dy**2))
-    slope_deg = np.degrees(slope_rad)
-    slope_deg = np.nan_to_num(slope_deg, nan=0.0)
-
-    if output_path is None:
-        output_path = str(Path(dem_path).parent / "cht_slope.tif")
-
-    profile.update(dtype="float32", count=1, nodata=-9999)
-    with rasterio.open(output_path, "w", **profile) as dst:
-        dst.write(slope_deg, 1)
-
-    logger.info(f"Slope computed → {output_path} "
-                f"(mean={np.nanmean(slope_deg):.1f}°, max={np.nanmax(slope_deg):.1f}°)")
+    mean = total_sum / total_valid if total_valid else float("nan")
+    logger.info(f"Susceptibility raster → {output_path} "
+                f"(mean {mean:.3f} over {total_valid} valid pixels)")
     return output_path
 
 
-def compute_slope_susceptibility(slope_path: str, output_path: str = None) -> str:
-    """
-    Compute landslide susceptibility from slope using logistic transform.
+# ---------------------------------------------------------------------------
+# Aggregation
+# ---------------------------------------------------------------------------
 
-    S(slope) = 1 / (1 + exp(-(slope - 20) / 5))
+def aggregate_to_admin(susceptibility_path: Path, admin_path: str,
+                       population_path: str | None, output_path: Path) -> list[dict]:
+    """Zonal statistics per administrative unit.
 
-    Slopes > 20° are high susceptibility, < 20° are low.
+    Requires real boundaries: there is no synthetic fallback, because naming
+    an arbitrary strip of raster after a real upazila misleads anyone reading
+    the table.
     """
+    import geopandas as gpd
+    from rasterstats import zonal_stats
+
+    if not admin_path or not Path(admin_path).exists():
+        raise FileNotFoundError(
+            f"Admin boundaries not found at {admin_path}. Run `download` first."
+        )
+
     import rasterio
 
-    with rasterio.open(slope_path) as src:
-        slope = src.read(1).astype(np.float32)
-        profile = src.profile.copy()
+    admin = gpd.read_file(admin_path)
 
-    # Logistic transform centered at 20 degrees
-    susceptibility = 1.0 / (1.0 + np.exp(-(slope - 20.0) / 5.0))
-    susceptibility = np.clip(susceptibility, 0, 1).astype(np.float32)
-
-    if output_path is None:
-        output_path = str(Path(slope_path).parent / "landslide_susceptibility.tif")
-
-    profile.update(dtype="float32")
-    with rasterio.open(output_path, "w", **profile) as dst:
-        dst.write(susceptibility, 1)
-
-    logger.info(f"Landslide susceptibility → {output_path} "
-                f"(mean={susceptibility.mean():.3f})")
-    return output_path
-
-
-def aggregate_to_upazila(susceptibility_path: str,
-                         upazila_shapefile: str = None,
-                         worldpop_path: str = None,
-                         output_path: str = None) -> list[dict]:
-    """
-    Aggregate susceptibility to upazila level using zonal statistics.
-
-    If upazila shapefile is not available for CHT, uses synthetic
-    upazila boundaries based on known CHT divisions.
-
-    Returns list of dicts with upazila-level stats.
-    """
-    import rasterio
-    from rasterio.features import geometry_mask
-
+    # rasterstats does not reproject: zones must be in the raster's CRS or
+    # every zone silently comes back empty. The susceptibility raster is in
+    # the projected CRS; WorldPop is in WGS84.
     with rasterio.open(susceptibility_path) as src:
-        susc = src.read(1)
-        transform = src.transform
-        shape = susc.shape
+        raster_crs = src.crs
+    try:
+        stats = zonal_stats(admin.to_crs(raster_crs), str(susceptibility_path),
+                            stats=["mean", "max", "count"], nodata=-9999.0)
+    except (OverflowError, ValueError) as exc:
+        # Zones that project to nowhere near the raster overflow the window
+        # arithmetic; that is the same failure as no overlap.
+        raise RuntimeError(
+            "Zonal statistics found no raster pixels in any unit — "
+            f"check the CRS of the boundaries and the raster ({exc})."
+        ) from exc
+    if all((s or {}).get("count", 0) == 0 for s in stats):
+        raise RuntimeError(
+            "Zonal statistics found no raster pixels in any unit — "
+            "check the CRS of the boundaries and the raster."
+        )
 
-    # Try to load WorldPop for population estimates
-    pop_data = None
-    if worldpop_path and Path(worldpop_path).exists():
-        try:
-            with rasterio.open(worldpop_path) as pop_src:
-                pop_data = pop_src.read(1)
-        except Exception:
-            pass
+    pop_stats = None
+    if population_path and Path(population_path).exists():
+        with rasterio.open(population_path) as src:
+            pop_crs = src.crs
+        pop_stats = zonal_stats(admin.to_crs(pop_crs), population_path,
+                                stats=["sum"], nodata=-99999.0)
 
-    # Try loading real upazila boundaries
     results = []
-    if upazila_shapefile and Path(upazila_shapefile).exists():
-        try:
-            import geopandas as gpd
-            from rasterstats import zonal_stats
+    for i, (_, row) in enumerate(admin.iterrows()):
+        s = stats[i] or {}
+        entry = {
+            "admin_name": row.get("admin_name"),
+            "admin_label": row.get("admin_label", row.get("admin_name")),
+            "susceptibility_mean": round(float(s.get("mean") or 0), 4),
+            "susceptibility_max": round(float(s.get("max") or 0), 4),
+            "n_pixels": int(s.get("count") or 0),
+        }
+        if pop_stats:
+            total = (pop_stats[i] or {}).get("sum")
+            entry["population"] = int(total) if total else None
+        results.append(entry)
 
-            upazilas = gpd.read_file(upazila_shapefile)
-            # Filter to CHT region
-            cht_upazilas = upazilas[upazilas.geometry.intersects(
-                gpd.GeoSeries.from_wkt(
-                    [f"POLYGON(({CHT_BBOX[0]} {CHT_BBOX[1]}, {CHT_BBOX[2]} {CHT_BBOX[1]}, "
-                     f"{CHT_BBOX[2]} {CHT_BBOX[3]}, {CHT_BBOX[0]} {CHT_BBOX[3]}, "
-                     f"{CHT_BBOX[0]} {CHT_BBOX[1]}))"],
-                    crs="EPSG:4326"
-                ).iloc[0]
-            )]
-
-            if len(cht_upazilas) > 0:
-                stats = zonal_stats(
-                    cht_upazilas, susceptibility_path,
-                    stats=["mean", "max", "std", "count"],
-                )
-                name_col = "NAME_2" if "NAME_2" in cht_upazilas.columns else "name"
-                for i, (_, row) in enumerate(cht_upazilas.iterrows()):
-                    s = stats[i] if i < len(stats) else {}
-                    results.append({
-                        "upazila": row.get(name_col, f"Upazila_{i}"),
-                        "susceptibility_mean": round(s.get("mean", 0) or 0, 3),
-                        "susceptibility_max": round(s.get("max", 0) or 0, 3),
-                        "exposed_population": int(s.get("count", 0) * 50),  # rough estimate
-                        "cvi_class": _susc_to_cvi(s.get("mean", 0) or 0),
-                    })
-                logger.info(f"Aggregated to {len(results)} real upazilas")
-                _save_results(results, output_path, susceptibility_path)
-                return results
-        except Exception as e:
-            logger.warning(f"Real upazila aggregation failed: {e}")
-
-    # Fallback: generate stats from raster directly for known CHT upazilas
-    logger.info("Using grid-based upazila approximation for CHT")
-    n_rows = len(CHT_UPAZILAS)
-    row_height = shape[0] // n_rows
-
-    for i, name in enumerate(CHT_UPAZILAS):
-        r_start = i * row_height
-        r_end = min((i + 1) * row_height, shape[0])
-        chunk = susc[r_start:r_end, :]
-        valid = chunk[chunk > 0]
-
-        pop_est = 0
-        if pop_data is not None and pop_data.shape == shape:
-            pop_chunk = pop_data[r_start:r_end, :]
-            pop_est = int(np.nansum(pop_chunk[pop_chunk > 0]))
-        else:
-            pop_est = int(15000 + np.random.default_rng(i).integers(0, 30000))
-
-        results.append({
-            "upazila": name,
-            "susceptibility_mean": round(float(np.mean(valid)) if len(valid) > 0 else 0, 3),
-            "susceptibility_max": round(float(np.max(valid)) if len(valid) > 0 else 0, 3),
-            "exposed_population": pop_est,
-            "cvi_class": _susc_to_cvi(float(np.mean(valid)) if len(valid) > 0 else 0),
-        })
-
-    _save_results(results, output_path, susceptibility_path)
+    results.sort(key=lambda r: r["susceptibility_mean"], reverse=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(results, indent=2))
+    logger.info(f"Landslide summary for {len(results)} units → {output_path}")
     return results
 
 
-def _susc_to_cvi(mean_susc: float) -> int:
-    """Convert mean susceptibility to CVI class (1-5)."""
-    if mean_susc >= 0.8:
-        return 5
-    elif mean_susc >= 0.6:
-        return 4
-    elif mean_susc >= 0.4:
-        return 3
-    elif mean_susc >= 0.2:
-        return 2
-    return 1
+# ---------------------------------------------------------------------------
+# Pipeline
+# ---------------------------------------------------------------------------
 
+def run_landslide_pipeline(cfg: dict, raw_dir: Path = Path("data/raw"),
+                           processed_dir: Path = Path("data/processed"),
+                           output_dir: Path = Path("data/output")) -> str:
+    """Inventory → features → fitted model → raster → admin summary."""
+    import geopandas as gpd
 
-def _save_results(results: list, output_path: str | None, ref_path: str):
-    """Save upazila results to JSON."""
-    if output_path is None:
-        output_path = str(Path(ref_path).parent / "landslide_upazila.json")
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
-        json.dump(results, f, indent=2)
-    logger.info(f"Landslide upazila stats → {output_path}")
+    from pipeline.feature_extract import project_coords
 
-
-def run_landslide_pipeline(cfg: dict) -> str | None:
-    """
-    Full landslide pipeline: download CHT DEM → slope → susceptibility → aggregate.
-
-    Returns path to landslide_upazila.json, or None on failure.
-    """
-    output_dir = Path(cfg.get("landslide", {}).get("output_dir", "data/output"))
-    raw_dir = Path("data/raw")
     output_dir.mkdir(parents=True, exist_ok=True)
+    ls_cfg = cfg.get("landslide", {})
+    crs = cfg["aoi"]["crs"]
 
-    cht_bbox = cfg.get("landslide", {}).get("bbox", CHT_BBOX)
-    worldpop_path = cfg.get("data", {}).get("vulnerability", {}).get(
-        "population_path", "data/raw/worldpop_popdens.tif")
+    logger.info("=== Landslide 1/5: inventory ===")
+    inventory_path = download_landslide_inventory(cfg, raw_dir)
+    inventory = gpd.read_file(inventory_path)
 
-    # Step 1: Download CHT DEM
-    logger.info("=== Landslide Step 1: Download CHT DEM ===")
-    dem_path = download_cht_dem(str(raw_dir), bbox=cht_bbox)
-    if dem_path is None:
-        logger.error("Could not obtain CHT DEM")
-        return None
-
-    # Step 2: Compute slope
-    logger.info("=== Landslide Step 2: Compute slope ===")
-    slope_path = compute_slope(dem_path, str(output_dir / "cht_slope.tif"))
-
-    # Step 3: Compute susceptibility
-    logger.info("=== Landslide Step 3: Compute susceptibility ===")
-    susc_path = compute_slope_susceptibility(
-        slope_path, str(output_dir / "landslide_susceptibility.tif"))
-
-    # Step 4: Aggregate to upazila
-    logger.info("=== Landslide Step 4: Aggregate to upazila ===")
-    upazila_shp = cfg.get("data", {}).get("vulnerability", {}).get(
-        "admin_boundaries_l2")
-    results = aggregate_to_upazila(
-        susc_path,
-        upazila_shapefile=upazila_shp,
-        worldpop_path=worldpop_path,
-        output_path=str(output_dir / "landslide_upazila.json"),
+    logger.info("=== Landslide 2/5: background sample ===")
+    ratio = ls_cfg.get("background_ratio", 2)
+    domain = mapped_domain(
+        inventory, buffer_m=ls_cfg.get("domain_buffer_m", 5000), crs=crs
+    )
+    background = sample_background_points(
+        cfg["aoi"]["bbox"], n=len(inventory) * ratio, inventory=inventory,
+        exclusion_m=ls_cfg.get("background_exclusion_m", 500), crs=crs,
+        seed=ls_cfg.get("seed", 42), domain=domain,
     )
 
-    logger.info(f"Landslide pipeline complete: {len(results)} upazilas processed")
+    logger.info("=== Landslide 3/5: terrain features ===")
+    X_pos, names = terrain_features_at(inventory, processed_dir, cfg)
+    X_neg, _ = terrain_features_at(background, processed_dir, cfg)
+    X = np.vstack([X_pos, X_neg])
+    y = np.concatenate([np.ones(len(X_pos)), np.zeros(len(X_neg))])
+
+    points = np.vstack([
+        np.column_stack([inventory.geometry.x, inventory.geometry.y]),
+        np.column_stack([background.geometry.x, background.geometry.y]),
+    ])
+    coords_m = project_coords(points, crs)
+
+    logger.info("=== Landslide 4/5: fit and validate ===")
+    fitted = fit_susceptibility_model(X, y, coords_m, cfg)
+
+    coefficients = dict(zip(
+        names,
+        [round(float(c), 4) for c in
+         fitted["model"].named_steps["logisticregression"].coef_[0]],
+    ))
+    # Inventory dates matter for interpretation: a single-event inventory
+    # describes susceptibility to that storm, not to every possible one.
+    dates = []
+    if "event_date" in inventory.columns:
+        import pandas as pd
+        parsed = pd.to_datetime(inventory["event_date"], unit="ms", errors="coerce")
+        dates = sorted({d.strftime("%Y-%m-%d") for d in parsed.dropna()})
+
+    metadata = {
+        "inventory": {
+            "source": "NASA COOLR (Events Points)",
+            "citation": CITATION,
+            "n_landslides": int(len(inventory)),
+            "n_background": int(len(background)),
+            "event_dates": dates[:20],
+            "n_event_dates": len(dates),
+            "single_event": len(dates) == 1,
+            "background_domain": "convex hull of the inventory, buffered "
+                                 f"{ls_cfg.get('domain_buffer_m', 5000)} m",
+        },
+        "features": names,
+        "standardised_coefficients": coefficients,
+        "validation": fitted["metrics"],
+        "model": "logistic regression, class-weighted, spatially blocked validation",
+    }
+    (output_dir / "landslide_model.json").write_text(json.dumps(metadata, indent=2))
+
+    logger.info("=== Landslide 5/5: predict and aggregate ===")
+    raster_path = predict_susceptibility_raster(
+        fitted["model"], processed_dir,
+        output_dir / "landslide_susceptibility.tif", names,
+    )
+    aggregate_to_admin(
+        raster_path,
+        cfg["data"].get("admin_boundaries", {}).get("upazila", ""),
+        cfg["data"].get("vulnerability", {}).get("population_path"),
+        output_dir / "landslide_upazila.json",
+    )
+
+    logger.info(f"Landslide pipeline complete. Coefficients: {coefficients}")
     return str(output_dir / "landslide_upazila.json")
