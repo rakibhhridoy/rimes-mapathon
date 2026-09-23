@@ -19,7 +19,8 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-SEEDS = (42, 7, 13, 21, 99)
+# The first five are the assignments earlier runs used, so those stay comparable.
+SEEDS = (42, 7, 13, 21, 99, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 14, 15, 16, 17)
 
 
 def _metrics(y_true: np.ndarray, scores: np.ndarray) -> dict:
@@ -264,4 +265,124 @@ def run_label_comparison(cfg: dict, processed_dir: Path, output_dir: Path,
     if saved is not None:
         np.savez(output_dir / "label_comparison_scores.npz", **saved)
     logger.info(f"Wrote {output_dir / 'label_comparison.json'}")
+    return result
+
+
+def run_temporal_holdout(cfg: dict, processed_dir: Path, raw_dir: Path,
+                         output_dir: Path, infra_path: Path, seeds=SEEDS,
+                         cutoff_year: int = 2022) -> dict:
+    """Train on floods up to `cutoff_year` and score against later floods.
+
+    The spatial blocks separate training from testing in space only, since
+    labels and reference extents come from the same events. Here the model
+    learns from the earlier events and is scored, on the held-out blocks,
+    against the extents of the later ones, so the test ground is new in both
+    space and time.
+
+    Two references are scored on the same assets. "past_flooding" is the share
+    of earlier events in which the ground flooded, which is the map a planner
+    would have without any model. "all_events" is the same model trained on
+    labels that include the later events, the spatial-only design, and gives
+    the ceiling the temporal test is measured against.
+    """
+    import geopandas as gpd
+    from scipy import stats
+
+    from pipeline.asset_model import _fit_tabular, model_type
+    from pipeline.feature_extract import (compute_centroids, extract_features,
+                                          project_coords, sample_raster_at_points)
+    from pipeline.graph_build import spatial_block_split_three
+
+    kind = model_type(cfg)
+    if kind == "graph_sage":
+        raise ValueError("Temporal hold-out expects a tabular asset model.")
+
+    events = (cfg.get("sentinel1") or {}).get("events", [])
+    early = [e for e in events if int(e["start"][:4]) <= cutoff_year]
+    late = [e for e in events if int(e["start"][:4]) > cutoff_year]
+    if not early or not late:
+        raise ValueError(f"Need events on both sides of {cutoff_year}; "
+                         f"got {len(early)} before and {len(late)} after.")
+
+    infra = gpd.read_file(str(infra_path))
+    X, coords, y_all, _ = extract_features(cfg, infra, processed_dir)
+    X = np.ascontiguousarray(X, dtype=np.float32)
+    y_all = np.ascontiguousarray(y_all).astype(int)
+    centroids = compute_centroids(gpd.read_file(str(infra_path)))
+    points = list(zip(centroids["lon"], centroids["lat"]))
+
+    def flooded_count(evts):
+        masks = [sample_raster_at_points(str(raw_dir / f"s1_flood_{e['name']}.tif"),
+                                         points) for e in evts]
+        return np.sum([np.nan_to_num(m) > 0.5 for m in masks], axis=0)
+
+    early_count = flooded_count(early)
+    late_count = flooded_count(late)
+    # The training threshold follows the region's own rule, capped by the
+    # number of earlier events. The later floods count if any of them reached
+    # the ground, since there are only one or two of them.
+    min_events = min((cfg.get("data", {}).get("labels", {}) or {})
+                     .get("min_events", 1), len(early))
+    y_early = (early_count >= min_events).astype(int)
+    y_late = (late_count >= 1).astype(int)
+    past = early_count / len(early)
+
+    coords_m = project_coords(np.asarray(coords), cfg["aoi"]["crs"])
+    block_m = cfg["graph"].get("block_size_m", 10_000)
+    train_ratio = cfg["graph"].get("train_split", 0.8)
+
+    per_seed = []
+    for seed in seeds:
+        train_mask, _, test_mask = spatial_block_split_three(
+            coords_m, train_ratio=train_ratio, block_size_m=block_m, seed=seed)
+        train = train_mask.numpy().astype(bool)
+        test = test_mask.numpy().astype(bool)
+        if (len(np.unique(y_late[test])) < 2
+                or len(np.unique(y_early[train])) < 2):
+            continue
+        scores = {
+            "temporal": _fit_tabular(kind, X, y_early, train, seed)
+                        .predict_proba(X[test])[:, 1],
+            "all_events": _fit_tabular(kind, X, y_all, train, seed)
+                          .predict_proba(X[test])[:, 1],
+            "past_flooding": past[test],
+        }
+        per_seed.append({"seed": seed, "n_test": int(test.sum()),
+                         "scores": {k: _metrics(y_late[test], v)
+                                    for k, v in scores.items()}})
+
+    summary = {}
+    for name in ("temporal", "all_events", "past_flooding"):
+        aucs = np.array([r["scores"][name]["auc_roc"] for r in per_seed])
+        lifts = np.array([r["scores"][name]["ap_lift"] for r in per_seed])
+        if len(aucs):
+            summary[name] = {
+                "auc_mean": float(aucs.mean()),
+                "auc_sd": float(aucs.std(ddof=1)) if len(aucs) > 1 else None,
+                "ap_lift_mean": float(lifts.mean()),
+                "n_seeds": int(len(aucs)),
+            }
+    for ref in ("past_flooding", "all_events"):
+        diff = np.array([r["scores"]["temporal"]["auc_roc"]
+                         - r["scores"][ref]["auc_roc"] for r in per_seed])
+        if len(diff) > 1:
+            summary[f"temporal_minus_{ref}"] = {
+                "mean": float(diff.mean()), "sd": float(diff.std(ddof=1)),
+                "seeds_temporal_ahead": int((diff > 0).sum()),
+                "n_seeds": int(len(diff)),
+                "p_value": float(stats.ttest_1samp(diff, 0.0).pvalue),
+            }
+
+    result = {
+        "model": kind, "cutoff_year": cutoff_year, "seeds": list(seeds),
+        "train_events": [e["name"] for e in early],
+        "test_events": [e["name"] for e in late],
+        "train_min_events": int(min_events),
+        "train_positive_rate": float(y_early.mean()),
+        "test_positive_rate": float(y_late.mean()),
+        "per_seed": per_seed, "summary": summary,
+    }
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "temporal_holdout.json").write_text(json.dumps(result, indent=2))
+    logger.info(f"Wrote {output_dir / 'temporal_holdout.json'}")
     return result

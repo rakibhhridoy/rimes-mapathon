@@ -6,6 +6,11 @@
  * every value shown is one the pipeline produced.
  */
 
+/* The app may be served at / or under a path such as /hazmapper, so every
+ * URL is built from where the page itself was loaded. */
+const BASE = document.baseURI.replace(/[^/]*$/, "");
+const url = (path) => BASE + path.replace(/^\//, "");
+
 const RISK_COLOURS = [
   ["#15803d", 0.30],      // low
   ["#a16207", 0.50],      // moderate
@@ -88,20 +93,25 @@ const OVERLAYS = {
 async function addOverlays(region) {
   // Raster layers the pipeline pre-rendered. They are PNGs with bounds, so
   // the browser draws them without asking the server for anything else.
+  const region_info = state.summary?.region || {};
   for (const [name, label] of Object.entries(OVERLAYS)) {
+    // Do not ask for a layer this region cannot have: it would be a 404 in
+    // the console on every load.
+    if (name === "landslide" && !region_info.has_landslide) continue;
+    if (name !== "landslide" && !region_info.has_assets && name !== "hand" && name !== "slope") continue;
     const id = `overlay-${name}`;
     if (map.getLayer(id)) map.removeLayer(id);
     if (map.getSource(id)) map.removeSource(id);
     let meta;
     try {
-      meta = await getJSON(`/overlays/${region}/${name}.json`);
+      meta = await getJSON(url(`overlays/${region}/${name}.json`));
     } catch {
       continue;                       // this region has no such layer
     }
     const [[south, west], [north, east]] = meta.bounds;
     map.addSource(id, {
       type: "image",
-      url: `/overlays/${region}/${name}.png`,
+      url: url(`overlays/${region}/${name}.png`),
       coordinates: [[west, north], [east, north], [east, south], [west, south]],
     });
     map.addLayer({
@@ -130,7 +140,7 @@ function removeRegionLayers() {
 
 function addRegionLayers(region) {
   removeRegionLayers();
-  const base = `pmtiles:///tiles/${region}`;
+  const base = `pmtiles://${url(`tiles/${region}`)}`;
 
   map.addSource("unions", { type: "vector", url: `${base}/unions.pmtiles` });
   map.addLayer({
@@ -358,8 +368,8 @@ async function panelBody(name) {
 async function rankingsPanel() {
   if (!state.summary.region.has_assets) return landslidePanel();
   const [assets, admin] = await Promise.all([
-    getJSON(`/api/region/${state.region}/assets?limit=200`),
-    getJSON(`/api/region/${state.region}/admin?level=union&limit=24`),
+    getJSON(url(`api/region/${state.region}/assets?limit=200`)),
+    getJSON(url(`api/region/${state.region}/admin?level=union&limit=24`)),
   ]);
   const table = assets.assets.slice(0, 50).map((a) => `
     <tr><td class="num">${fmt(a.risk_rank)}</td><td>${a.asset_type}</td><td>${a.name}</td>
@@ -379,7 +389,7 @@ async function rankingsPanel() {
     <h3>Union summaries</h3><div class="cards">${cards}</div>
     <h3>Download</h3>
     <p>Outputs may be reused with attribution, subject to the source licences.
-      <a href="/api/region/${state.region}/export.csv">Download ranked assets (CSV)</a></p>`;
+      <a href="${url(`api/region/${state.region}/export.csv`)}">Download ranked assets (CSV)</a></p>`;
 }
 
 function landslidePanel() {
@@ -475,7 +485,7 @@ async function selectRegion(id) {
   state.selected = null;
   $("detail").hidden = true;
 
-  const summary = await getJSON(`/api/region/${id}/summary`);
+  const summary = await getJSON(url(`api/region/${id}/summary`));
   state.summary = summary;
   const region = summary.region;
 
@@ -510,7 +520,7 @@ $("search").addEventListener("input", (event) => {
   if (query.length < 2) { $("searchResults").hidden = true; return; }
   searchTimer = setTimeout(async () => {
     const found = await getJSON(
-      `/api/region/${state.region}/assets?q=${encodeURIComponent(query)}&limit=12`);
+      url(`api/region/${state.region}/assets?q=${encodeURIComponent(query)}&limit=12`));
     const list = $("searchResults");
     list.innerHTML = found.assets.map((a) => `
       <li data-id="${a.asset_id}">${a.name}
@@ -519,7 +529,7 @@ $("search").addEventListener("input", (event) => {
     list.hidden = false;
     list.querySelectorAll("li[data-id]").forEach((item) =>
       item.addEventListener("click", async () => {
-        const asset = await getJSON(`/api/region/${state.region}/asset/${item.dataset.id}`);
+        const asset = await getJSON(url(`api/region/${state.region}/asset/${item.dataset.id}`));
         map.flyTo({ center: [asset.lon, asset.lat], zoom: 13 });
         showDetail(asset);
         list.hidden = true;
@@ -548,7 +558,7 @@ map.on("click", "assets-circle", async (event) => {
   // copy of it.
   const name = feature.properties.name;
   const found = await getJSON(
-    `/api/region/${state.region}/assets?q=${encodeURIComponent(name || "")}&limit=40`);
+    url(`api/region/${state.region}/assets?q=${encodeURIComponent(name || "")}&limit=40`));
   const match = found.assets.find((a) =>
     Math.abs(a.lat - event.lngLat.lat) < 1e-4 && Math.abs(a.lon - event.lngLat.lng) < 1e-4)
     || found.assets[0];
@@ -559,7 +569,7 @@ map.on("mouseleave", "assets-circle", () => (map.getCanvas().style.cursor = ""))
 
 (async function start() {
   showLoading("Loading…");
-  const { regions } = await getJSON("/api/regions");
+  const { regions } = await getJSON(url("api/regions"));
   state.regions = regions;
   $("regionChips").innerHTML = regions.map((region) => {
     const short = { rangpur_rajshahi: "Rangpur", sylhet: "Sylhet",

@@ -95,3 +95,18 @@ class TestSensitivity:
         assert equal["night_light_proxy"] == 0.0
         assert equal["population_density"] == pytest.approx(0.5)
         assert scenarios["population_only"]["dist_hospital"] == 0.0
+
+
+class TestTemporalHoldout:
+    def test_default_seeds_keep_the_earlier_five_first(self):
+        from pipeline.benchmark import SEEDS
+        assert SEEDS[:5] == (42, 7, 13, 21, 99)
+        assert len(set(SEEDS)) == len(SEEDS) >= 20
+
+    def test_refuses_without_events_after_the_cutoff(self, tmp_path):
+        from pipeline.benchmark import run_temporal_holdout
+        cfg = {"asset_model": {"type": "gradient_boosting"},
+               "sentinel1": {"events": [{"name": "a", "start": "2017-08-12"},
+                                        {"name": "b", "start": "2020-07-11"}]}}
+        with pytest.raises(ValueError, match="both sides"):
+            run_temporal_holdout(cfg, tmp_path, tmp_path, tmp_path, tmp_path / "x.gpkg")
