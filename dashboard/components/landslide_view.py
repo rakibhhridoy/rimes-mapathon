@@ -129,10 +129,10 @@ def _map(region: str, cfg: dict):
         image=f"data:image/png;base64,{overlay['image_base64']}",
         bounds=overlay["bounds"], name="Landslide susceptibility", opacity=0.65,
     ).add_to(m)
-    folium.LayerControl(collapsed=True, position="topleft").add_to(m)
+    folium.LayerControl(collapsed=True, position="topright").add_to(m)
 
     m.get_root().html.add_child(folium.Element(
-        '<div style="position:fixed;top:56px;left:10px;z-index:9999;'
+        '<div style="position:fixed;top:56px;right:10px;z-index:9999;'
         'background:rgba(255,255,255,0.96);border:1px solid #dbe3ec;'
         'border-radius:6px;padding:8px 12px;font-size:10px;color:#475569;'
         'font-family:monospace;"><b style="color:#2a78d6;">Susceptibility</b>'

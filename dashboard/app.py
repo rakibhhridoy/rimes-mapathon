@@ -31,7 +31,8 @@ from dashboard.components.landslide_view import render_landslide_tab
 from dashboard.components.map_view import render_map
 from dashboard.components.preparedness import render_preparedness_tab
 from dashboard.components.risk_cards import render_risk_cards
-from dashboard.components.sidebar import render_analytics_overlay, render_sidebar
+from dashboard.components.sidebar import (render_analytics_overlay,
+                                          render_identity, render_sidebar)
 from dashboard.data.loader import (
     load_gdf_fast,
     load_landslide_model,
@@ -55,6 +56,8 @@ BG3 = theme.SURFACE_ALT
 TEXT = theme.TEXT
 TEXT2 = theme.TEXT_MUTED
 ACCENT = theme.ACCENT
+CHIP = "#9b1c1c"
+CHIP_SOFT = "#fbeaea"
 BORDER = theme.BORDER
 GLOW = theme.GLOW
 
@@ -388,27 +391,43 @@ st.markdown(f"""
         border-radius: 12px;
         box-shadow: 0 6px 24px rgba(15,23,42,0.10);
     }}
-    .st-key-fm_title, .st-key-fm_controls, .st-key-fm_pills,
+    .st-key-fm_regions, .st-key-fm_search, .st-key-fm_pills,
     .st-key-fm_kpis, .st-key-fm_detail, .st-key-fm_sheet {{
         z-index: 600;
     }}
-    /* Identity sits at the foot of the map, centred. */
-    .st-key-fm_title {{
-        position: absolute; bottom: 18px; left: 16px; right: auto;
-        transform: none; width: 320px; overflow: hidden;
-        padding: 12px 16px 14px;
-    }}
-    /* Search and region, centred at the top. */
-    .st-key-fm_controls {{
+    /* Region chips and search: two centred cards at the top. */
+    .st-key-fm_regions {{
         position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
-        width: min(460px, 38vw); text-align: center;
+        width: auto; padding: 7px 10px;
     }}
-    .st-key-fm_controls [data-testid="stButtonGroup"] {{
+    .st-key-fm_search {{
+        position: absolute; top: 74px; left: 50%; transform: translateX(-50%);
+        width: min(380px, 32vw); padding: 7px 10px;
+    }}
+    .st-key-fm_regions [data-testid="stButtonGroup"] > div {{
         display: flex !important;
         justify-content: center;
-        width: 100%;
+        gap: 7px;
+        background: transparent !important;
     }}
-    .st-key-fm_controls input {{ text-align: center; }}
+    /* Chips: dark red outline, filled when that region is showing. */
+    .st-key-fm_regions button[data-variant="segmented_control"] {{
+        border: 1.4px solid {CHIP} !important;
+        border-radius: 999px !important;
+        background: transparent !important;
+        color: {CHIP} !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        padding: 3px 15px !important;
+        min-height: 0 !important;
+    }}
+    .st-key-fm_regions button[data-variant="segmented_control"]:hover {{
+        background: {CHIP_SOFT} !important;
+    }}
+    .st-key-fm_regions button[data-selected="true"] {{
+        background: {CHIP} !important;
+        color: #ffffff !important;
+    }}
     /* Panels open from the foot of the left edge. */
     .st-key-fm_pills {{
         position: absolute; bottom: 18px; right: 16px; top: auto; left: auto;
@@ -429,7 +448,7 @@ st.markdown(f"""
         max-height: 60vh; overflow-y: auto; z-index: 650;
     }}
     /* Glass treatment for the floating containers themselves */
-    .st-key-fm_title, .st-key-fm_controls, .st-key-fm_pills,
+    .st-key-fm_regions, .st-key-fm_search, .st-key-fm_pills,
     .st-key-fm_kpis, .st-key-fm_detail {{
         background: rgba(255,255,255,0.93);
         backdrop-filter: blur(10px);
@@ -554,7 +573,6 @@ def main():
     filtered, layers = render_sidebar(region, infra)
 
     sheet_slot = st.empty()
-    _floating_title(region, cfg)
     st.session_state.map_capped = False
     _render_map_view(region, filtered, union_gdf, hotspot_gdf, cfg, layers)
     _report_marker_cap()
@@ -578,8 +596,13 @@ def _render_landslide_region(region: str):
     """
     from dashboard.components.landslide_view import render_landslide_map
 
+    # This region has no scored assets, so it has no filters or layer
+    # toggles, but it still needs the identity block the others carry.
+    with st.sidebar:
+        name, hazard, _ = REGION_CONFIGS.get(region, (region, "", None))
+        render_identity(name, hazard)
+
     sheet_slot = st.empty()
-    _floating_title(region, {})
     render_landslide_map(region)          # fills the page, like the flood map
     panel = st.session_state.get("open_panel")
     if panel == "Rankings & export":
@@ -656,38 +679,9 @@ def _report_marker_cap():
     )
 
 
-def _floating_title(region: str, cfg: dict):
-    """Name, region line and the prototype warning, top-left over the map."""
-
-    with st.container(key="fm_title"):
-        st.markdown(
-            f"""
-            <div style="font-family:'DM Mono',monospace;font-size:15px;
-                        font-weight:700;color:{TEXT};letter-spacing:-0.01em;
-                        text-align:center;">
-              FERMIUM HAZARD MAPPER
-            </div>
-            <div style="color:{TEXT2};font-size:10.5px;margin:3px 0 8px;
-                        letter-spacing:0.03em;text-align:center;">
-              {region_label(region)}
-            </div>
-            <div style="text-align:center;"><div class="fm-badge">RESEARCH PROTOTYPE
-              <div class="fm-badge-text">Modelled susceptibility, not a forecast
-              or an official warning. For warnings use FFWC and BMD; in an
-              emergency dial 999.</div>
-            </div></div>
-            <div style="color:#6b7a91;font-size:9px;margin-top:8px;
-                        letter-spacing:0.02em;text-align:center;">
-              Map data &copy; OpenStreetMap contributors &middot; Tiles &copy; Esri
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
 def _floating_controls(regions: list[str]) -> str:
-    """Region picker and asset search, floating at the top centre."""
-    with st.container(key="fm_controls"):
+    """Region chips and the asset search, as two centred cards at the top."""
+    with st.container(key="fm_regions"):
         if len(regions) > 1:
             chosen = st.segmented_control(
                 "Region", regions,
@@ -698,6 +692,7 @@ def _floating_controls(regions: list[str]) -> str:
             region = chosen or regions[0]
         else:
             region = regions[0]
+    with st.container(key="fm_search"):
         st.text_input(
             "Search assets", placeholder="Search assets by name or type…",
             label_visibility="collapsed", key="asset_search",

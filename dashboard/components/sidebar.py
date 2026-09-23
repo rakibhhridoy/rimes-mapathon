@@ -16,6 +16,7 @@ from dashboard.data.loader import (
     raster_paths,
 )
 from dashboard.data import theme
+from dashboard.data.regions import REGION_CONFIGS
 
 ACCENT = "#2a78d6"
 
@@ -49,6 +50,44 @@ def _row(label: str, value: str, note: str = "") -> str:
         f'{value}</span></div>'
         + (f'<div style="color:#6b7a91;font-size:9px;margin:-2px 0 4px;">{note}</div>'
            if note else "")
+    )
+
+
+def render_identity(region_name: str, hazard: str):
+    """Product name, region and the prototype warning, under the logo.
+
+    It used to float over the map. The sidebar has room for the warning in
+    full, which is worth more than a badge that has to be hovered.
+    """
+    st.markdown(
+        f"""
+        <div style="border-bottom:1px solid #dbe3ec;padding:0 0 14px;
+                    margin-bottom:16px;">
+          <div style="font-family:'DM Mono',monospace;font-size:13.5px;
+                      font-weight:700;color:#0f172a;letter-spacing:-0.01em;">
+            FERMIUM HAZARD MAPPER
+          </div>
+          <div style="color:#55637a;font-size:10.5px;margin:4px 0 9px;">
+            {region_name} &middot; {hazard}
+          </div>
+          <div style="background:#fdf3e3;border:1px solid #dea03c66;
+                      border-radius:6px;padding:8px 10px;">
+            <div style="color:#b45309;font-size:9px;font-weight:700;
+                        letter-spacing:0.1em;margin-bottom:4px;">
+              RESEARCH PROTOTYPE
+            </div>
+            <div style="color:#8a6524;font-size:10px;line-height:1.5;">
+              Modelled susceptibility, not a forecast or an official warning.
+              For warnings use FFWC and BMD; in an emergency dial 999.
+            </div>
+          </div>
+          <div style="color:#6b7a91;font-size:8.5px;margin-top:9px;
+                      line-height:1.4;">
+            Map data &copy; OpenStreetMap contributors &middot; Tiles &copy; Esri
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
 
@@ -173,6 +212,8 @@ def render_sidebar(region: str, infra):
     import pandas as pd
 
     with st.sidebar:
+        name, hazard, _ = REGION_CONFIGS.get(region, (region, "", None))
+        render_identity(name, hazard)
         render_provenance(
             load_pipeline_metadata(region),
             load_validation_metrics(region),
