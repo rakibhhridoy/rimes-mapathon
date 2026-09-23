@@ -390,7 +390,7 @@ st.markdown(f"""
     }}
     .st-key-fm_title, .st-key-fm_controls, .st-key-fm_pills,
     .st-key-fm_kpis, .st-key-fm_detail, .st-key-fm_sheet,
-    .st-key-fm_basemap, .st-key-fm_notice {{
+    .st-key-fm_notice {{
         z-index: 600;
     }}
     /* Identity sits at the foot of the map, centred. */
@@ -401,18 +401,16 @@ st.markdown(f"""
     /* Search and region, centred at the top. */
     .st-key-fm_controls {{
         position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
-        width: min(460px, 38vw);
+        width: min(460px, 38vw); text-align: center;
     }}
-    /* Basemap buttons, top left. */
-    .st-key-fm_basemap {{
-        position: absolute; top: 14px; left: 16px; width: 296px;
+    .st-key-fm_controls [data-testid="stHorizontalBlock"],
+    .st-key-fm_controls [role="radiogroup"] {{
+        justify-content: center;
     }}
-    .st-key-fm_basemap [data-testid="stButton"] button {{
-        font-size: 11.5px; padding: 3px 10px; min-height: 0;
-    }}
+    .st-key-fm_controls input {{ text-align: center; }}
     /* Panels open from the foot of the left edge. */
     .st-key-fm_pills {{
-        position: absolute; bottom: 18px; left: 16px; top: auto; right: auto;
+        position: absolute; bottom: 18px; right: 16px; top: auto; left: auto;
         transform: none; width: auto;
     }}
     .st-key-fm_pills [data-testid="stButton"] button {{
@@ -425,7 +423,7 @@ st.markdown(f"""
         transform: translateY(-50%); width: 176px; padding: 10px 12px;
     }}
     .st-key-fm_detail {{
-        position: absolute; bottom: 150px; left: 16px; width: 360px;
+        position: absolute; bottom: 18px; left: 16px; width: 360px;
         max-height: 52vh; overflow-y: auto; z-index: 650;
     }}
     /* What the map is actually showing, above the identity card. */
@@ -436,8 +434,7 @@ st.markdown(f"""
     }}
     /* Glass treatment for the floating containers themselves */
     .st-key-fm_title, .st-key-fm_controls, .st-key-fm_pills,
-    .st-key-fm_kpis, .st-key-fm_detail, .st-key-fm_notice,
-    .st-key-fm_basemap {{
+    .st-key-fm_kpis, .st-key-fm_detail, .st-key-fm_notice {{
         background: rgba(255,255,255,0.93);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
@@ -562,7 +559,6 @@ def main():
 
     sheet_slot = st.empty()
     notice_slot = st.empty()
-    _floating_basemap()
     _floating_title(region, cfg)
     st.session_state.map_capped = False
     _render_map_view(region, filtered, union_gdf, hotspot_gdf, cfg, layers)
@@ -651,40 +647,26 @@ def _floating_title(region: str, cfg: dict):
         st.markdown(
             f"""
             <div style="font-family:'DM Mono',monospace;font-size:15px;
-                        font-weight:700;color:{TEXT};letter-spacing:-0.01em;">
+                        font-weight:700;color:{TEXT};letter-spacing:-0.01em;
+                        text-align:center;">
               FERMIUM HAZARD MAPPER
             </div>
-            <div style="color:{TEXT2};font-size:10.5px;margin:3px 0 7px;
-                        letter-spacing:0.03em;">
+            <div style="color:{TEXT2};font-size:10.5px;margin:3px 0 8px;
+                        letter-spacing:0.03em;text-align:center;">
               {region_label(region)}
             </div>
-            <div class="fm-badge">RESEARCH PROTOTYPE
+            <div style="text-align:center;"><div class="fm-badge">RESEARCH PROTOTYPE
               <div class="fm-badge-text">Modelled susceptibility, not a forecast
               or an official warning. For warnings use FFWC and BMD; in an
               emergency dial 999.</div>
-            </div>
-            <div style="color:#6b7a91;font-size:9px;margin-top:7px;
-                        letter-spacing:0.02em;">
+            </div></div>
+            <div style="color:#6b7a91;font-size:9px;margin-top:8px;
+                        letter-spacing:0.02em;text-align:center;">
               Map data &copy; OpenStreetMap contributors &middot; Tiles &copy; Esri
             </div>
             """,
             unsafe_allow_html=True,
         )
-
-
-def _floating_basemap():
-    """Basemap buttons, top left, replacing Leaflet's own layer box."""
-    from dashboard.components.map_view import BASEMAPS
-
-    current = st.session_state.get("basemap", "Light")
-    with st.container(key="fm_basemap"):
-        columns = st.columns(len(BASEMAPS), gap="small")
-        for column, name in zip(columns, BASEMAPS):
-            with column:
-                if st.button(name, key=f"base_{name}", use_container_width=True,
-                             type="primary" if name == current else "secondary"):
-                    st.session_state.basemap = name
-                    st.rerun()
 
 
 def _floating_notice(slot):
