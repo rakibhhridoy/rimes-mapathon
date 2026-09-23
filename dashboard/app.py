@@ -398,9 +398,14 @@ st.markdown(f"""
         position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
         width: min(430px, 34vw);
     }}
+    /* Panel switcher: a vertical stack centred on the right edge */
     .st-key-fm_pills {{
-        position: absolute; top: 14px; right: 16px;
-        left: auto; width: auto;
+        position: absolute; top: 50%; right: 16px; left: auto;
+        transform: translateY(-50%); width: auto; z-index: 800;
+    }}
+    .st-key-fm_pills [data-testid="stButton"] button {{
+        width: 168px; justify-content: flex-start;
+        font-size: 12px; padding: 6px 12px;
     }}
     .st-key-fm_kpis {{
         position: absolute; bottom: 26px; left: 16px; right: 16px;
@@ -409,15 +414,16 @@ st.markdown(f"""
         position: absolute; bottom: 140px; left: 16px; width: 360px;
         max-height: 56vh; overflow-y: auto; z-index: 650;
     }}
+    /* An open panel takes the whole map area; the title and region picker
+       stay above it so you can still see and change where you are. */
     .st-key-fm_sheet {{
-        position: absolute; top: 0; right: 0; width: 46%; min-width: 420px;
-        height: 100vh; overflow-y: auto; z-index: 700;
-        background: rgba(255,255,255,0.975);
-        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-        border-left: 1px solid {BORDER};
-        box-shadow: -8px 0 28px rgba(15,23,42,0.10);
-        padding: 18px 22px 40px;
+        position: absolute; inset: 0; width: 100%; height: 100vh;
+        overflow-y: auto; z-index: 700;
+        background: {BG2};
+        /* right padding clears the button stack floating over the panel */
+        padding: 112px 208px 40px 28px;
     }}
+    .st-key-fm_title, .st-key-fm_controls {{ z-index: 800; }}
     /* Glass treatment for the floating containers themselves */
     .st-key-fm_title, .st-key-fm_controls, .st-key-fm_pills,
     .st-key-fm_kpis, .st-key-fm_detail {{
@@ -543,16 +549,18 @@ def main():
 
     filtered, layers = render_sidebar(region, infra)
 
+    sheet_slot = st.empty()
     _floating_title(region, cfg)
     _render_map_view(region, filtered, union_gdf, hotspot_gdf, cfg, layers)
-    _floating_kpis(filtered)
+    if not panel:
+        _floating_kpis(filtered)
 
     if st.session_state.get("selected_asset"):
         with st.container(key="fm_detail"):
             render_detail_panel()
 
     if panel:
-        _render_sheet(panel, region, filtered, union_gdf)
+        _render_sheet(sheet_slot, panel, region, filtered, union_gdf)
 
 
 def _render_landslide_region(region: str):
@@ -564,13 +572,14 @@ def _render_landslide_region(region: str):
     """
     from dashboard.components.landslide_view import render_landslide_map
 
+    sheet_slot = st.empty()
     _floating_title(region, {})
     render_landslide_map(region)          # fills the page, like the flood map
     panel = st.session_state.get("open_panel")
     if panel == "Rankings & export":
         # A landslide region has no ranked assets; its model summary, fitted
         # coefficients and upazila table take that slot instead.
-        with st.container(key="fm_sheet"):
+        with sheet_slot.container(key="fm_sheet"):
             head, shut = st.columns([4, 1])
             with head:
                 st.markdown(
@@ -582,7 +591,7 @@ def _render_landslide_region(region: str):
                     st.rerun()
             render_landslide_tab(region, with_map=False)
     elif panel in ("Preparedness", "About the data"):
-        _render_sheet(panel, region, None, None)
+        _render_sheet(sheet_slot, panel, region, None, None)
 
 
 def _render_no_data():
@@ -663,12 +672,23 @@ def _floating_controls(regions: list[str]) -> str:
 
 
 def _floating_pills() -> str | None:
-    """Panel switcher, top-right. Returns the open panel, or None."""
+    """Panel switcher on the right edge. Returns the open panel, or None.
+
+    Buttons rather than st.pills: the pill widget owns its key, and Streamlit
+    refuses to let a Close button clear a key a widget already claimed, so the
+    panel could never be closed. Here the open panel is plain session state
+    and the buttons only toggle it.
+    """
+    open_panel = st.session_state.get("open_panel")
     with st.container(key="fm_pills"):
-        return st.pills(
-            "Panels", PANELS, selection_mode="single",
-            key="open_panel", label_visibility="collapsed",
-        )
+        for name in PANELS:
+            active = name == open_panel
+            if st.button(name, key=f"pill_{name}", use_container_width=True,
+                         type="primary" if active else "secondary"):
+                # Clicking the open panel's own button closes it again.
+                st.session_state.open_panel = None if active else name
+                st.rerun()
+    return open_panel
 
 
 def _floating_kpis(filtered):
@@ -703,10 +723,16 @@ def _floating_kpis(filtered):
         )
 
 
-def _render_sheet(panel: str, region, filtered, union_gdf):
-    """The panel a pill opens, as a sheet over the right of the map."""
-    with st.container(key="fm_sheet"):
-        head, shut = st.columns([4, 1])
+def _render_sheet(slot, panel: str, region, filtered, union_gdf):
+    """The panel a button opens, over the whole map.
+
+    It is drawn into a placeholder that exists on every run. Streamlit leaves
+    a keyed container in the DOM when the script stops drawing it, so a panel
+    rendered directly would stay on screen after Close, still covering the
+    map; emptying a placeholder clears it properly.
+    """
+    with slot.container(key="fm_sheet"):
+        head, shut = st.columns([5, 1])
         with head:
             st.markdown(
                 f'<div class="sec-label" style="margin:2px 0 0;">{panel}</div>',
