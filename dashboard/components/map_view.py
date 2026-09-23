@@ -250,6 +250,29 @@ def _popup_html(row, ci=None) -> str:
     """
 
 
+def fill_frame(folium, m):
+    """Make a folium map fill whatever frame the page gives it.
+
+    Two things are needed. The map div carries a fixed pixel height baked into
+    the HTML, which CSS overrides, and Leaflet measures its container once at
+    construction, so it has to be told the size changed or it draws no tiles.
+    """
+    m.get_root().header.add_child(folium.Element(
+        "<style>html,body,#root{height:100%!important;margin:0;padding:0}"
+        ".float-container,.float-child,#map_div,.folium-map,"
+        ".leaflet-container{height:100%!important;width:100%!important}"
+        "</style>"
+    ))
+    m.get_root().html.add_child(folium.Element(
+        "<script>(function(){function fit(){for(var k in window){"
+        "if(k.indexOf('map_')===0&&window[k]&&window[k].invalidateSize){"
+        "try{window[k].invalidateSize();}catch(e){}}}}"
+        "window.addEventListener('load',function(){setTimeout(fit,150);"
+        "setTimeout(fit,600);});"
+        "window.addEventListener('resize',fit);})();</script>"
+    ))
+
+
 def _add_base_layers(folium, m):
     # Positron first: a light grey basemap lets the coloured markers carry
     # the signal instead of competing with the tiles.
@@ -270,7 +293,7 @@ def _add_base_layers(folium, m):
 
 def _risk_legend() -> str:
     return """
-    <div style="position:fixed;bottom:30px;left:10px;z-index:9999;
+    <div style="position:fixed;bottom:26px;right:10px;z-index:9999;
                 background:rgba(255,255,255,0.96);border:1px solid #dbe3ec;border-radius:6px;
                 padding:8px 12px;font-size:10px;font-family:monospace;color:#475569;">
       <b style="color:#2a78d6;">Susceptibility</b><br>
@@ -289,7 +312,10 @@ def render_map(region, infra, grid_gdf=None, union_gdf=None, hotspot_gdf=None,
     _, _, _, st_folium_fn = _get_map_imports()
     m = _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf,
                         cfg, layers)
-    st_folium_fn(m, width=None, height=height, returned_objects=[])
+    # Only the click is returned: anything more (bounds, zoom, hover) makes
+    # Streamlit rerun on every mouse move.
+    return st_folium_fn(m, width=None, height=height,
+                        returned_objects=["last_object_clicked"])
 
 
 def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
@@ -316,6 +342,7 @@ def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
     )
     m.add_child(zoom_br)
 
+    fill_frame(folium, m)
     _add_base_layers(folium, m)
 
     # --- Raster overlays (pre-rendered in WGS84 by preprocess_cache.py) ---
