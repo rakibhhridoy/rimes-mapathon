@@ -191,7 +191,7 @@ st.markdown(f"""
     }}
     .kpi-item {{
         flex: 1;
-        min-width: 130px;
+        min-width: 104px;
         background: rgba(255,255,255,0.92);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
@@ -345,6 +345,123 @@ st.markdown(f"""
         }}
     }}
 
+    /* ── Full-bleed map layout ──────────────────────────────────────────
+       The map is the page. Everything else floats over it in glass cards
+       positioned inside the main block, so the sidebar can collapse and
+       the cards follow it. */
+    html, body, [data-testid="stAppViewContainer"] {{
+        overflow: hidden !important;
+    }}
+    [data-testid="stMain"] .block-container {{
+        padding: 0 !important;
+        max-width: 100% !important;
+        position: relative;
+        height: 100vh !important;
+        overflow: hidden;
+    }}
+    /* Streamlit's toolbar strip and the gaps between the (zero height)
+       floating containers otherwise push the map down the page. */
+    [data-testid="stHeader"] {{
+        height: 0 !important; min-height: 0 !important;
+        background: transparent !important;
+    }}
+    [data-testid="stMain"] .block-container > div,
+    [data-testid="stMain"] [data-testid="stVerticalBlock"] {{
+        gap: 0 !important;
+    }}
+    iframe[title="streamlit_folium.st_folium"] {{
+        height: 100vh !important;
+        width: 100% !important;
+        border: none !important;
+        display: block;
+    }}
+    /* the component wrapper Streamlit puts around the map */
+    [data-testid="stCustomComponentV1"] {{
+        height: 100vh !important;
+    }}
+    .fm-glass {{
+        background: rgba(255,255,255,0.93);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid {BORDER};
+        border-radius: 12px;
+        box-shadow: 0 6px 24px rgba(15,23,42,0.10);
+    }}
+    .st-key-fm_title, .st-key-fm_controls, .st-key-fm_pills,
+    .st-key-fm_kpis, .st-key-fm_detail, .st-key-fm_sheet {{
+        z-index: 600;
+    }}
+    .st-key-fm_title {{
+        position: absolute; top: 14px; left: 16px; width: 320px; right: auto;
+    }}
+    .st-key-fm_controls {{
+        position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+        width: min(430px, 34vw);
+    }}
+    .st-key-fm_pills {{
+        position: absolute; top: 14px; right: 16px;
+        left: auto; width: auto;
+    }}
+    .st-key-fm_kpis {{
+        position: absolute; bottom: 26px; left: 16px; right: 16px;
+    }}
+    .st-key-fm_detail {{
+        position: absolute; bottom: 140px; left: 16px; width: 360px;
+        max-height: 56vh; overflow-y: auto; z-index: 650;
+    }}
+    .st-key-fm_sheet {{
+        position: absolute; top: 0; right: 0; width: 46%; min-width: 420px;
+        height: 100vh; overflow-y: auto; z-index: 700;
+        background: rgba(255,255,255,0.975);
+        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        border-left: 1px solid {BORDER};
+        box-shadow: -8px 0 28px rgba(15,23,42,0.10);
+        padding: 18px 22px 40px;
+    }}
+    /* Glass treatment for the floating containers themselves */
+    .st-key-fm_title, .st-key-fm_controls, .st-key-fm_pills,
+    .st-key-fm_kpis, .st-key-fm_detail {{
+        background: rgba(255,255,255,0.93);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid {BORDER};
+        border-radius: 12px;
+        box-shadow: 0 6px 24px rgba(15,23,42,0.10);
+        padding: 10px 14px;
+    }}
+    .st-key-fm_kpis {{ padding: 8px 12px; }}
+    .st-key-fm_controls [data-testid="stTextInput"] input {{
+        background: {BG2} !important;
+    }}
+    /* The prototype warning: a badge that opens on hover */
+    .fm-badge {{
+        display: inline-block; cursor: default;
+        background: #fdf3e3; border: 1px solid #dea03c66; border-radius: 6px;
+        color: #b45309; font-size: 9.5px; font-weight: 700;
+        letter-spacing: 0.08em; padding: 3px 7px;
+    }}
+    .fm-badge .fm-badge-text {{
+        display: none; font-weight: 400; letter-spacing: 0;
+        color: #8a6524; font-size: 11px; line-height: 1.45;
+    }}
+    .fm-badge:hover .fm-badge-text {{ display: block; margin-top: 5px; }}
+    /* Loading veil over the map */
+    .fm-loading {{
+        position: fixed; inset: 0; z-index: 900;
+        background: rgba(247,249,251,0.72);
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 14px;
+    }}
+    .fm-spinner {{
+        width: 44px; height: 44px; border-radius: 50%;
+        border: 3px solid {ACCENT}33; border-top-color: {ACCENT};
+        animation: fmspin 0.9s linear infinite;
+    }}
+    @keyframes fmspin {{ to {{ transform: rotate(360deg); }} }}
+    .fm-loading-label {{
+        color: {TEXT2}; font-size: 12px; letter-spacing: 0.04em;
+    }}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -373,44 +490,6 @@ if os.path.exists(_logo_path):
 
 
 # ---------------------------------------------------------------------------
-# Header
-# ---------------------------------------------------------------------------
-st.markdown(
-    f"""
-    <div style="background:linear-gradient(135deg,#eaf2fc 0%,{BG} 70%);
-                border-bottom:1px solid {BORDER};padding:16px 24px 12px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;
-                  flex-wrap:wrap;gap:8px;">
-        <div>
-          <div style="color:#6b7a91;font-size:10px;font-weight:700;
-                      letter-spacing:0.15em;margin-bottom:4px;">
-            SGMDI · SMART GEOSPATIAL MAPPING &amp; DISASTER IMPACT INTELLIGENCE
-          </div>
-          <h1 style="font-size:22px;font-weight:700;margin:0;color:#0f172a;
-                     letter-spacing:-0.01em;font-family:'DM Mono',monospace;">
-            FERMIUM HAZARD MAPPER
-          </h1>
-          <p style="color:{TEXT2};font-size:11px;margin:4px 0 0;letter-spacing:0.04em;">
-            Flood risk to infrastructure · Rangpur &amp; Rajshahi divisions, Bangladesh
-          </p>
-        </div>
-        <div style="max-width:420px;background:#fdf3e3;border:1px solid #dea03c66;
-                    border-radius:8px;padding:10px 14px;">
-          <div style="color:#b45309;font-size:10px;font-weight:700;
-                      letter-spacing:0.1em;margin-bottom:3px;">RESEARCH PROTOTYPE</div>
-          <div style="color:#8a6524;font-size:11px;line-height:1.5;">
-            Modelled susceptibility, not a forecast or an official warning.
-            For warnings use FFWC and BMD; in an emergency dial 999.
-          </div>
-        </div>
-      </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-
-# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main():
@@ -419,12 +498,20 @@ def main():
         _render_no_data()
         return
 
-    region = _select_region(regions)
+    # The floating controls carry the region picker, so they run first.
+    region = _floating_controls(regions)
     cfg = region_config(region)
+    panel = _floating_pills()
 
+    veil = st.empty()
+    veil.markdown(
+        SPINNER_HTML.format(label=f"Loading {region_label(region)}…"),
+        unsafe_allow_html=True,
+    )
     infra = load_gdf_fast(region, "risk_ranked_assets")
     union_gdf = load_gdf_fast(region, "union_risk_summary")
     hotspot_gdf = load_gdf_fast(region, "hotspot_clusters")
+    veil.empty()
 
     if len(infra) == 0:
         # A landslide region's result is a susceptibility surface, not scored
@@ -444,11 +531,7 @@ def main():
         infra = infra.assign(lon=pts.x, lat=pts.y)
     infra = infra.drop(columns=["centroid"], errors="ignore")
 
-    search_query = st.text_input(
-        "Search assets",
-        placeholder="Search assets by name or type…",
-        label_visibility="collapsed",
-    )
+    search_query = st.session_state.get("asset_search", "")
     if search_query:
         # regex=False: the query is user input, not a pattern
         mask = infra["name"].str.contains(search_query, case=False, na=False, regex=False)
@@ -457,71 +540,49 @@ def main():
                 search_query, case=False, na=False, regex=False
             )
         infra = infra[mask]
-        if len(infra) == 0:
-            st.warning(f'No assets match "{search_query}".')
-            return
 
     filtered, layers = render_sidebar(region, infra)
 
-    tab_map, tab_rank, tab_prep, tab_about = st.tabs(
-        ["Risk map", "Rankings & export", "Preparedness", "About the data"]
-    )
+    _floating_title(region, cfg)
+    _render_map_view(region, filtered, union_gdf, hotspot_gdf, cfg, layers)
+    _floating_kpis(filtered)
 
-    with tab_map:
-        _render_map_tab(region, filtered, union_gdf, hotspot_gdf, cfg, layers)
+    if st.session_state.get("selected_asset"):
+        with st.container(key="fm_detail"):
+            render_detail_panel()
 
-    with tab_rank:
-        _render_rankings_tab(region, filtered, union_gdf)
-
-    with tab_prep:
-        render_preparedness_tab(region)
-
-    with tab_about:
-        render_about_tab(region)
-
-    meta = load_pipeline_metadata(region) or {}
-    st.markdown(
-        '<div class="sgmdi-footer">'
-        'Fermium Hazard Mapper · SGMDI — open research prototype · '
-        'Infrastructure data © OpenStreetMap contributors (ODbL) · '
-        f'Data processed {str(meta.get("generated_at", "—"))[:10]}'
-        '</div>',
-        unsafe_allow_html=True,
-    )
+    if panel:
+        _render_sheet(panel, region, filtered, union_gdf)
 
 
 def _render_landslide_region(region: str):
-    """Tabs for a region whose model estimates slope failure, not flooding."""
-    tab_slide, tab_prep, tab_about = st.tabs(
-        ["Landslide susceptibility", "Preparedness", "About the data"]
-    )
-    with tab_slide:
-        render_landslide_tab(region)
-    with tab_prep:
-        render_preparedness_tab(region)
-    with tab_about:
-        render_about_tab(region)
+    """A region whose model estimates slope failure, not flooding.
 
+    It has no scored assets, so there are no KPI chips or rankings; the
+    susceptibility map fills the page and the two remaining panels open in
+    the same sheet as elsewhere.
+    """
+    from dashboard.components.landslide_view import render_landslide_map
 
-def _select_region(regions: list[str]) -> str:
-    """Region picker. Hidden when only one region has results."""
-    if len(regions) == 1:
-        return regions[0]
-
-    pending = [rid for rid in REGION_CONFIGS if rid not in regions]
-    choice = st.radio(
-        "Region",
-        regions,
-        format_func=region_label,
-        horizontal=True,
-        key="region_select",
-    )
-    if pending:
-        st.caption(
-            "Still being processed: "
-            + ", ".join(REGION_CONFIGS[rid][0] for rid in pending)
-        )
-    return choice
+    _floating_title(region, {})
+    render_landslide_map(region)          # fills the page, like the flood map
+    panel = st.session_state.get("open_panel")
+    if panel == "Rankings & export":
+        # A landslide region has no ranked assets; its model summary, fitted
+        # coefficients and upazila table take that slot instead.
+        with st.container(key="fm_sheet"):
+            head, shut = st.columns([4, 1])
+            with head:
+                st.markdown(
+                    '<div class="sec-label" style="margin:2px 0 0;">'
+                    'Landslide model</div>', unsafe_allow_html=True)
+            with shut:
+                if st.button("Close", key="close_sheet", use_container_width=True):
+                    st.session_state.open_panel = None
+                    st.rerun()
+            render_landslide_tab(region, with_map=False)
+    elif panel in ("Preparedness", "About the data"):
+        _render_sheet(panel, region, None, None)
 
 
 def _render_no_data():
@@ -534,8 +595,84 @@ def _render_no_data():
     render_about_tab()
 
 
-def _render_map_tab(region, filtered, union_gdf, hotspot_gdf, cfg, layers):
-    """KPI strip, interactive map and analytics."""
+SPINNER_HTML = """
+<div class="fm-loading">
+  <div class="fm-spinner"></div>
+  <div class="fm-loading-label">{label}</div>
+</div>
+"""
+
+SHORT_REGION = {
+    "rangpur_rajshahi": "Rangpur",
+    "sylhet": "Sylhet",
+    "sw_coastal": "Coast",
+    "cht": "Hill Tracts",
+}
+
+
+def _short_region(region_id: str) -> str:
+    """Names short enough for the floating picker, which has little room."""
+    return SHORT_REGION.get(region_id, REGION_CONFIGS.get(region_id, (region_id,))[0])
+
+
+PANELS = ["Rankings & export", "Preparedness", "About the data"]
+
+
+def _floating_title(region: str, cfg: dict):
+    """Name, region line and the prototype warning, top-left over the map."""
+
+    with st.container(key="fm_title"):
+        st.markdown(
+            f"""
+            <div style="font-family:'DM Mono',monospace;font-size:15px;
+                        font-weight:700;color:{TEXT};letter-spacing:-0.01em;">
+              FERMIUM HAZARD MAPPER
+            </div>
+            <div style="color:{TEXT2};font-size:10.5px;margin:3px 0 7px;
+                        letter-spacing:0.03em;">
+              {region_label(region)}
+            </div>
+            <div class="fm-badge">RESEARCH PROTOTYPE
+              <div class="fm-badge-text">Modelled susceptibility, not a forecast
+              or an official warning. For warnings use FFWC and BMD; in an
+              emergency dial 999.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+def _floating_controls(regions: list[str]) -> str:
+    """Region picker and asset search, floating at the top centre."""
+    with st.container(key="fm_controls"):
+        if len(regions) > 1:
+            chosen = st.segmented_control(
+                "Region", regions,
+                format_func=_short_region,
+                default=st.session_state.get("region_select", regions[0]),
+                key="region_select", label_visibility="collapsed",
+            )
+            region = chosen or regions[0]
+        else:
+            region = regions[0]
+        st.text_input(
+            "Search assets", placeholder="Search assets by name or type…",
+            label_visibility="collapsed", key="asset_search",
+        )
+    return region
+
+
+def _floating_pills() -> str | None:
+    """Panel switcher, top-right. Returns the open panel, or None."""
+    with st.container(key="fm_pills"):
+        return st.pills(
+            "Panels", PANELS, selection_mode="single",
+            key="open_panel", label_visibility="collapsed",
+        )
+
+
+def _floating_kpis(filtered):
+    """The eight headline counts, along the bottom edge."""
     n_total = len(filtered)
     n_high = int(filtered["is_high_risk"].sum()) if "is_high_risk" in filtered.columns else 0
     avg_risk = filtered["flood_risk"].mean() if "flood_risk" in filtered.columns else None
@@ -543,7 +680,6 @@ def _render_map_tab(region, filtered, union_gdf, hotspot_gdf, cfg, layers):
         filtered["asset_type"].value_counts()
         if "asset_type" in filtered.columns else {}
     )
-
     kpis = [
         (f"{n_total:,}", "Assets shown", ""),
         (f"{n_high:,}", "High susceptibility", "danger"),
@@ -554,43 +690,100 @@ def _render_map_tab(region, filtered, union_gdf, hotspot_gdf, cfg, layers):
         (f"{int(type_counts.get('flood_shelter', 0)):,}", "Flood shelters", "success"),
         (f"{int(type_counts.get('cropland', 0)):,}", "Cropland parcels", ""),
     ]
-    st.markdown(
-        '<div class="kpi-strip">'
-        + "".join(
-            f'<div class="kpi-item {cls}"><div class="kpi-val">{val}</div>'
-            f'<div class="kpi-label">{label}</div></div>'
-            for val, label, cls in kpis
+    with st.container(key="fm_kpis"):
+        st.markdown(
+            '<div class="kpi-strip">'
+            + "".join(
+                f'<div class="kpi-item {cls}"><div class="kpi-val">{val}</div>'
+                f'<div class="kpi-label">{label}</div></div>'
+                for val, label, cls in kpis
+            )
+            + "</div>",
+            unsafe_allow_html=True,
         )
-        + "</div>",
-        unsafe_allow_html=True,
-    )
-    st.caption(
-        "“High susceptibility” counts assets whose modelled score exceeds the "
-        "threshold set in config.yaml."
-    )
 
-    st.markdown('<div class="sec-label">Interactive risk map</div>',
-                unsafe_allow_html=True)
 
-    map_col, overlay_col = st.columns([5, 2], gap="small")
-    with map_col:
-        render_map(
-            region,
-            filtered,
-            grid_gdf=None,
-            union_gdf=union_gdf if len(union_gdf) > 0 else None,
-            hotspot_gdf=hotspot_gdf if len(hotspot_gdf) > 0 else None,
-            cfg=cfg,
-            layers=layers,
-        )
-    with overlay_col:
-        render_analytics_overlay(filtered)
+def _render_sheet(panel: str, region, filtered, union_gdf):
+    """The panel a pill opens, as a sheet over the right of the map."""
+    with st.container(key="fm_sheet"):
+        head, shut = st.columns([4, 1])
+        with head:
+            st.markdown(
+                f'<div class="sec-label" style="margin:2px 0 0;">{panel}</div>',
+                unsafe_allow_html=True,
+            )
+        with shut:
+            if st.button("Close", key="close_sheet", use_container_width=True):
+                st.session_state.open_panel = None
+                st.rerun()
+        if panel == "Rankings & export" and filtered is not None:
+            _render_rankings_tab(region, filtered, union_gdf)
+        elif panel == "Preparedness":
+            render_preparedness_tab(region)
+        else:
+            render_about_tab(region)
+
+
+def _select_asset(region: str, row):
+    """Put one asset's pipeline row into session state for the detail card."""
+    from dashboard.data.loader import get_kriging_ci_at_point
+
+    def _num(key):
+        val = row.get(key)
+        return float(val) if isinstance(val, (int, float)) and val == val else None
+
+    st.session_state.selected_asset = {
+        "name": str(row.get("name", "unnamed")),
+        "asset_type": str(row.get("asset_type", "")),
+        "flood_risk": _num("flood_risk"),
+        "flood_probability": _num("flood_probability"),
+        "risk_rank": int(row.get("risk_rank", 0) or 0),
+        "division": str(row.get("division", "")),
+        "lat": float(row["lat"]),
+        "lon": float(row["lon"]),
+        "kriging_ci": get_kriging_ci_at_point(
+            region, float(row["lat"]), float(row["lon"])),
+        "cell_hazard": _num("cell_hazard"),
+        "cell_exposure": _num("cell_exposure"),
+        "cell_vulnerability": _num("cell_vulnerability"),
+        "cell_composite_risk": _num("cell_composite_risk"),
+    }
+
+
+def _render_map_view(region, filtered, union_gdf, hotspot_gdf, cfg, layers):
+    """The map itself, filling the viewport behind the floating panels.
+
+    A marker click comes back as a coordinate, which is matched to the nearest
+    asset so the detail card can show that asset's own pipeline row.
+    """
+    state = render_map(
+        region,
+        filtered,
+        grid_gdf=None,
+        union_gdf=union_gdf if len(union_gdf) > 0 else None,
+        hotspot_gdf=hotspot_gdf if len(hotspot_gdf) > 0 else None,
+        cfg=cfg,
+        layers=layers,
+    )
+    clicked = (state or {}).get("last_object_clicked")
+    if not clicked or "lat" not in clicked or len(filtered) == 0:
+        return
+    lat, lon = float(clicked["lat"]), float(clicked["lng"])
+    # Degrees are fine for a nearest match at this scale, and the click lands
+    # within a few metres of the marker it came from. The card is drawn after
+    # the map in the same run, so setting the state here is enough: a rerun
+    # would rebuild the whole map for every click.
+    distance = (filtered["lat"] - lat) ** 2 + (filtered["lon"] - lon) ** 2
+    nearest = filtered.loc[distance.idxmin()]
+    if float(distance.min()) < 1e-6:
+        _select_asset(region, nearest)
 
 
 def _render_rankings_tab(region, filtered, union_gdf):
-    """Ranked assets, union summaries and downloads."""
+    """Charts, ranked assets, union summaries and downloads."""
     import plotly.express as px
 
+    render_analytics_overlay(filtered)
     st.markdown('<div class="sec-label">Highest-scoring assets</div>',
                 unsafe_allow_html=True)
 
@@ -637,28 +830,7 @@ def _render_rankings_tab(region, filtered, union_gdf):
         )
         if choice != "— Select an asset —":
             row = top_assets[top_assets["name"].fillna("unnamed") == choice].iloc[0]
-            from dashboard.data.loader import get_kriging_ci_at_point
-
-            def _num(key):
-                val = row.get(key)
-                return float(val) if isinstance(val, (int, float)) and val == val else None
-
-            st.session_state.selected_asset = {
-                "name": str(row.get("name", "unnamed")),
-                "asset_type": str(row.get("asset_type", "")),
-                "flood_risk": _num("flood_risk"),
-                "flood_probability": _num("flood_probability"),
-                "risk_rank": int(row.get("risk_rank", 0) or 0),
-                "division": str(row.get("division", "")),
-                "lat": float(row["lat"]),
-                "lon": float(row["lon"]),
-                "kriging_ci": get_kriging_ci_at_point(
-                    region, float(row["lat"]), float(row["lon"])),
-                "cell_hazard": _num("cell_hazard"),
-                "cell_exposure": _num("cell_exposure"),
-                "cell_vulnerability": _num("cell_vulnerability"),
-                "cell_composite_risk": _num("cell_composite_risk"),
-            }
+            _select_asset(region, row)
             render_detail_panel()
 
     st.markdown('<div class="sec-label">Union summaries</div>', unsafe_allow_html=True)

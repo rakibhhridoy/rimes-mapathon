@@ -107,7 +107,8 @@ def _coefficients(model: dict):
 
 def _map(region: str, cfg: dict):
     """Susceptibility surface over a basemap."""
-    from dashboard.components.map_view import _add_base_layers, _get_map_imports
+    from dashboard.components.map_view import (_add_base_layers, fill_frame,
+                                                _get_map_imports)
 
     overlay = get_raster_overlay(region, "landslide")
     if not overlay:
@@ -122,6 +123,7 @@ def _map(region: str, cfg: dict):
     m = folium.Map(location=dash.get("map_center", [22.5, 92.1]),
                    zoom_start=dash.get("map_zoom", 9), tiles=None,
                    control_scale=True)
+    fill_frame(folium, m)
     _add_base_layers(folium, m)
     folium.raster_layers.ImageOverlay(
         image=f"data:image/png;base64,{overlay['image_base64']}",
@@ -130,13 +132,13 @@ def _map(region: str, cfg: dict):
     folium.LayerControl(collapsed=True).add_to(m)
 
     m.get_root().html.add_child(folium.Element(
-        '<div style="position:fixed;bottom:30px;left:10px;z-index:9999;'
+        '<div style="position:fixed;bottom:26px;right:10px;z-index:9999;'
         'background:rgba(255,255,255,0.96);border:1px solid #dbe3ec;'
         'border-radius:6px;padding:8px 12px;font-size:10px;color:#475569;'
         'font-family:monospace;"><b style="color:#2a78d6;">Susceptibility</b>'
         '<br>darker orange = more prone to failure</div>'
     ))
-    st_folium_fn(m, width=None, height=560, returned_objects=[])
+    st_folium_fn(m, width=None, height=760, returned_objects=[])
 
 
 def _upazila_table(region: str):
@@ -171,8 +173,19 @@ def _upazila_table(region: str):
     )
 
 
-def render_landslide_tab(region: str):
-    """Full landslide view for a region."""
+def render_landslide_map(region: str):
+    """Just the susceptibility map, for the full-page layout."""
+    if not load_landslide_model(region):
+        st.info(
+            "No fitted landslide model for this region yet. Run "
+            "`python -m pipeline.cli -c configs/cht.yaml landslide`."
+        )
+        return
+    _map(region, region_config(region))
+
+
+def render_landslide_tab(region: str, with_map: bool = True):
+    """Model summary, map, fitted coefficients and the upazila table."""
     model = load_landslide_model(region)
     if not model:
         st.info(
@@ -183,7 +196,8 @@ def render_landslide_tab(region: str):
 
     cfg = region_config(region)
     _model_summary(model)
-    _map(region, cfg)
+    if with_map:
+        _map(region, cfg)
     _coefficients(model)
     _upazila_table(region)
 
