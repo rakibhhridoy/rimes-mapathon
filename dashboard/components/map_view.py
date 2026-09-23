@@ -14,6 +14,7 @@ from dashboard.data.loader import (
     get_raster_overlay,
     load_heatmap_points,
 )
+from dashboard.data import theme
 
 # Tile providers require visible attribution — see their terms of use.
 CARTO_ATTR = ('&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> '
@@ -96,15 +97,15 @@ _BROWSER_JS_GUARD = """
 """
 
 TYPE_COLORS = {
-    "hospital": "#ef4444",
+    "hospital": "#c62828",
     "school": "#3b82f6",
-    "bridge": "#f59e0b",
+    "bridge": "#b45309",
     "road": "#6b7280",
     "flood_shelter": "#10b981",
     "embankment": "#059669",
-    "railway": "#8b5cf6",
-    "ferry_ghat": "#0ea5e9",
-    "cropland": "#22c55e",
+    "railway": "#6d28d9",
+    "ferry_ghat": "#1c5cab",
+    "cropland": "#15803d",
     "fishpond": "#67e8f9",
     "irrigation": "#06b6d4",
     "market": "#f43f5e",
@@ -124,12 +125,12 @@ def _risk_color(score) -> str:
     except (TypeError, ValueError):
         return "#64748b"
     if score >= 0.7:
-        return "#ef4444"
+        return "#c62828"
     if score >= 0.5:
-        return "#f59e0b"
+        return "#b45309"
     if score >= 0.3:
-        return "#eab308"
-    return "#22c55e"
+        return "#a16207"
+    return "#15803d"
 
 
 def _risk_label(score) -> str:
@@ -151,18 +152,18 @@ def _factor_bar(label, value, color) -> str:
     if value is None:
         return (
             f'<div style="display:flex;gap:6px;margin:3px 0;font-size:9px;">'
-            f'<span style="color:#8ab4d4;width:62px;text-align:right;">{label}</span>'
+            f'<span style="color:#55637a;width:62px;text-align:right;">{label}</span>'
             f'<span style="color:#94a3b8;">not available</span></div>'
         )
     pct = max(0.0, min(float(value), 1.0)) * 100
     return (
         f'<div style="display:flex;align-items:center;gap:6px;margin:3px 0;">'
-        f'<span style="color:#8ab4d4;font-size:9px;width:62px;text-align:right;'
+        f'<span style="color:#55637a;font-size:9px;width:62px;text-align:right;'
         f'font-family:Inter,sans-serif;">{label}</span>'
         f'<div style="flex:1;background:#1e293b;border-radius:3px;height:6px;overflow:hidden;">'
         f'<div style="background:linear-gradient(90deg,{color}88,{color});'
         f'width:{pct:.0f}%;height:6px;border-radius:3px;"></div></div>'
-        f'<span style="color:#f0f6ff;font-size:9px;font-family:DM Mono,monospace;'
+        f'<span style="color:#0f172a;font-size:9px;font-family:DM Mono,monospace;'
         f'width:32px;">{float(value):.2f}</span></div>'
     )
 
@@ -197,10 +198,10 @@ def _popup_html(row, ci=None) -> str:
         )
 
     factors = (
-        _factor_bar("Hazard", cell("hazard"), "#ef4444")
-        + _factor_bar("Exposure", cell("exposure"), "#f59e0b")
-        + _factor_bar("Vulnerab.", cell("vulnerability"), "#8b5cf6")
-        + _factor_bar("Cell risk", cell("composite_risk"), "#00d4ff")
+        _factor_bar("Hazard", cell("hazard"), "#c62828")
+        + _factor_bar("Exposure", cell("exposure"), "#b45309")
+        + _factor_bar("Vulnerab.", cell("vulnerability"), "#6d28d9")
+        + _factor_bar("Cell risk", cell("composite_risk"), "#2a78d6")
     )
 
     gauge = f"""
@@ -233,7 +234,7 @@ def _popup_html(row, ci=None) -> str:
         <div style="font-size:9px;color:#64748b;text-align:center;margin-bottom:4px;">
             modelled flood susceptibility (ranking score)</div>
         {prob_html}
-        <div style="background:#f8fafc;border-radius:6px;padding:6px 8px;margin:4px 0;">
+        <div style="background:#f7f9fb;border-radius:6px;padding:6px 8px;margin:4px 0;">
             {factors}
         </div>
         <div style="display:flex;gap:10px;font-size:9px;color:#64748b;margin-top:5px;
@@ -249,46 +250,50 @@ def _popup_html(row, ci=None) -> str:
     """
 
 
-def _add_base_layers(folium, m, is_dark: bool):
-    if is_dark:
-        folium.TileLayer(
-            tiles="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-            attr=CARTO_ATTR, name="Dark",
-        ).add_to(m)
-    folium.TileLayer("OpenStreetMap", name="OpenStreetMap", attr=OSM_ATTR).add_to(m)
+def _add_base_layers(folium, m):
+    # Positron first: a light grey basemap lets the coloured markers carry
+    # the signal instead of competing with the tiles.
+    folium.TileLayer(
+        tiles=theme.TILE_URL, attr=theme.TILE_ATTR, name="Light",
+    ).add_to(m)
+    # The alternatives are added switched off. Leaflet draws base layers in
+    # the order they arrive, so without this the last one added covers the
+    # rest and the map always opened on satellite imagery.
+    folium.TileLayer("OpenStreetMap", name="OpenStreetMap", attr=OSM_ATTR,
+                     show=False).add_to(m)
     folium.TileLayer(
         tiles="https://server.arcgisonline.com/ArcGIS/rest/services/"
               "World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        attr=ESRI_ATTR, name="Satellite",
+        attr=ESRI_ATTR, name="Satellite", show=False,
     ).add_to(m)
 
 
 def _risk_legend() -> str:
     return """
     <div style="position:fixed;bottom:30px;left:10px;z-index:9999;
-                background:rgba(13,31,45,0.92);border:1px solid #1e3a52;border-radius:6px;
-                padding:8px 12px;font-size:10px;font-family:monospace;color:#a0c0d8;">
-      <b style="color:#00d4ff;">Susceptibility</b><br>
-      <span style="color:#22c55e;">&#9679;</span> Low (&lt;0.30)<br>
-      <span style="color:#eab308;">&#9679;</span> Moderate (0.30-0.50)<br>
-      <span style="color:#f59e0b;">&#9679;</span> High (0.50-0.70)<br>
-      <span style="color:#ef4444;">&#9679;</span> Very high (&ge;0.70)
+                background:rgba(255,255,255,0.96);border:1px solid #dbe3ec;border-radius:6px;
+                padding:8px 12px;font-size:10px;font-family:monospace;color:#475569;">
+      <b style="color:#2a78d6;">Susceptibility</b><br>
+      <span style="color:#15803d;">&#9679;</span> Low (&lt;0.30)<br>
+      <span style="color:#a16207;">&#9679;</span> Moderate (0.30-0.50)<br>
+      <span style="color:#b45309;">&#9679;</span> High (0.50-0.70)<br>
+      <span style="color:#c62828;">&#9679;</span> Very high (&ge;0.70)
     </div>
     """
 
 
 def render_map(region, infra, grid_gdf=None, union_gdf=None, hotspot_gdf=None,
-               cfg=None, is_dark=True, layers=None, height=620):
+               cfg=None, layers=None, height=620):
     """Render the main interactive map."""
     layers = layers or {}
     _, _, _, st_folium_fn = _get_map_imports()
     m = _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf,
-                        cfg, is_dark, layers)
+                        cfg, layers)
     st_folium_fn(m, width=None, height=height, returned_objects=[])
 
 
 def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
-                    is_dark, layers):
+                    layers):
     """Build the folium Map object with all layers."""
     folium, MarkerCluster, HeatMap, _ = _get_map_imports()
 
@@ -311,7 +316,7 @@ def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
     )
     m.add_child(zoom_br)
 
-    _add_base_layers(folium, m, is_dark)
+    _add_base_layers(folium, m)
 
     # --- Raster overlays (pre-rendered in WGS84 by preprocess_cache.py) ---
     for layer_key, raster_key, label in [
@@ -337,7 +342,7 @@ def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
                 [[lat, lon, w] for lat, lon, w in pop_points],
                 name="Population density (WorldPop)",
                 min_opacity=0.15, radius=12, blur=10,
-                gradient={"0.2": "#fce7f3", "0.5": "#f472b6",
+                gradient={"0.2": "#cde2fb", "0.5": "#6da7ec",
                           "0.8": "#db2777", "1.0": "#9d174d"},
             ).add_to(m)
 
@@ -396,8 +401,8 @@ def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
         if capped:
             m.get_root().html.add_child(folium.Element(
                 '<div style="position:fixed;top:10px;right:10px;z-index:9999;'
-                'background:rgba(13,31,45,0.92);border:1px solid #1e3a52;'
-                'border-radius:6px;padding:6px 10px;font-size:10px;color:#a0c0d8;'
+                'background:rgba(255,255,255,0.96);border:1px solid #dbe3ec;'
+                'border-radius:6px;padding:6px 10px;font-size:10px;color:#475569;'
                 'font-family:Inter,sans-serif;">Showing the 2,000 highest-scoring '
                 'assets of the current filter</div>'
             ))
@@ -414,8 +419,8 @@ def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
         if heat_data:
             HeatMap(
                 heat_data, name="Composite risk", min_opacity=0.25, radius=18, blur=12,
-                gradient={"0.2": "#0ea5e9", "0.4": "#22c55e", "0.6": "#eab308",
-                          "0.8": "#f59e0b", "1.0": "#ef4444"},
+                gradient={"0.2": "#1c5cab", "0.4": "#15803d", "0.6": "#a16207",
+                          "0.8": "#b45309", "1.0": "#c62828"},
             ).add_to(m)
 
     # --- Admin boundaries ---
@@ -431,7 +436,7 @@ def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
                 "fillColor": ("#475569"
                               if f["properties"].get("mean_risk") is None
                               else _risk_color(f["properties"].get("mean_risk"))),
-                "color": "#94a3b8" if is_dark else "#475569",
+                "color": theme.TEXT_MUTED,
                 "weight": 1, "fillOpacity": 0.25, "dashArray": "4",
             },
             tooltip=folium.GeoJsonTooltip(
@@ -449,7 +454,7 @@ def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
                 hotspots.to_json(),
                 name="Hotspots (Gi*, 95%)",
                 style_function=lambda x: {
-                    "fillColor": "#ef4444", "color": "#ef4444",
+                    "fillColor": "#c62828", "color": "#c62828",
                     "weight": 2, "fillOpacity": 0.35,
                 },
             ).add_to(m)

@@ -22,10 +22,10 @@ def inject_wave_animation():
       .wave-wrap {
         position: fixed;
         bottom: 0; left: 0;
-        width: 100vw; height: 35vh;
+        width: 100vw; height: 22vh;
         pointer-events: none;
         z-index: 0;
-        opacity: 0.40;
+        opacity: 0.16;
       }
       .wave-wrap svg {
         position: absolute;
@@ -34,8 +34,8 @@ def inject_wave_animation():
         height: 100%;
       }
       .wave-svg-1 { animation: wScroll1 7s linear infinite; }
-      .wave-svg-2 { animation: wScroll2 11s linear infinite; opacity: 0.6; }
-      .wave-svg-3 { animation: wScroll3 15s linear infinite; opacity: 0.35; }
+      .wave-svg-2 { animation: wScroll2 11s linear infinite; opacity: 0.55; }
+      .wave-svg-3 { animation: wScroll3 15s linear infinite; opacity: 0.3; }
 
       @keyframes wScroll1 {
         0%   { transform: translateX(0); }
@@ -55,21 +55,21 @@ def inject_wave_animation():
       <!-- Wave 1 — front -->
       <svg class="wave-svg-1" viewBox="0 0 2400 320" preserveAspectRatio="none"
            xmlns="http://www.w3.org/2000/svg">
-        <path fill="#00d4ff"
+        <path fill="#9ec5f4"
               d="M0,224 C200,128 400,288 600,224 C800,160 1000,288 1200,224
                  C1400,128 1600,288 1800,224 C2000,160 2200,288 2400,224 L2400,320 L0,320 Z"/>
       </svg>
       <!-- Wave 2 — mid -->
       <svg class="wave-svg-2" viewBox="0 0 2400 320" preserveAspectRatio="none"
            xmlns="http://www.w3.org/2000/svg">
-        <path fill="#3cb8de"
+        <path fill="#6da7ec"
               d="M0,256 C200,192 400,320 600,256 C800,192 1000,320 1200,256
                  C1400,192 1600,320 1800,256 C2000,192 2200,320 2400,256 L2400,320 L0,320 Z"/>
       </svg>
       <!-- Wave 3 — back -->
       <svg class="wave-svg-3" viewBox="0 0 2400 320" preserveAspectRatio="none"
            xmlns="http://www.w3.org/2000/svg">
-        <path fill="#00d4ff"
+        <path fill="#3987e5"
               d="M0,288 C200,224 400,320 600,288 C800,224 1000,320 1200,288
                  C1400,224 1600,320 1800,288 C2000,224 2200,320 2400,288 L2400,320 L0,320 Z"/>
       </svg>
