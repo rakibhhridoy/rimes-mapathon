@@ -1,0 +1,39 @@
+[Unit]
+Description=Fermium HazMapper — web application (FastAPI, SQLite, vector tiles)
+After=network.target
+
+[Service]
+Type=simple
+# Runs as root on this host, which has no separate service account. The
+# hardening below is what keeps a public process from reaching the rest of
+# the system; a dedicated unprivileged user would be safer still.
+User=root
+Group=root
+WorkingDirectory=/var/www/hazmapper
+ExecStart=/usr/local/bin/uvicorn web.api:app --host 127.0.0.1 --port 2030 \
+          --workers 2 --no-server-header
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+# The application only reads: the database and tiles are built by the
+# pipeline and copied in. Nothing here writes to disk.
+MemoryMax=1G
+MemoryHigh=768M
+CPUQuota=150%
+TasksMax=256
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadOnlyPaths=/var/www/hazmapper
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

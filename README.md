@@ -76,6 +76,50 @@ outputs. Server options (loopback bind, CSRF, no uploads) live in
 systemd units used for the public deployment, including per-IP rate limits and
 memory caps.
 
+## Web application (fast path)
+
+The Streamlit dashboard rebuilds its whole map on every interaction, which
+ships about 17 MB of HTML each time and takes 10–20 seconds. The web
+application serves the same results from a database and vector tiles instead:
+first view about 2 seconds, region switch about 0.6 seconds, and panning or
+filtering is instant because it happens in the browser.
+
+```bash
+python scripts/build_web.py          # database + tiles + overlays, per region
+uvicorn web.api:app --port 2030      # API and front end
+```
+
+`scripts/build_web.py` reads the same pipeline outputs the dashboard reads and
+writes:
+
+| Output | What it holds |
+|---|---|
+| `web/data/hazmapper.sqlite` | assets, administrative summaries, every metrics file, and an FTS5 search index |
+| `web/data/tiles/<region>/*.pmtiles` | assets, union boundaries and hotspots as vector tiles |
+| `web/data/overlays/<region>/*.png` | the raster layers the pipeline pre-rendered |
+
+Tiles are PMTiles, read by the browser over HTTP range requests, so no tile
+server is needed: nginx serving the file is enough. Tiles carry only the
+fields the map draws with; the detail card reads the database, so nothing is
+duplicated into the tiles for the sake of a popup.
+
+The front end is plain HTML, CSS and JavaScript with MapLibre GL
+(`web/static/`). Nothing is computed there: every figure comes from the API,
+and every value in the API comes from a file the pipeline wrote.
+
+### Deploying the web application
+
+```bash
+ssh root@server 'cd /var/www/hazmapper && git pull'
+rsync -a --delete web/data root@server:/var/www/hazmapper/web/
+scp hazmapper-web.service root@server:/etc/systemd/system/
+ssh root@server 'pip install fastapi uvicorn && systemctl daemon-reload \
+  && systemctl enable --now hazmapper-web'
+```
+
+Point nginx at port 2030 for the path you want it served on. The Streamlit
+dashboard can keep running on 2020 until you are satisfied with the new one.
+
 ### Deploying an update to the public server
 
 ```bash
