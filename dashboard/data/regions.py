@@ -73,6 +73,10 @@ def has_results(region_id: str) -> bool:
     return any([
         (paths["cache"] / "risk_ranked_assets.parquet").exists(),
         (paths["output"] / "risk_ranked_assets.geojson").exists(),
+        # A landslide region has no ranked assets. The cached overlay is what
+        # the page actually draws, so accept it and let deployments leave the
+        # quarter-gigabyte source raster behind.
+        (paths["cache"] / "raster_landslide.json").exists(),
         (paths["output"] / "landslide_susceptibility.tif").exists(),
     ])
 
