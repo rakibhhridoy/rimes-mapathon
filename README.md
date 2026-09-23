@@ -79,11 +79,14 @@ memory caps.
 ### Deploying an update to the public server
 
 ```bash
-rsync -a --exclude data --exclude .git ./ webuser@server:/var/www/hazmapper/
-rsync -a data/output data/cache webuser@server:/var/www/hazmapper/data/
-rsync -a data/sylhet/output data/sylhet/cache webuser@server:/var/www/hazmapper/data/sylhet/
-rsync -a data/cht/output data/cht/cache webuser@server:/var/www/hazmapper/data/cht/
-ssh webuser@server 'cd /var/www/hazmapper && pip install -r requirements.txt && sudo systemctl restart hazmapper'
+# Code comes from git; only the outputs and dashboard caches are copied.
+ssh root@server 'cd /var/www/hazmapper && git pull'
+rsync -a --delete data/output data/cache root@server:/var/www/hazmapper/data/
+rsync -a --delete data/sylhet/output data/sylhet/cache root@server:/var/www/hazmapper/data/sylhet/
+rsync -a --delete data/sw_coastal/output data/sw_coastal/cache root@server:/var/www/hazmapper/data/sw_coastal/
+rsync -a --delete data/cht/output data/cht/cache root@server:/var/www/hazmapper/data/cht/
+rsync -a data/shared/geoboundaries root@server:/var/www/hazmapper/data/shared/
+ssh root@server 'cd /var/www/hazmapper && pip install -r requirements.txt && systemctl restart hazmapper'
 ```
 
 The dashboard needs only each region's `output/` and `cache/` directories, not

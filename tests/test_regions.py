@@ -119,3 +119,20 @@ class TestPopulationExposure:
         out = compute_population_exposure_grid(self._grid(), cfg)
         assert out[0] == pytest.approx(1.0)
         assert out[1] == pytest.approx(0.0)
+
+
+class TestLandslideRegionDetection:
+    """A landslide region carries no ranked assets, so the dashboard must
+    recognise it from the cached overlay alone. Otherwise a deployment has to
+    carry the 250 MB susceptibility raster that nothing reads."""
+
+    def test_cached_overlay_alone_marks_the_region_as_ready(self, tmp_path, monkeypatch):
+        from dashboard.data import regions
+
+        paths = {kind: tmp_path / kind for kind in ("raw", "processed", "output", "cache")}
+        for path in paths.values():
+            path.mkdir()
+        monkeypatch.setattr(regions, "region_paths", lambda region: paths)
+        assert not regions.has_results("cht")
+        (paths["cache"] / "raster_landslide.json").write_text("{}")
+        assert regions.has_results("cht")
