@@ -37,9 +37,9 @@ def _model_summary(model: dict):
     auc_txt = f"{auc:.3f}" if isinstance(auc, (int, float)) else "—"
 
     st.markdown(
-        f'<div style="background:#0d1822;border:1px solid #1e3a52;'
+        f'<div style="background:#ffffff;border:1px solid #dbe3ec;'
         f'border-radius:8px;padding:16px 20px;margin-bottom:16px;">'
-        f'<div style="color:#f0f6ff;font-size:13px;line-height:1.7;">'
+        f'<div style="color:#0f172a;font-size:13px;line-height:1.7;">'
         f'This map estimates <b>where slopes are prone to failure</b>. A '
         f'logistic regression was fitted to '
         f'<b>{inventory.get("n_landslides", 0):,} mapped landslides</b> '
@@ -82,15 +82,15 @@ def _coefficients(model: dict):
 
     for name, value in ordered:
         direction = "raises" if value > 0 else "lowers"
-        colour = "#ef4444" if value > 0 else "#3cdea0"
+        colour = "#c62828" if value > 0 else "#15803d"
         width = abs(value) / largest * 100
         st.markdown(
             f'<div style="display:flex;align-items:center;gap:10px;'
-            f'padding:6px 0;border-bottom:1px solid #1a2a38;font-size:11px;">'
-            f'<span style="color:#e8f4ff;width:150px;">{name}'
-            f'<span style="color:#5a8ab0;"> — '
+            f'padding:6px 0;border-bottom:1px solid #dbe3ec;font-size:11px;">'
+            f'<span style="color:#0f172a;width:150px;">{name}'
+            f'<span style="color:#6b7a91;"> — '
             f'{FEATURE_MEANING.get(name, "")}</span></span>'
-            f'<div style="flex:1;background:#0d1822;border-radius:3px;'
+            f'<div style="flex:1;background:#ffffff;border-radius:3px;'
             f'height:7px;overflow:hidden;">'
             f'<div style="background:{colour};width:{width:.0f}%;height:7px;">'
             f'</div></div>'
@@ -122,7 +122,7 @@ def _map(region: str, cfg: dict):
     m = folium.Map(location=dash.get("map_center", [22.5, 92.1]),
                    zoom_start=dash.get("map_zoom", 9), tiles=None,
                    control_scale=True)
-    _add_base_layers(folium, m, is_dark=True)
+    _add_base_layers(folium, m)
     folium.raster_layers.ImageOverlay(
         image=f"data:image/png;base64,{overlay['image_base64']}",
         bounds=overlay["bounds"], name="Landslide susceptibility", opacity=0.65,
@@ -131,9 +131,9 @@ def _map(region: str, cfg: dict):
 
     m.get_root().html.add_child(folium.Element(
         '<div style="position:fixed;bottom:30px;left:10px;z-index:9999;'
-        'background:rgba(13,31,45,0.92);border:1px solid #1e3a52;'
-        'border-radius:6px;padding:8px 12px;font-size:10px;color:#a0c0d8;'
-        'font-family:monospace;"><b style="color:#00d4ff;">Susceptibility</b>'
+        'background:rgba(255,255,255,0.96);border:1px solid #dbe3ec;'
+        'border-radius:6px;padding:8px 12px;font-size:10px;color:#475569;'
+        'font-family:monospace;"><b style="color:#2a78d6;">Susceptibility</b>'
         '<br>darker orange = more prone to failure</div>'
     ))
     st_folium_fn(m, width=None, height=560, returned_objects=[])

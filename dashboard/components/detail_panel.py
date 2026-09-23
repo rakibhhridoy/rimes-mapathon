@@ -9,12 +9,12 @@ import streamlit as st
 
 def _risk_color(score: float) -> str:
     if score >= 0.7:
-        return "#ef4444"
+        return "#c62828"
     elif score >= 0.5:
-        return "#f59e0b"
+        return "#b45309"
     elif score >= 0.3:
-        return "#eab308"
-    return "#22c55e"
+        return "#a16207"
+    return "#15803d"
 
 
 def _risk_label(score: float) -> str:
@@ -32,7 +32,7 @@ def _bar_html(label: str, value, color: str) -> str:
     if value is None or value != value:
         return (
             f'<div style="display:flex;align-items:center;gap:8px;margin:5px 0;">'
-            f'<span style="color:#8ab4d4;font-size:10px;width:70px;text-align:right;'
+            f'<span style="color:#55637a;font-size:10px;width:70px;text-align:right;'
             f'font-family:Inter,sans-serif;">{label}</span>'
             f'<span style="color:#94a3b8;font-size:10px;">not available</span></div>'
         )
@@ -40,13 +40,13 @@ def _bar_html(label: str, value, color: str) -> str:
     pct = min(value * 100, 100)
     return (
         f'<div style="display:flex;align-items:center;gap:8px;margin:5px 0;">'
-        f'<span style="color:#8ab4d4;font-size:10px;width:70px;text-align:right;'
+        f'<span style="color:#55637a;font-size:10px;width:70px;text-align:right;'
         f'font-family:Inter,sans-serif;">{label}</span>'
-        f'<div style="flex:1;background:rgba(255,255,255,0.06);border-radius:3px;'
+        f'<div style="flex:1;background:rgba(15,23,42,0.04);border-radius:3px;'
         f'height:7px;overflow:hidden;">'
         f'<div style="background:linear-gradient(90deg,{color}88,{color});'
         f'width:{pct:.0f}%;height:7px;border-radius:3px;"></div></div>'
-        f'<span style="color:#f0f6ff;font-size:10px;font-family:DM Mono,monospace;'
+        f'<span style="color:#0f172a;font-size:10px;font-family:DM Mono,monospace;'
         f'width:38px;">{value:.3f}</span></div>'
     )
 
@@ -78,29 +78,29 @@ def inject_panel_css():
     st.markdown("""
     <style>
     .detail-panel {
-        background: rgba(10,14,20,0.92);
+        background: rgba(255,255,255,0.96);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        border: 1px solid #1e3a52;
+        border: 1px solid #dbe3ec;
         border-radius: 12px;
         padding: 20px 22px;
         margin-bottom: 16px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        box-shadow: 0 8px 32px rgba(15,23,42,0.08);
         animation: slideIn 0.3s ease-out;
     }
     .detail-panel .dp-header {
         display: flex; align-items: center; justify-content: space-between;
         margin-bottom: 12px; padding-bottom: 10px;
-        border-bottom: 1px solid #1e3a52;
+        border-bottom: 1px solid #dbe3ec;
     }
     .detail-panel .dp-section {
         margin: 10px 0; padding: 10px 12px;
-        background: rgba(13,24,34,0.6);
-        border: 1px solid rgba(30,58,82,0.5);
+        background: rgba(255,255,255,0.92);
+        border: 1px solid rgba(219,227,236,0.9);
         border-radius: 8px;
     }
     .detail-panel .dp-section-title {
-        color: #00d4ff; font-size: 10px; font-weight: 600;
+        color: #2a78d6; font-size: 10px; font-weight: 600;
         letter-spacing: 0.1em; text-transform: uppercase;
         font-family: 'Inter', sans-serif; margin-bottom: 8px;
     }
@@ -108,15 +108,15 @@ def inject_panel_css():
         display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;
     }
     .detail-panel .dp-actions button {
-        background: rgba(13,31,45,0.8); backdrop-filter: blur(8px);
-        border: 1px solid #1e3a52; border-radius: 6px;
-        color: #8ab4d4; font-size: 10px; padding: 5px 12px;
+        background: rgba(255,255,255,0.94); backdrop-filter: blur(8px);
+        border: 1px solid #dbe3ec; border-radius: 6px;
+        color: #55637a; font-size: 10px; padding: 5px 12px;
         cursor: pointer; font-family: 'Inter', sans-serif;
         transition: all 0.2s ease;
     }
     .detail-panel .dp-actions button:hover {
-        border-color: #00d4ff; color: #00d4ff;
-        box-shadow: 0 0 12px rgba(0,212,255,0.12);
+        border-color: #2a78d6; color: #2a78d6;
+        box-shadow: 0 0 12px rgba(42,120,214,0.14);
     }
     @keyframes slideIn {
         from { opacity: 0; transform: translateX(20px); }
@@ -131,23 +131,23 @@ def inject_panel_css():
 _PANEL_CSS = """
 <style>
 .detail-panel {
-    background: rgba(10,14,20,0.92);
+    background: rgba(255,255,255,0.96);
     backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-    border: 1px solid #1e3a52; border-radius: 12px;
+    border: 1px solid #dbe3ec; border-radius: 12px;
     padding: 20px 22px; margin-bottom: 16px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    box-shadow: 0 8px 32px rgba(15,23,42,0.08);
 }
 .detail-panel .dp-header {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #1e3a52;
+    margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #dbe3ec;
 }
 .detail-panel .dp-section {
     margin: 10px 0; padding: 10px 12px;
-    background: rgba(13,24,34,0.6);
-    border: 1px solid rgba(30,58,82,0.5); border-radius: 8px;
+    background: rgba(255,255,255,0.92);
+    border: 1px solid rgba(219,227,236,0.9); border-radius: 8px;
 }
 .detail-panel .dp-section-title {
-    color: #00d4ff; font-size: 10px; font-weight: 600;
+    color: #2a78d6; font-size: 10px; font-weight: 600;
     letter-spacing: 0.1em; text-transform: uppercase;
     font-family: 'Inter', sans-serif; margin-bottom: 8px;
 }
@@ -192,9 +192,9 @@ def render_detail_panel():
     if isinstance(prob, (int, float)) and prob == prob:
         prob_block = (
             f'<div style="text-align:center;margin-bottom:10px;font-family:Inter,sans-serif;">'
-            f'<span style="color:#f0f6ff;font-size:20px;font-weight:700;'
+            f'<span style="color:#0f172a;font-size:20px;font-weight:700;'
             f'font-family:DM Mono,monospace;">{100 * float(prob):.0f}%</span>'
-            f'<div style="color:#8ab4d4;font-size:10px;">approximate probability that this '
+            f'<div style="color:#55637a;font-size:10px;">approximate probability that this '
             f'ground floods, calibrated on other areas of the region; local rates can '
             f'differ severalfold</div></div>'
         )
@@ -202,10 +202,10 @@ def render_detail_panel():
     factors = "".join(
         _bar_html(lbl, asset.get(key), col)
         for lbl, key, col in [
-            ("Hazard", "cell_hazard", "#ef4444"),
-            ("Exposure", "cell_exposure", "#f59e0b"),
-            ("Vulnerability", "cell_vulnerability", "#8b5cf6"),
-            ("Cell risk", "cell_composite_risk", "#00d4ff"),
+            ("Hazard", "cell_hazard", "#c62828"),
+            ("Exposure", "cell_exposure", "#b45309"),
+            ("Vulnerability", "cell_vulnerability", "#6d28d9"),
+            ("Cell risk", "cell_composite_risk", "#2a78d6"),
         ]
     )
 
@@ -223,9 +223,9 @@ def render_detail_panel():
                                  border-radius:10px;font-size:9px;font-weight:600;
                                  font-family:Inter,sans-serif;">{label}</span>
                 </div>
-                <div style="color:#f0f6ff;font-size:15px;font-weight:600;margin-top:6px;
+                <div style="color:#0f172a;font-size:15px;font-weight:600;margin-top:6px;
                             font-family:Inter,sans-serif;">{name}</div>
-                <div style="color:#8ab4d4;font-size:10px;font-family:Inter,sans-serif;
+                <div style="color:#55637a;font-size:10px;font-family:Inter,sans-serif;
                             margin-top:2px;">
                     {division} &middot; {lat:.4f}, {lon:.4f} &middot; Rank #{rank}
                 </div>
@@ -235,7 +235,7 @@ def render_detail_panel():
         <div style="text-align:center;margin:4px 0 2px 0;">
             {_gauge_svg(risk, color, 130)}
         </div>
-        <div style="text-align:center;color:#8ab4d4;font-size:10px;
+        <div style="text-align:center;color:#55637a;font-size:10px;
                     font-family:Inter,sans-serif;margin-bottom:8px;">
             modelled flood susceptibility of this asset (ranking score)
         </div>
@@ -248,10 +248,10 @@ def render_detail_panel():
 
         <div class="dp-section">
             <div class="dp-section-title">Uncertainty</div>
-            <div style="color:#f0f6ff;font-size:11px;font-family:DM Mono,monospace;">
+            <div style="color:#0f172a;font-size:11px;font-family:DM Mono,monospace;">
                 Kriging 95% CI: {ci_str}
             </div>
-            <div style="color:#8ab4d4;font-size:9px;margin-top:4px;
+            <div style="color:#55637a;font-size:9px;margin-top:4px;
                         font-family:Inter,sans-serif;">
                 Width of the 95% confidence interval of the kriged hazard surface
                 at this location. Wider means sparser nearby data.

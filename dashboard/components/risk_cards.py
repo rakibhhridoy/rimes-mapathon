@@ -3,16 +3,17 @@ Union-level risk cards for the Unions tab.
 """
 
 import streamlit as st
+from dashboard.data import theme
 
 
 def _risk_color(score: float) -> str:
     if score >= 0.7:
-        return "#ef4444"
+        return "#c62828"
     elif score >= 0.5:
-        return "#f59e0b"
+        return "#b45309"
     elif score >= 0.3:
-        return "#eab308"
-    return "#22c55e"
+        return "#a16207"
+    return "#15803d"
 
 
 def _risk_label(score: float) -> str:
@@ -25,11 +26,11 @@ def _risk_label(score: float) -> str:
     return "LOW"
 
 
-def render_risk_cards(union_gdf, is_dark: bool = True,
+def render_risk_cards(union_gdf,
                        n_display: int = 12):
     """Render union risk cards in a grid layout with gradient fill."""
-    text = "#f0f6ff" if is_dark else "#1e293b"
-    text2 = "#8ab4d4" if is_dark else "#64748b"
+    text = theme.TEXT
+    text2 = theme.TEXT_MUTED
 
     if union_gdf is None or len(union_gdf) == 0:
         st.info("No area summaries yet. Run the full pipeline to generate them.")
@@ -83,11 +84,11 @@ def render_risk_cards(union_gdf, is_dark: bool = True,
 
             with cols[i]:
                 card_html = (
-                    f'<div style="background:linear-gradient(145deg,{color}18 0%,#0a0e14 70%);'
+                    f'<div style="background:linear-gradient(145deg,{color}18 0%,#f7f9fb 70%);'
                     f'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);'
                     f'border:1px solid {color}30;border-radius:12px;'
                     f'padding:14px 16px;margin-bottom:10px;'
-                    f'box-shadow:0 4px 20px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.03);'
+                    f'box-shadow:0 4px 20px rgba(15,23,42,0.07),inset 0 1px 0 rgba(15,23,42,0.02);'
                     f'transition:all 0.25s ease;">'
                     f'<div style="display:flex;justify-content:space-between;align-items:center;">'
                     f'<span style="font-size:0.58rem;color:{color};background:{color}18;'
@@ -101,7 +102,7 @@ def render_risk_cards(union_gdf, is_dark: bool = True,
                     f'margin:6px 0 2px 0;line-height:1.2;font-family:Inter,sans-serif;">{name}</div>'
                     f'<div style="font-size:1.3rem;font-weight:700;color:{color};'
                     f'margin:2px 0 6px 0;font-family:DM Mono,monospace;">{score:.3f}</div>'
-                    f'<div style="background:rgba(255,255,255,0.06);border-radius:4px;height:4px;'
+                    f'<div style="background:rgba(15,23,42,0.04);border-radius:4px;height:4px;'
                     f'overflow:hidden;margin-bottom:8px;">'
                     f'<div style="background:linear-gradient(90deg,{color}88,{color});'
                     f'width:{pct:.0f}%;height:4px;border-radius:4px;"></div></div>'
@@ -109,7 +110,7 @@ def render_risk_cards(union_gdf, is_dark: bool = True,
                     f'font-size:0.6rem;color:{text2};margin-bottom:6px;'
                     f'font-family:Inter,sans-serif;">'
                     f'<span>infrastructure</span>'
-                    f'<span style="font-family:DM Mono,monospace;color:#8ab4d4;">'
+                    f'<span style="font-family:DM Mono,monospace;color:#55637a;">'
                     f'people {people_txt}</span></div>'
                     f'<div style="display:grid;grid-template-columns:1fr 1fr;'
                     f'gap:2px 10px;font-size:0.66rem;color:{text2};font-family:DM Mono,monospace;">'

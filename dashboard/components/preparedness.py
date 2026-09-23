@@ -15,9 +15,9 @@ from dashboard.data.loader import get_mapped_shelters
 
 def render_official_resources():
     st.markdown(
-        '<div style="background:#0d2e24;border:1px solid #3cdea0;border-radius:8px;'
+        '<div style="background:#e8f6ee;border:1px solid #15803d;border-radius:8px;'
         'padding:14px 18px;margin-bottom:18px;">'
-        '<div style="color:#3cdea0;font-size:12px;font-weight:700;'
+        '<div style="color:#15803d;font-size:12px;font-weight:700;'
         'letter-spacing:0.08em;margin-bottom:6px;">'
         'FOR WARNINGS AND EMERGENCIES, USE THESE SOURCES</div>'
         '<div style="color:#8fd9bd;font-size:11px;">'
@@ -31,16 +31,16 @@ def render_official_resources():
         with cols[i % 2]:
             link = (
                 f'<a href="{res["url"]}" target="_blank" rel="noopener noreferrer" '
-                f'style="color:#00d4ff;font-size:10px;">{res["url"]}</a>'
+                f'style="color:#2a78d6;font-size:10px;">{res["url"]}</a>'
                 if res["url"] else
-                '<span style="color:#8ab4d4;font-size:10px;">Toll-free telephone service</span>'
+                '<span style="color:#55637a;font-size:10px;">Toll-free telephone service</span>'
             )
             st.markdown(
-                f'<div style="background:#0d1822;border:1px solid #1e3a52;'
+                f'<div style="background:#ffffff;border:1px solid #dbe3ec;'
                 f'border-radius:8px;padding:12px 14px;margin-bottom:10px;">'
-                f'<div style="color:#e8f4ff;font-size:12px;font-weight:600;">'
+                f'<div style="color:#0f172a;font-size:12px;font-weight:600;">'
                 f'{res["name"]}</div>'
-                f'<div style="color:#8ab4d4;font-size:10px;margin:3px 0 5px;">'
+                f'<div style="color:#55637a;font-size:10px;margin:3px 0 5px;">'
                 f'{res["detail"]}</div>{link}</div>',
                 unsafe_allow_html=True,
             )

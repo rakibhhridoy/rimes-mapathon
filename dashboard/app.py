@@ -24,8 +24,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-if "theme" not in st.session_state:
-    st.session_state.theme = "dark"
 
 from dashboard.components.about import render_about_tab
 from dashboard.components.detail_panel import render_detail_panel
@@ -46,25 +44,25 @@ from dashboard.data.regions import (
     region_label,
 )
 
-is_dark = st.session_state.theme == "dark"
+# ---------------------------------------------------------------------------
+# CSS — light theme; every colour comes from dashboard/data/theme.py
+# ---------------------------------------------------------------------------
+from dashboard.data import theme
 
-# ---------------------------------------------------------------------------
-# CSS — Fermium dark theme
-# ---------------------------------------------------------------------------
-BG = "#0a0e14" if is_dark else "#f8fafc"
-BG2 = "#0d1822" if is_dark else "#ffffff"
-BG3 = "#1e3a52" if is_dark else "#e2e8f0"
-TEXT = "#f0f6ff" if is_dark else "#1e293b"
-TEXT2 = "#8ab4d4" if is_dark else "#64748b"
-ACCENT = "#00d4ff"
-BORDER = "#1e3a52" if is_dark else "#cbd5e1"
-GLOW = "rgba(0,212,255,0.12)"
+BG = theme.BG
+BG2 = theme.SURFACE
+BG3 = theme.SURFACE_ALT
+TEXT = theme.TEXT
+TEXT2 = theme.TEXT_MUTED
+ACCENT = theme.ACCENT
+BORDER = theme.BORDER
+GLOW = theme.GLOW
 
 st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
 
-    /* Global dark base */
+    /* Global light base */
     html, body, [class*="css"] {{
         background-color: {BG} !important;
         color: {TEXT} !important;
@@ -87,14 +85,14 @@ st.markdown(f"""
 
     /* Tab styling */
     [data-testid="stTabs"] [data-baseweb="tab-list"] {{
-        background: #0d1f2d !important;
+        background: #eaf2fc !important;
         border-bottom: 1px solid {BORDER} !important;
         gap: 2px;
     }}
     [data-testid="stTabs"] [data-baseweb="tab"] {{
         background: transparent !important;
         color: {TEXT2} !important;
-        border: 1px solid #1a2a38 !important;
+        border: 1px solid #dbe3ec !important;
         border-radius: 6px !important;
         font-size: 12px !important;
         padding: 6px 16px !important;
@@ -103,11 +101,11 @@ st.markdown(f"""
         transition: all 0.2s ease !important;
     }}
     [data-testid="stTabs"] [data-baseweb="tab"]:hover {{
-        background: rgba(0,212,255,0.06) !important;
+        background: rgba(42,120,214,0.06) !important;
         border-color: {BORDER} !important;
     }}
     [data-testid="stTabs"] [aria-selected="true"] {{
-        background: rgba(0,212,255,0.10) !important;
+        background: rgba(42,120,214,0.10) !important;
         color: {ACCENT} !important;
         border-color: {ACCENT} !important;
         box-shadow: 0 0 12px {GLOW};
@@ -119,7 +117,7 @@ st.markdown(f"""
     [data-testid="stRadio"] [data-testid="stMarkdownContainer"] p {{ color: {TEXT2} !important; }}
 
     /* Checkboxes */
-    [data-testid="stCheckbox"] label {{ color: #a0c0d8 !important; font-size: 12px !important; }}
+    [data-testid="stCheckbox"] label {{ color: #475569 !important; font-size: 12px !important; }}
 
     /* Selectbox */
     [data-testid="stSelectbox"] div[data-baseweb="select"] {{
@@ -136,7 +134,7 @@ st.markdown(f"""
 
     /* Expander */
     [data-testid="stExpander"] {{
-        background: rgba(13,24,34,0.7) !important;
+        background: rgba(255,255,255,0.95) !important;
         backdrop-filter: blur(8px) !important;
         -webkit-backdrop-filter: blur(8px) !important;
         border: 1px solid {BORDER} !important;
@@ -146,7 +144,7 @@ st.markdown(f"""
 
     /* Download button */
     [data-testid="stDownloadButton"] button {{
-        background: rgba(13,31,45,0.8) !important;
+        background: rgba(255,255,255,0.94) !important;
         backdrop-filter: blur(8px) !important;
         color: {ACCENT} !important;
         border: 1px solid {BORDER} !important;
@@ -171,7 +169,7 @@ st.markdown(f"""
 
     /* Metric */
     [data-testid="metric-container"] {{
-        background: rgba(13,24,34,0.6) !important;
+        background: rgba(255,255,255,0.92) !important;
         backdrop-filter: blur(12px) !important;
         -webkit-backdrop-filter: blur(12px) !important;
         border: 1px solid {BORDER} !important;
@@ -194,19 +192,19 @@ st.markdown(f"""
     .kpi-item {{
         flex: 1;
         min-width: 130px;
-        background: rgba(13,24,34,0.55);
+        background: rgba(255,255,255,0.92);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(0,212,255,0.15);
+        border: 1px solid rgba(42,120,214,0.22);
         border-radius: 12px;
         padding: 14px 16px;
         text-align: center;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04);
+        box-shadow: 0 4px 20px rgba(15,23,42,0.06), inset 0 1px 0 rgba(15,23,42,0.03);
         transition: all 0.25s ease;
     }}
     .kpi-item:hover {{
-        border-color: rgba(0,212,255,0.35);
-        box-shadow: 0 4px 24px rgba(0,212,255,0.12), inset 0 1px 0 rgba(255,255,255,0.06);
+        border-color: rgba(42,120,214,0.45);
+        box-shadow: 0 4px 24px rgba(42,120,214,0.14), inset 0 1px 0 rgba(15,23,42,0.04);
         transform: translateY(-1px);
     }}
     .kpi-item .kpi-val {{
@@ -225,15 +223,15 @@ st.markdown(f"""
         font-family: 'Inter', sans-serif;
         font-weight: 500;
     }}
-    .kpi-item.danger .kpi-val {{ color: #ef4444; }}
-    .kpi-item.danger {{ border-color: rgba(239,68,68,0.2); }}
-    .kpi-item.danger:hover {{ box-shadow: 0 4px 24px rgba(239,68,68,0.1); }}
-    .kpi-item.warning .kpi-val {{ color: #f59e0b; }}
-    .kpi-item.warning {{ border-color: rgba(245,158,11,0.2); }}
-    .kpi-item.warning:hover {{ box-shadow: 0 4px 24px rgba(245,158,11,0.1); }}
-    .kpi-item.success .kpi-val {{ color: #22c55e; }}
-    .kpi-item.success {{ border-color: rgba(34,197,94,0.2); }}
-    .kpi-item.success:hover {{ box-shadow: 0 4px 24px rgba(34,197,94,0.1); }}
+    .kpi-item.danger .kpi-val {{ color: #c62828; }}
+    .kpi-item.danger {{ border-color: rgba(198,40,40,0.25); }}
+    .kpi-item.danger:hover {{ box-shadow: 0 4px 24px rgba(198,40,40,0.12); }}
+    .kpi-item.warning .kpi-val {{ color: #b45309; }}
+    .kpi-item.warning {{ border-color: rgba(180,83,9,0.25); }}
+    .kpi-item.warning:hover {{ box-shadow: 0 4px 24px rgba(180,83,9,0.12); }}
+    .kpi-item.success .kpi-val {{ color: #15803d; }}
+    .kpi-item.success {{ border-color: rgba(21,128,61,0.25); }}
+    .kpi-item.success:hover {{ box-shadow: 0 4px 24px rgba(21,128,61,0.12); }}
 
     .sec-label {{
         font-size: 0.7rem;
@@ -262,12 +260,12 @@ st.markdown(f"""
 
     /* Table row hover */
     [data-testid="stDataFrame"] tbody tr:hover {{
-        background: rgba(0,212,255,0.04) !important;
+        background: rgba(42,120,214,0.04) !important;
     }}
 
     /* Expander hover glow */
     [data-testid="stExpander"]:hover {{
-        border-color: rgba(0,212,255,0.25) !important;
+        border-color: rgba(42,120,214,0.25) !important;
         box-shadow: 0 0 12px {GLOW};
     }}
 
@@ -296,8 +294,8 @@ st.markdown(f"""
     }}
 
     @keyframes glowPulse {{
-        0%, 100% {{ box-shadow: 0 0 8px rgba(0,212,255,0.08); }}
-        50% {{ box-shadow: 0 0 16px rgba(0,212,255,0.18); }}
+        0%, 100% {{ box-shadow: 0 0 8px rgba(42,120,214,0.08); }}
+        50% {{ box-shadow: 0 0 16px rgba(42,120,214,0.25); }}
     }}
 
     @keyframes fadeIn {{
@@ -318,13 +316,13 @@ st.markdown(f"""
     [data-baseweb="tab"]:focus-visible,
     [data-baseweb="select"]:focus-visible,
     a:focus-visible {{
-        outline: 2px solid #00d4ff !important;
+        outline: 2px solid #2a78d6 !important;
         outline-offset: 2px !important;
-        box-shadow: 0 0 0 4px rgba(0,212,255,0.18) !important;
+        box-shadow: 0 0 0 4px rgba(42,120,214,0.25) !important;
     }}
 
     /* Ensure minimum contrast on secondary text (WCAG AA 4.5:1) */
-    /* #8ab4d4 on #0a0e14 = ~5.8:1 ratio — passes AA */
+    /* #55637a on #f7f9fb = ~5.8:1 ratio — passes AA */
     /* Bump sidebar muted text for readability */
     [data-testid="stSidebar"] [data-testid="stCaptionContainer"] {{
         color: #7abcd8 !important;
@@ -332,7 +330,7 @@ st.markdown(f"""
 
     /* High-contrast mode for data values */
     [data-testid="stMetricValue"] {{
-        color: #f0f6ff !important;
+        color: #0f172a !important;
         font-family: 'DM Mono', monospace !important;
     }}
 
@@ -357,15 +355,17 @@ inject_wave_animation()
 import base64
 import os
 
-_logo_path = os.path.join(os.path.dirname(__file__), "..", "fermium.png")
+# The dark recolour: the original logo is a pale tint for a dark page
+# and is nearly invisible on white.
+_logo_path = os.path.join(os.path.dirname(__file__), "..", "fermium_dark.png")
 if os.path.exists(_logo_path):
     with open(_logo_path, "rb") as _f:
         _logo_b64 = base64.b64encode(_f.read()).decode()
     st.markdown(
         f"""
-        <div style="position:fixed;top:-4px;left:52px;z-index:999999;">
+        <div style="position:fixed;top:0;left:0;width:300px;padding:10px 0 8px 60px;background:#f7f9fb;border-bottom:1px solid #dbe3ec;z-index:999999;">
             <img src="data:image/png;base64,{_logo_b64}" alt="Fermium Systems"
-                 style="height:70px;opacity:0.9;">
+                 style="height:34px;opacity:0.85;">
         </div>
         """,
         unsafe_allow_html=True,
@@ -377,16 +377,16 @@ if os.path.exists(_logo_path):
 # ---------------------------------------------------------------------------
 st.markdown(
     f"""
-    <div style="background:linear-gradient(135deg,#0d1f2d 0%,{BG} 70%);
+    <div style="background:linear-gradient(135deg,#eaf2fc 0%,{BG} 70%);
                 border-bottom:1px solid {BORDER};padding:16px 24px 12px;">
       <div style="display:flex;align-items:center;justify-content:space-between;
                   flex-wrap:wrap;gap:8px;">
         <div>
-          <div style="color:#5a8ab0;font-size:10px;font-weight:700;
+          <div style="color:#6b7a91;font-size:10px;font-weight:700;
                       letter-spacing:0.15em;margin-bottom:4px;">
             SGMDI · SMART GEOSPATIAL MAPPING &amp; DISASTER IMPACT INTELLIGENCE
           </div>
-          <h1 style="font-size:22px;font-weight:700;margin:0;color:#f0f6ff;
+          <h1 style="font-size:22px;font-weight:700;margin:0;color:#0f172a;
                      letter-spacing:-0.01em;font-family:'DM Mono',monospace;">
             FERMIUM HAZARD MAPPER
           </h1>
@@ -394,11 +394,11 @@ st.markdown(
             Flood risk to infrastructure · Rangpur &amp; Rajshahi divisions, Bangladesh
           </p>
         </div>
-        <div style="max-width:420px;background:#2e2a0d;border:1px solid #dea03c66;
+        <div style="max-width:420px;background:#fdf3e3;border:1px solid #dea03c66;
                     border-radius:8px;padding:10px 14px;">
-          <div style="color:#dea03c;font-size:10px;font-weight:700;
+          <div style="color:#b45309;font-size:10px;font-weight:700;
                       letter-spacing:0.1em;margin-bottom:3px;">RESEARCH PROTOTYPE</div>
-          <div style="color:#c8a86a;font-size:11px;line-height:1.5;">
+          <div style="color:#8a6524;font-size:11px;line-height:1.5;">
             Modelled susceptibility, not a forecast or an official warning.
             For warnings use FFWC and BMD; in an emergency dial 999.
           </div>
@@ -461,7 +461,7 @@ def main():
             st.warning(f'No assets match "{search_query}".')
             return
 
-    filtered, layers = render_sidebar(region, infra, is_dark)
+    filtered, layers = render_sidebar(region, infra)
 
     tab_map, tab_rank, tab_prep, tab_about = st.tabs(
         ["Risk map", "Rankings & export", "Preparedness", "About the data"]
@@ -581,11 +581,10 @@ def _render_map_tab(region, filtered, union_gdf, hotspot_gdf, cfg, layers):
             union_gdf=union_gdf if len(union_gdf) > 0 else None,
             hotspot_gdf=hotspot_gdf if len(hotspot_gdf) > 0 else None,
             cfg=cfg,
-            is_dark=is_dark,
             layers=layers,
         )
     with overlay_col:
-        render_analytics_overlay(filtered, is_dark)
+        render_analytics_overlay(filtered)
 
 
 def _render_rankings_tab(region, filtered, union_gdf):
@@ -663,7 +662,7 @@ def _render_rankings_tab(region, filtered, union_gdf):
             render_detail_panel()
 
     st.markdown('<div class="sec-label">Union summaries</div>', unsafe_allow_html=True)
-    render_risk_cards(union_gdf, is_dark)
+    render_risk_cards(union_gdf)
 
     st.markdown('<div class="sec-label">Download</div>', unsafe_allow_html=True)
     st.caption(

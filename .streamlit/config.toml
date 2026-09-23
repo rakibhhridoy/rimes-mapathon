@@ -20,7 +20,12 @@ toolbarMode = "viewer"
 showErrorDetails = "none"
 
 [theme]
-base = "dark"
+# Light theme; the dashboard's own colours live in dashboard/data/theme.py.
+base = "light"
+primaryColor = "#2a78d6"
+backgroundColor = "#f7f9fb"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#0f172a"
 
 [browser]
 gatherUsageStats = false

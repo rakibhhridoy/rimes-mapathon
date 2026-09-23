@@ -15,8 +15,9 @@ from dashboard.data.loader import (
     load_validation_metrics,
     raster_paths,
 )
+from dashboard.data import theme
 
-ACCENT = "#38bdf8"
+ACCENT = "#2a78d6"
 
 
 def _fmt(value, fmt="{:.3f}", dash="—"):
@@ -42,11 +43,11 @@ def _generated_at(meta: dict) -> str:
 def _row(label: str, value: str, note: str = "") -> str:
     return (
         '<div style="display:flex;justify-content:space-between;gap:8px;'
-        'padding:5px 0;border-bottom:1px solid #0d1822;">'
-        f'<span style="color:#8ab4d4;">{label}</span>'
-        f'<span style="color:#f0f6ff;font-weight:600;font-family:DM Mono,monospace;">'
+        'padding:5px 0;border-bottom:1px solid #ffffff;">'
+        f'<span style="color:#55637a;">{label}</span>'
+        f'<span style="color:#0f172a;font-weight:600;font-family:DM Mono,monospace;">'
         f'{value}</span></div>'
-        + (f'<div style="color:#5a8ab0;font-size:9px;margin:-2px 0 4px;">{note}</div>'
+        + (f'<div style="color:#6b7a91;font-size:9px;margin:-2px 0 4px;">{note}</div>'
            if note else "")
     )
 
@@ -59,12 +60,12 @@ def render_provenance(meta: dict | None, validation: dict | None = None,
     val = meta.get("gnn_validation") or {}
 
     st.markdown(
-        '<div style="color:#3cb8de;font-size:10px;font-weight:700;'
+        '<div style="color:#2a78d6;font-size:10px;font-weight:700;'
         'letter-spacing:0.12em;margin-bottom:8px;">DATA & MODEL</div>',
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<div style="background:#0a0e14;border:1px solid #1a2a38;border-radius:8px;'
+        '<div style="background:#f7f9fb;border:1px solid #dbe3ec;border-radius:8px;'
         'padding:12px 14px;margin-bottom:16px;font-size:11px;">'
         + _row("Processed", _generated_at(meta))
         + _row("Pipeline", str(meta.get("pipeline_version", "—")))
@@ -89,9 +90,9 @@ def render_provenance(meta: dict | None, validation: dict | None = None,
     held = ((validation or {}).get("assets_vs_observed") or {}).get("held_out_blocks")
     if held and "auc_roc" in held:
         st.markdown(
-            '<div style="background:#0d2e24;border:1px solid #3cdea055;'
+            '<div style="background:#e8f6ee;border:1px solid #3cdea055;'
             'border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:11px;">'
-            '<div style="color:#3cdea0;font-weight:700;letter-spacing:0.1em;'
+            '<div style="color:#15803d;font-weight:700;letter-spacing:0.1em;'
             'margin-bottom:5px;">VS OBSERVED FLOODS</div>'
             + _row("AUC", _fmt(held.get("auc_roc"), "{:.3f}"))
             + _row("Precision lift", _fmt(held.get("ap_lift"), "{:.1f}x"))
@@ -119,7 +120,7 @@ def render_provenance(meta: dict | None, validation: dict | None = None,
 def render_layer_toggles(region: str) -> dict:
     """Toggles for overlays, limited to layers whose data exists on disk."""
     st.markdown(
-        '<div style="color:#3cb8de;font-size:10px;font-weight:700;'
+        '<div style="color:#2a78d6;font-size:10px;font-weight:700;'
         'letter-spacing:0.12em;margin-bottom:8px;">MAP LAYERS</div>',
         unsafe_allow_html=True,
     )
@@ -162,7 +163,7 @@ def render_layer_toggles(region: str) -> dict:
     }
 
 
-def render_sidebar(region: str, infra, is_dark=True):
+def render_sidebar(region: str, infra):
     """Sidebar contents. Returns (filtered assets, layer toggles)."""
     import pandas as pd
 
@@ -210,7 +211,7 @@ def render_sidebar(region: str, infra, is_dark=True):
             for div, cnt in filtered["division"].value_counts().items():
                 st.markdown(
                     f'<span style="color:{ACCENT};">{div}:</span> '
-                    f'<b style="color:{"#e2e8f0" if is_dark else "#1e293b"};">{cnt:,}</b>',
+                    f'<b style="color:{theme.TEXT};">{cnt:,}</b>',
                     unsafe_allow_html=True,
                 )
 
@@ -223,13 +224,13 @@ def render_sidebar(region: str, infra, is_dark=True):
     return filtered, layers
 
 
-def render_analytics_overlay(infra, is_dark=True):
+def render_analytics_overlay(infra):
     """Compact charts beside the map."""
     import plotly.express as px
 
-    border = "#334155" if is_dark else "#e2e8f0"
-    text = "#e2e8f0" if is_dark else "#1e293b"
-    text2 = "#94a3b8" if is_dark else "#64748b"
+    border = theme.BORDER
+    text = theme.TEXT
+    text2 = theme.TEXT_MUTED
     layout_opts = dict(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
@@ -247,7 +248,7 @@ def render_analytics_overlay(infra, is_dark=True):
         tc.columns = ["Type", "Count"]
         fig = px.bar(
             tc, x="Count", y="Type", orientation="h", color="Count",
-            color_continuous_scale=["#1e3a5f", "#38bdf8"] if is_dark else ["#bfdbfe", "#2563eb"],
+            color_continuous_scale=[theme.ACCENT_SOFT, theme.ACCENT],
         )
         fig.update_layout(height=max(180, len(tc) * 22 + 40), showlegend=False,
                           coloraxis_showscale=False, **layout_opts)
@@ -263,7 +264,7 @@ def render_analytics_overlay(infra, is_dark=True):
             unsafe_allow_html=True,
         )
         fig_h = px.histogram(infra, x="flood_risk", nbins=30,
-                             color_discrete_sequence=["#38bdf8"])
+                             color_discrete_sequence=["#2a78d6"])
         fig_h.update_layout(height=200, bargap=0.05, **layout_opts)
         fig_h.update_xaxes(gridcolor=border, title=None)
         fig_h.update_yaxes(gridcolor=border, title=None)
