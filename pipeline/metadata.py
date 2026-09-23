@@ -76,7 +76,7 @@ def compute_confidence_metadata(cfg: dict, output_dir: str,
     processed_dir = Path(processed_dir)
     metadata = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "pipeline_version": "1.0.0",
+        "pipeline_version": "1.1.0",
     }
 
     # --- Kriging variance ---
@@ -169,14 +169,11 @@ def compute_confidence_metadata(cfg: dict, output_dir: str,
             n_lat_cells = int((bbox[3] - bbox[1]) / deg_per_cell)
             total_cells = n_lon_cells * n_lat_cells
 
-            if "longitude" in nf.columns and "latitude" in nf.columns:
-                lon_idx = ((nf["longitude"] - bbox[0]) / deg_per_cell).astype(int)
-                lat_idx = ((nf["latitude"] - bbox[1]) / deg_per_cell).astype(int)
-                occupied = len(set(zip(lon_idx.tolist(), lat_idx.tolist())))
-                density = (occupied / total_cells * 100) if total_cells > 0 else 0
-            else:
-                # Fallback: ratio of nodes to grid cells
-                density = (n_nodes / total_cells * 100) if total_cells > 0 else 0
+            lon_idx = ((nf["lon"] - bbox[0]) / deg_per_cell).astype(int)
+            lat_idx = ((nf["lat"] - bbox[1]) / deg_per_cell).astype(int)
+            occupied = len(set(zip(lon_idx.tolist(), lat_idx.tolist())))
+            density = (occupied / total_cells * 100) if total_cells > 0 else 0
+            metadata["label_positive_rate"] = float(nf["flood_label"].mean())
 
             metadata["data_density_pct"] = round(min(density, 100.0), 1)
             metadata["n_infrastructure_nodes"] = n_nodes
@@ -188,6 +185,46 @@ def compute_confidence_metadata(cfg: dict, output_dir: str,
             metadata["data_density_pct"] = None
     else:
         metadata["data_density_pct"] = None
+
+    # --- Variogram params (needed by the ratio below) ---
+    vario_path = output_dir / "variogram_params.json"
+    if vario_path.exists():
+        try:
+            metadata["variogram_params"] = json.loads(vario_path.read_text())
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Could not load variogram params: {e}")
+            metadata["variogram_params"] = None
+    else:
+        metadata["variogram_params"] = None
+
+    # --- Interpolation informativeness ---
+    # Kriging variance is only interpretable against the variogram sill: at
+    # the sill the interpolation is telling us nothing the regional average
+    # would not. Reporting the raw variance hides that, so record the ratio.
+    variogram = metadata.get("variogram_params") or {}
+    # Full sill = partial sill + nugget. Files written before the parameter
+    # naming was corrected hold the partial sill under "sill".
+    if variogram.get("partial_sill") is not None:
+        sill = variogram["partial_sill"] + (variogram.get("nugget") or 0.0)
+    elif variogram.get("sill") is not None:
+        sill = variogram["sill"] + (variogram.get("nugget") or 0.0)
+    else:
+        sill = None
+    variance = metadata.get("kriging_variance_mean")
+    if sill and variance is not None and sill > 0:
+        metadata["kriging_variance_sill_ratio"] = round(float(variance / sill), 3)
+        logger.info(
+            f"Kriging variance is {metadata['kriging_variance_sill_ratio']:.2f} "
+            "of the sill (1.0 means interpolation adds nothing)"
+        )
+    else:
+        metadata["kriging_variance_sill_ratio"] = None
+
+    # --- Model validation and applied weights ---
+    for key, fname in [("gnn_validation", "gnn_metrics.json"),
+                       ("vulnerability_weights", "vulnerability_weights.json")]:
+        path = output_dir / fname
+        metadata[key] = json.loads(path.read_text()) if path.exists() else None
 
     # --- Variogram params ---
     vario_path = output_dir / "variogram_params.json"

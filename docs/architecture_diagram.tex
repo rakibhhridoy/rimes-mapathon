@@ -1,0 +1,856 @@
+% SGMDI / Fermium HazMapper — Full Architecture Diagram v3
+% Modern Tech / Figma style — Light background, Bezier curves, distinct line styles
+
+\documentclass[border=10mm]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{tikz}
+\usepackage{amsmath,amssymb}
+\usetikzlibrary{
+  positioning, arrows.meta, shapes.geometric, shapes.symbols,
+  fit, backgrounds, calc, shadows.blur, decorations.pathreplacing
+}
+
+% ── Modern Tech Palette ────────────────────────────────────
+% Lane backgrounds (90% transparent — very subtle wash)
+\definecolor{lane1}{HTML}{F9F7FF}   % barely-there purple
+\definecolor{lane2}{HTML}{F6FDFB}   % barely-there teal
+\definecolor{lane3}{HTML}{FFFBF5}   % barely-there amber
+\definecolor{lane4}{HTML}{FFF8F8}   % barely-there rose
+\definecolor{lane5}{HTML}{F7FEF9}   % barely-there green
+\definecolor{lane6}{HTML}{F6F9FF}   % barely-there blue
+
+% Lane header accents
+\definecolor{hdr1}{HTML}{7C3AED}   % purple-600
+\definecolor{hdr2}{HTML}{0D9488}   % teal-600
+\definecolor{hdr3}{HTML}{D97706}   % amber-600
+\definecolor{hdr4}{HTML}{E11D48}   % rose-600
+\definecolor{hdr5}{HTML}{16A34A}   % green-600
+\definecolor{hdr6}{HTML}{2563EB}   % blue-600
+
+% Box fills (very subtle tint)
+\definecolor{box1}{HTML}{EDE9FE}   % purple-100
+\definecolor{box2}{HTML}{CCFBF1}   % teal-100
+\definecolor{box3}{HTML}{FEF3C7}   % amber-100
+\definecolor{box4}{HTML}{FFE4E6}   % rose-100
+\definecolor{box5}{HTML}{DCFCE7}   % green-100
+\definecolor{box6}{HTML}{DBEAFE}   % blue-100
+
+% Pipeline method colours
+\definecolor{floodcolor}{HTML}{0891B2}   % cyan-600 (flood)
+\definecolor{landcolor}{HTML}{DC2626}    % red-600 (landslide)
+\definecolor{sharedcolor}{HTML}{7C3AED}  % purple-600 (shared/cross)
+
+% Region accent colours
+\definecolor{regionNW}{HTML}{DC2626}
+\definecolor{regionNE}{HTML}{EA580C}
+\definecolor{regionSW}{HTML}{CA8A04}
+\definecolor{regionCHT}{HTML}{9333EA}
+
+% Neutral colours
+\definecolor{darktext}{HTML}{1E293B}   % slate-800
+\definecolor{midtext}{HTML}{64748B}    % slate-500
+\definecolor{ltborder}{HTML}{CBD5E1}   % slate-300
+\definecolor{arrowcol}{HTML}{475569}   % slate-600
+\definecolor{formulabg}{HTML}{F8FAFC}  % slate-50
+\definecolor{divider}{HTML}{94A3B8}    % slate-400
+\definecolor{cardbg}{HTML}{FFFFFF}     % white
+
+% ── Figma-style node styles ────────────────────────────────
+\tikzset{
+  every node/.style={font=\sffamily},
+  % Lane header — text only, no background box
+  lhdr/.style={
+    font=\sffamily\bfseries\LARGE,
+    minimum height=10mm, inner sep=4pt,
+  },
+  % Main box: white card with coloured left accent bar — enhanced
+  mb/.style={
+    draw=#1!60!black!40, line width=0.5pt,
+    fill=white, rounded corners=2pt,
+    inner sep=10pt, text width=60mm, minimum height=14mm,
+    font=\sffamily\normalsize, align=center,
+    blur shadow={shadow blur steps=3,shadow xshift=0.5pt,shadow yshift=-0.5pt,
+                 shadow opacity=15},
+    append after command={
+      [rounded corners=0pt]
+      (\tikzlastnode.north west) ++(0.5pt,0)
+        rectangle ([xshift=3.5pt]\tikzlastnode.south west)
+        [fill=#1!80, draw=none]
+    },
+  },
+  % Wide main box — enhanced
+  mbw/.style={
+    draw=#1!60!black!40, line width=0.5pt,
+    fill=white, rounded corners=2pt,
+    inner sep=10pt, text width=76mm, minimum height=14mm,
+    font=\sffamily\normalsize, align=center,
+    blur shadow={shadow blur steps=3,shadow xshift=0.5pt,shadow yshift=-0.5pt,
+                 shadow opacity=15},
+    append after command={
+      [rounded corners=0pt]
+      (\tikzlastnode.north west) ++(0.5pt,0)
+        rectangle ([xshift=3.5pt]\tikzlastnode.south west)
+        [fill=#1!80, draw=none]
+    },
+  },
+  % Small box (secondary) — enhanced
+  sb/.style={
+    draw=#1!50!black!30, line width=0.4pt,
+    fill=#1!8, rounded corners=2pt,
+    inner sep=8pt, text width=54mm, minimum height=12mm,
+    font=\sffamily\normalsize, align=center,
+  },
+  % Formula box — enhanced
+  fb/.style={
+    draw=ltborder, line width=0.4pt,
+    fill=formulabg, rounded corners=2pt,
+    inner sep=8pt, font=\normalsize, align=center,
+  },
+  % Internal arrow (within lane): thin solid slate
+  arr/.style={
+    -{Stealth[length=3mm,width=2mm]},
+    line width=0.7pt, color=arrowcol!70,
+  },
+  % Flood inter-lane arrow: dashed cyan
+  floodarr/.style={
+    -{Stealth[length=4mm,width=3mm]},
+    line width=1.5pt, color=floodcolor, dashed,
+  },
+  % Landslide inter-lane arrow: solid red
+  landarr/.style={
+    -{Stealth[length=4mm,width=3mm]},
+    line width=1.5pt, color=landcolor,
+  },
+  % Shared / dashboard inter-lane arrow: dotted purple
+  sharedarr/.style={
+    -{Stealth[length=4mm,width=3mm]},
+    line width=1.5pt, color=sharedcolor, dotted,
+  },
+  % Section label
+  seclab/.style={font=\sffamily\bfseries\large, text=darktext},
+  sublab/.style={font=\sffamily\itshape\normalsize, text=midtext},
+  % Track label (vertical, left edge)
+  tracklab/.style={
+    font=\sffamily\bfseries\Large, rounded corners=3pt,
+    inner sep=6pt, minimum width=30mm,
+  },
+  % Region tags
+  regiontag/.style={
+    font=\sffamily\bfseries\tiny, rounded corners=2pt,
+    inner sep=2pt, minimum height=4mm,
+  },
+}
+
+% ── Icon commands (cleaner, monochrome-friendly) ───────────
+\newcommand{\icosatellite}[1]{%
+  \begin{tikzpicture}[scale=0.4]
+    \draw[fill=#1!30, draw=#1!80!black, line width=0.5pt]
+      (0,0) circle(0.6);
+    \draw[#1!80!black, line width=0.6pt] (-1.2,0.8) -- (-0.4,0.3);
+    \draw[#1!80!black, line width=0.6pt] (1.2,0.8) -- (0.4,0.3);
+    \draw[fill=#1!50] (-1.5,0.6) rectangle (-0.9,1.2);
+    \draw[fill=#1!50] (0.9,0.6) rectangle (1.5,1.2);
+  \end{tikzpicture}%
+}
+\newcommand{\icodatabase}[1]{%
+  \begin{tikzpicture}[scale=0.35]
+    \draw[fill=#1!25, draw=#1!80!black, line width=0.5pt]
+      (-1,0) -- (-1,-1.8) arc(180:360:1 and 0.3) -- (1,0);
+    \draw[fill=#1!35, draw=#1!80!black, line width=0.5pt]
+      (0,0) ellipse(1 and 0.3);
+    \draw[#1!60!black] (-1,-0.6) arc(180:360:1 and 0.3);
+    \draw[#1!60!black] (-1,-1.2) arc(180:360:1 and 0.3);
+  \end{tikzpicture}%
+}
+\newcommand{\iconetwork}[1]{%
+  \begin{tikzpicture}[scale=0.35]
+    \foreach \x/\y in {0/0, 1.2/0.8, -1.2/0.8, 0.8/-0.8, -0.8/-0.8} {
+      \fill[#1!60] (\x,\y) circle(0.25);
+    }
+    \draw[#1!80!black, line width=0.4pt] (0,0)--(1.2,0.8) (0,0)--(-1.2,0.8)
+      (0,0)--(0.8,-0.8) (0,0)--(-0.8,-0.8)
+      (1.2,0.8)--(0.8,-0.8) (-1.2,0.8)--(-0.8,-0.8);
+  \end{tikzpicture}%
+}
+\newcommand{\icomap}[1]{%
+  \begin{tikzpicture}[scale=0.35]
+    \draw[fill=#1!25, draw=#1!80!black, line width=0.5pt, rounded corners=1pt]
+      (-1,-1.2) rectangle (1,1.2);
+    \draw[#1!60!black, line width=0.5pt] (-0.5,-1.2)--(-0.2,1.2);
+    \draw[#1!60!black, line width=0.5pt] (0.3,-1.2)--(0.6,1.2);
+    \fill[#1!70] (0,0.3) circle(0.2);
+    \draw[#1!80!black, line width=0.4pt] (0,0.3) -- (0,-0.1);
+  \end{tikzpicture}%
+}
+\newcommand{\icochart}[1]{%
+  \begin{tikzpicture}[scale=0.35]
+    \draw[#1!80!black, line width=0.5pt, ->] (-1.2,-1) -- (1.2,-1);
+    \draw[#1!80!black, line width=0.5pt, ->] (-1,-1.2) -- (-1,1.2);
+    \fill[#1!50] (-0.6,-1) rectangle (-0.2,0.2);
+    \fill[#1!60] (0,-1) rectangle (0.4,0.8);
+    \fill[#1!40] (0.6,-1) rectangle (1,-0.2);
+  \end{tikzpicture}%
+}
+\newcommand{\icoalert}[1]{%
+  \begin{tikzpicture}[scale=0.35]
+    \draw[fill=#1!40, draw=#1!80!black, line width=0.6pt]
+      (0,1.2) -- (-1,-0.6) -- (1,-0.6) -- cycle;
+    \node[font=\sffamily\bfseries\small, text=#1!90!black] at (0,0.1) {!};
+  \end{tikzpicture}%
+}
+
+\begin{document}
+\begin{tikzpicture}[x=1cm, y=1cm]
+
+% ════════════════════════════════════════════════════════════════
+% TITLE
+% ════════════════════════════════════════════════════════════════
+\node[font=\sffamily\bfseries\Huge, text=darktext] at (51, 79)
+  {SGMDI: Smart Geospatial Mapping \& Disaster Impact Intelligence};
+\node[font=\sffamily\Large, text=midtext] at (51, 77.5)
+  {Fermium HazMapper --- Full System Architecture \quad$\vert$\quad RIMES Mapathon 2025 \quad$\vert$\quad ResilienceAI};
+
+% ── Fermium logo (top right) ────────────────────────────────
+\node[anchor=north east] at (103, 80.5)
+  {\includegraphics[width=25mm]{../fermium.png}};
+
+% ── Track labels (left edge) ────────────────────────────────
+\node[tracklab, fill=floodcolor!15, text=floodcolor, rotate=90, anchor=center]
+  at (-3, 52) {FLOOD PIPELINE};
+
+\node[tracklab, fill=landcolor!15, text=landcolor, rotate=90, anchor=center]
+  at (-3, 18) {LANDSLIDE PIPELINE};
+
+% (horizontal divider removed)
+
+% ════════════════════════════════════════════════════════════════
+% Lane backgrounds
+% ════════════════════════════════════════════════════════════════
+\fill[lane1, rounded corners=4pt, opacity=0.5] (-1, 0) rectangle (16.5, 75.5);
+\fill[lane2, rounded corners=4pt, opacity=0.5] (17, 0) rectangle (33.5, 75.5);
+\fill[lane3, rounded corners=4pt, opacity=0.5] (34, 0) rectangle (50.5, 75.5);
+\fill[lane4, rounded corners=4pt, opacity=0.5] (51, 0) rectangle (67.5, 75.5);
+\fill[lane5, rounded corners=4pt, opacity=0.5] (68, 0) rectangle (84.5, 75.5);
+\fill[lane6, rounded corners=4pt, opacity=0.5] (85, 0) rectangle (103, 75.5);
+
+% ── Lane headers (text only, no filled rectangle) ────────────
+\node[lhdr, text=hdr1] at (7.75, 74.5)
+  {\icosatellite{hdr1}\enspace DATA SOURCES};
+\node[sublab] at (7.75, 73) {10+ geospatial data sources};
+
+\node[lhdr, text=hdr2] at (25.25, 74.5)
+  {\icodatabase{hdr2}\enspace INGESTION};
+\node[sublab] at (25.25, 73) {data\_download / data\_ingest};
+
+\node[lhdr, text=hdr3] at (42.25, 74.5)
+  {\icochart{hdr3}\enspace FEATURES};
+\node[sublab] at (42.25, 73) {feature\_extract / graph\_build};
+
+\node[lhdr, text=hdr4] at (59.25, 74.5)
+  {\iconetwork{hdr4}\enspace ML MODELS};
+\node[sublab] at (59.25, 73) {gnn\_model / kriging};
+
+\node[lhdr, text=hdr5] at (76.25, 74.5)
+  {\icoalert{hdr5}\enspace RISK};
+\node[sublab] at (76.25, 73) {risk\_score / export};
+
+\node[lhdr, text=hdr6] at (94, 74.5)
+  {\icomap{hdr6}\enspace DASHBOARD};
+\node[sublab] at (94, 73) {app / map\_view / temporal\_map};
+
+
+% ════════════════════════════════════════════════════════════════
+%  FLOOD TRACK (top half, y = 36–72)
+% ════════════════════════════════════════════════════════════════
+
+% ── L1: FLOOD DATA SOURCES ──────────────────────────────────
+
+\node[seclab] at (7.75, 71.5) {SATELLITE \& REMOTE SENSING};
+
+\node[mb=box1] (s1) at (7.75, 69)
+  {\textbf{Sentinel-1 GRD}\\SAR VH/VV backscatter\\10\,m \quad CDSE / ASF};
+
+\node[mb=box1] (jrc) at (7.75, 65)
+  {\textbf{JRC Global Water}\\Surface water occurrence\\30\,m \quad 1985--2020};
+
+\node[mb=box1] (srtm) at (7.75, 61)
+  {\textbf{SRTM 30\,m DEM}\\Elevation model\\Tiles N24--26, E88--89};
+
+\node[mb=box1] (glofas) at (7.75, 57)
+  {\textbf{GloFAS (CDS API)}\\River discharge\\$\sim$5\,km resolution};
+
+\node[seclab] at (7.75, 54.5) {SOCIO-ECONOMIC};
+
+\node[mb=box1] (wpop) at (7.75, 52.5)
+  {\textbf{WorldPop 2020}\\Population density\\100\,m constrained};
+
+\node[mb=box1] (gadm) at (7.75, 48.5)
+  {\textbf{GADM 4.1}\\Admin L2/L3 boundaries\\Upazila / Union};
+
+\node[mb=box1] (osm) at (7.75, 44.5)
+  {\textbf{OpenStreetMap}\\Overpass API \quad 11 types\\Hospitals, schools, roads,\\bridges, shelters, cropland};
+
+\node[mb=box1] (bwdb) at (7.75, 39.5)
+  {\textbf{BWDB / BMD}\\River gauges (43/45 live)\\Daily rainfall telemetry};
+
+% Region tags on data sources
+\node[regiontag, fill=regionNW!15, text=regionNW] at (13, 69) {NW};
+\node[regiontag, fill=regionNE!15, text=regionNE] at (14, 69) {NE};
+\node[regiontag, fill=regionSW!15, text=regionSW] at (15, 69) {SW};
+
+% Flood study regions
+\node[seclab] at (7.75, 36.5) {FLOOD STUDY REGIONS};
+
+\node[sb=box1, text width=44mm, draw=regionNW, line width=1pt] at (4, 35)
+  {\textbf{NW Rangpur}\\Teesta--Brahmaputra\\Alert: \textcolor{regionNW}{\textbf{RED}}};
+\node[sb=box1, text width=44mm, draw=regionNE, line width=1pt] at (12, 35)
+  {\textbf{NE Sylhet}\\Surma--Kushiyara\\Alert: \textcolor{regionNE}{\textbf{ORANGE}}};
+
+% ── L2: FLOOD INGESTION ─────────────────────────────────────
+
+\node[mb=box2] (dl) at (25.25, 70)
+  {\textbf{download\_all()}\\Orchestrate 7 sources\\HTTP, CDS, OData, ASF};
+
+\node[mb=box2] (osming) at (22, 65.5)
+  {\textbf{fetch\_osm\_infra()}\\Overpass QL queries\\3 priority tiers};
+
+\node[sb=box2] (classify) at (22, 61.5)
+  {\textbf{\_classify\_asset()}\\OSM tags $\to$ 11 types};
+
+\node[mb=box2] (demproc) at (29, 65.5)
+  {\textbf{DEM Derivatives}\\compute\_dem\_derivatives()\\EPSG:32646 (UTM 46N)};
+
+\node[sb=box2] (slopecalc) at (29, 61.5)
+  {Slope: $\theta = \arctan\!\sqrt{dx^2\!+\!dy^2}$};
+\node[sb=box2] (twicalc) at (29, 58.5)
+  {TWI: $\ln(A / \tan\theta)$};
+\node[sb=box2] (handcalc) at (29, 55.5)
+  {HAND: $h - h_{\text{drainage}}$};
+\node[sb=box2] (facalc) at (29, 52.5)
+  {Flow Acc: D8 routing};
+
+\node[mb=box2] (sarproc) at (22, 55.5)
+  {\textbf{SAR Flood Mask}\\VH extraction\\Otsu thresholding};
+
+\node[mbw=box2] (ensemble) at (25.25, 48.5)
+  {\textbf{build\_ensemble\_flood\_labels()}\\Majority voting ($\geq 2/n$ sources)};
+
+\node[fb, text width=70mm, font=\normalsize] (ensform) at (25.25, 44)
+  {DEM: $(TWI > 8.0) \wedge (HAND < 5\text{m})$\\
+   JRC: occurrence $> 25\%$\\
+   GloFAS: discharge $> P_{50}$\\
+   SAR: $VH \leq \text{Otsu}(\text{hist})$\\[3pt]
+   $y = \mathbb{1}[\text{vote\_sum} \geq 2]$ \quad (binary flood label)};
+
+\node[mb=box2, text width=70mm] (preproc) at (25.25, 39.5)
+  {\textbf{preprocess\_all()}\\CRS reprojection $\to$ UTM 46N\\Clip to AOI, nearest-neighbor resample};
+
+\node[mb=box2, text width=70mm] (cache) at (25.25, 35.5)
+  {\textbf{preprocess\_cache.py}\\GeoJSON $\to$ GeoParquet (5--10$\times$ faster)\\Pre-render raster overlays as PNG};
+
+% Internal arrows L2 flood
+\draw[arr] (dl) -- (osming);
+\draw[arr] (dl) -- (demproc);
+\draw[arr] (osming) -- (classify);
+\draw[arr] (classify) -- (sarproc);
+\draw[arr] (demproc) -- (slopecalc);
+\draw[arr] (slopecalc) -- (twicalc);
+\draw[arr] (twicalc) -- (handcalc);
+\draw[arr] (handcalc) -- (facalc);
+\draw[arr] (sarproc.south) -- ++(0,-0.5) -| ([xshift=-8mm]ensemble.north);
+\draw[arr] (facalc.south) -- ++(0,-0.5) -| ([xshift=8mm]ensemble.north);
+\draw[arr] (ensemble) -- (ensform);
+\draw[arr] (ensform) -- (preproc);
+\draw[arr] (preproc) -- (cache);
+
+% ── L3: FLOOD FEATURES ──────────────────────────────────────
+
+\node[mb=box3] (centroid) at (39, 70)
+  {\textbf{compute\_centroids()}\\Polygon/Way $\to$ (lat, lon)\\representative\_point()};
+
+\node[mb=box3] (rastsamp) at (46, 70)
+  {\textbf{sample\_raster()}\\Bilinear interpolation\\at N infrastructure pts};
+
+\node[seclab] at (42.25, 66.5) {11-DIM FEATURE VECTOR};
+
+\node[sb=box3, text width=66mm] (rastfeat) at (42.25, 64.5)
+  {\textbf{Raster (6):} elevation, slope, TWI, HAND, flow\_acc, pop\_density\\
+   \textbf{Distance (5):} hospital, school, shelter, road, water};
+
+\node[mb=box3, text width=66mm] (fmatrix) at (42.25, 61)
+  {\textbf{extract\_features()} \quad $\mathbf{X} \in \mathbb{R}^{N \times 11}$\\
+   StandardScaler: $x' = (x - \mu) / \sigma$};
+
+\node[seclab] at (42.25, 58) {SPATIAL GRAPH};
+
+\node[mb=box3, text width=66mm] (graphbuild) at (42.25, 56)
+  {\textbf{build\_spatial\_graph()} \quad k-NN graph\\
+   $k\!=\!6$, max\_dist $= 5000$\,m, $w_{ij} = 1/d_{ij}$};
+
+\node[mb=box3, text width=66mm] (pygdata) at (42.25, 52.5)
+  {\textbf{PyTorch Geometric Data}\\
+   \texttt{x}: $(N,11)$ \quad \texttt{edge\_index}: $(2,E)$\\
+   \texttt{y}: $(N,)$ binary \quad train/val: 80/20};
+
+% AlphaEarth
+\node[seclab] at (42.25, 49) {ALPHAEARTH (SHARED)};
+\node[mb=box3] (aedl) at (39, 47)
+  {\textbf{GEE Embeddings}\\$(N, 64)$ vectors\\256\,m annual};
+\node[mb=box3] (aeclust) at (46, 47)
+  {\textbf{UMAP + KMeans}\\$64d \to 2d$, $k\!=\!8$\\Land cover clusters};
+
+% Internal arrows L3 flood
+\draw[arr] (centroid.south) -- ++(0,-0.5) -| ([xshift=-8mm]rastfeat.north);
+\draw[arr] (rastsamp.south) -- ++(0,-0.5) -| ([xshift=8mm]rastfeat.north);
+\draw[arr] (rastfeat) -- (fmatrix);
+\draw[arr] (fmatrix) -- (graphbuild);
+\draw[arr] (graphbuild) -- (pygdata);
+
+
+% ── L4: FLOOD ML MODELS ─────────────────────────────────────
+
+\node[seclab] at (59.25, 71.5) {GRAPHSAGE GNN (FloodGNN)};
+
+\node[mb=box4, text width=60mm] (gnnarch) at (59.25, 69)
+  {\textbf{2-Layer GraphSAGE}\\Input: $(N, 11)$ node features + edges};
+
+\node[sb=box4, text width=58mm] (gnnl1) at (59.25, 65.5)
+  {\textbf{Layer 1:} SAGEConv$(11 \to 64)$\\
+   $\to$ ReLU $\to$ Dropout$(0.3)$};
+\node[sb=box4, text width=58mm] (gnnl2) at (59.25, 63)
+  {\textbf{Layer 2:} SAGEConv$(64 \to 64)$\\
+   $\to$ ReLU $\to$ Dropout$(0.3)$};
+\node[sb=box4, text width=58mm] (gnnclass) at (59.25, 60.5)
+  {\textbf{Classifier:} Linear$(64 \to 1) \to \sigma(z)$};
+
+\node[mb=box4, text width=60mm] (gnntrain) at (59.25, 57)
+  {\textbf{Training}\\BCEWithLogitsLoss\\$w_{pos} = n_{neg}/n_{pos}$\\Adam(lr$=$0.001), 200 epochs\\Early stopping patience$=$20};
+
+\node[mb=box4] (gnnemb) at (56, 52.5)
+  {\textbf{Embeddings}\\$(N, 64)$ vectors};
+\node[mb=box4] (gnnscores) at (62.5, 52.5)
+  {\textbf{Risk Scores}\\$(N,) \in [0,1]$\\$\sigma(\text{logits})$};
+
+\node[mb=box4, text width=60mm] (mcdrop) at (59.25, 49)
+  {\textbf{MC-Dropout Inference}\\30 forward passes w/ dropout\\$\text{CI}_{90} = 2 \times 1.645 \times \sigma$};
+
+\node[seclab] at (59.25, 46) {ORDINARY KRIGING};
+
+\node[mb=box4, text width=60mm] (krige) at (59.25, 43.5)
+  {\textbf{Kriging Interpolation}\\Subsample $\leq 3000$ pts\\Spherical variogram, nlags$=$15\\Grid $\sim$0.005\textdegree\ ($\approx$500\,m)};
+
+\node[fb, text width=56mm, font=\normalsize] (krigform) at (59.25, 39.5)
+  {$\gamma(h) = c_0 + c\!\left[\frac{3h}{2a} - \frac{h^3}{2a^3}\right]$\\[3pt]
+   nugget $c_0$, partial sill $c$, range $a$};
+
+\node[mb=box4, text width=60mm] (fusion) at (59.25, 36)
+  {\textbf{Hybrid Fusion}\\$r_i = \hat{y}_{GNN} - \hat{Z}_{OK}$\\2nd variogram on residuals\\$\hat{Z}_{final} = \text{clip}(Z_{OK} + Z_{resid}, 0, 1)$};
+
+% Internal arrows L4 flood
+\draw[arr] (gnnarch) -- (gnnl1);
+\draw[arr] (gnnl1) -- (gnnl2);
+\draw[arr] (gnnl2) -- (gnnclass);
+\draw[arr] (gnnclass) -- (gnntrain);
+\draw[arr] (gnntrain.south) -- ++(0,-0.5) -| (gnnemb.north);
+\draw[arr] (gnntrain.south) -- ++(0,-0.5) -| (gnnscores.north);
+\draw[arr] (gnnscores) -- (mcdrop);
+\draw[arr] (gnnscores.south) -- ++(0,-1) -| ([xshift=5mm]krige.north);
+\draw[arr] (krige) -- (krigform);
+\draw[arr] (krigform) -- (fusion);
+
+
+% ── L5: FLOOD RISK ──────────────────────────────────────────
+
+\node[mb=box5, text width=60mm] (gridbuild) at (76.25, 70)
+  {\textbf{create\_risk\_grid()}\\500\,m regular cells\\Auto-coarsen if $>$150k};
+
+\node[mb=box5] (hazard) at (73, 65.5)
+  {\textbf{Hazard (H)}\\Kriged flood risk\\at cell centroids};
+
+\node[mb=box5] (exposure) at (80, 65.5)
+  {\textbf{Exposure (E)}\\Weighted asset density\\per grid cell};
+
+\node[fb, text width=52mm, font=\normalsize] (expform) at (80, 61)
+  {Hospital/School: 0.20\\
+   Bridge/Road: 0.15\\
+   Cropland: 0.15 \(\cdot\) Shelter: 0.10\\
+   Building: 0.25};
+
+\node[mb=box5] (vuln) at (73, 61)
+  {\textbf{Vulnerability (V)}\\Socioeconomic indices\\per grid cell};
+
+\node[fb, text width=50mm, font=\normalsize] (vulnform) at (73, 56.5)
+  {Pop density: 0.30\\
+   dist\_hospital: 0.20\\
+   dist\_shelter: 0.15\\
+   night\_light: 0.15\\
+   elderly/child: 0.10\\
+   dist\_road: 0.10};
+
+\node[mbw=box5] (comprisk) at (76.25, 52)
+  {\textbf{Composite Risk}\\$R = H \times E \times V$\\$R_{\text{norm}} = R / \max(R) \in [0, 1]$};
+
+\node[mb=box5, text width=60mm] (hotspot) at (76.25, 48)
+  {\textbf{Hotspot Detection}\\Getis-Ord $G_i^*$ \quad KNN($k\!=\!8$)\\$z > 1.96$, $p < 0.05$ (95\% CI)};
+
+\node[mb=box5, text width=60mm] (adminagg) at (76.25, 44)
+  {\textbf{Admin Aggregation}\\Grid $\to$ Union / Upazila\\mean/max risk, asset counts\\risk\_rank};
+
+\node[mb=box5, text width=60mm] (assetrank) at (76.25, 40)
+  {\textbf{rank\_assets()}\\high\_risk $> 0.7$\\Sort descending by flood\_risk};
+
+% Internal arrows L5 flood
+\draw[arr] (gridbuild.south) -- ++(0,-0.5) -| (hazard.north);
+\draw[arr] (gridbuild.south) -- ++(0,-0.5) -| (exposure.north);
+\draw[arr] (exposure) -- (expform);
+\draw[arr] (hazard) -- (vuln);
+\draw[arr] (vuln) -- (vulnform);
+\draw[arr] (expform.south) -- ++(0,-0.5) -| ([xshift=4mm]comprisk.north);
+\draw[arr] (vulnform.south) -- ++(0,-0.5) -| ([xshift=-4mm]comprisk.north);
+\draw[arr] (hazard.south east) -- ++(0.5,-3.5) -| (comprisk.north);
+\draw[arr] (comprisk) -- (hotspot);
+\draw[arr] (hotspot) -- (adminagg);
+\draw[arr] (adminagg) -- (assetrank);
+
+
+% ── L5: FLOOD REGION OUTPUTS ────────────────────────────────
+
+\node[seclab] at (76.25, 37) {REGION-SPECIFIC OUTPUTS};
+
+\node[sb=box5, text width=56mm, draw=regionNW, line width=0.8pt] at (73, 35)
+  {\textbf{\textcolor{regionNW}{NW Rangpur}}\\
+   risk\_ranked\_assets.geojson\\
+   Teesta basin flood map\\
+   Top-20 critical assets};
+
+\node[sb=box5, text width=56mm, draw=regionNE, line width=0.8pt] at (80, 35)
+  {\textbf{\textcolor{regionNE}{NE Sylhet}}\\
+   Flash flood risk grid\\
+   Surma--Kushiyara basin\\
+   Union-level summary};
+
+
+% ════════════════════════════════════════════════════════════════
+%  LANDSLIDE TRACK (bottom half, y = 1–33)
+% ════════════════════════════════════════════════════════════════
+
+% ── L1: LANDSLIDE DATA SOURCES ──────────────────────────────
+
+\node[seclab, text=landcolor] at (7.75, 31) {LANDSLIDE DATA SOURCES};
+
+\node[mb=box1] (lsrtm) at (7.75, 28.5)
+  {\textbf{SRTM DEM (CHT)}\\91.5--92.7\textdegree E\\21.5--23.5\textdegree N\\Chittagong Hill Tracts};
+
+\node[mb=box1] (lrainfall) at (7.75, 24)
+  {\textbf{BMD Rainfall}\\5-day trigger: 71--282\,mm\\Station network\\Monsoon monitoring};
+
+\node[mb=box1] (losm) at (7.75, 19.5)
+  {\textbf{OSM (CHT)}\\Roads, settlements\\Slope-proximate infra};
+
+\node[regiontag, fill=regionCHT!15, text=regionCHT] at (13, 28.5) {CHT};
+
+\node[seclab, text=landcolor] at (7.75, 16.5) {CONDITIONING FACTORS};
+
+\node[sb=box1, text width=54mm] at (7.75, 13)
+  {\textbf{11 AHP-Weighted Factors}\\
+   Slope \(\cdot\) Aspect \(\cdot\) Curvature\\
+   DEM \(\cdot\) TWI \(\cdot\) Geology\\
+   Dist road \(\cdot\) Dist fault\\
+   NDVI \(\cdot\) Rainfall \(\cdot\) Land cover\\[3pt]
+   \textit{From 6 peer-reviewed papers}\\
+   Ahmed et al. 2024, Rabby 2022};
+
+% Region
+\node[sb=box1, text width=44mm, draw=regionCHT, line width=1pt] at (7.75, 8)
+  {\textbf{\textcolor{regionCHT}{CHT Landslide}}\\Hill Tracts region\\Alert: \textcolor{regionCHT}{\textbf{RED}}};
+
+\node[sb=box1, text width=44mm, draw=regionSW, line width=1pt] at (7.75, 5)
+  {\textbf{\textcolor{regionSW}{SW Coastal}}\\Sundarban--Bagerhat\\Alert: \textcolor{regionSW}{\textbf{YELLOW}}};
+
+% ── L2: LANDSLIDE INGESTION ─────────────────────────────────
+
+\node[seclab, text=landcolor] at (25.25, 31) {LANDSLIDE PREPROCESSING};
+
+\node[mb=box2] (lsdem) at (22, 28)
+  {\textbf{download\_cht\_dem()}\\SRTM tile download\\Merge \& clip to CHT};
+
+\node[mb=box2] (lsslopecalc) at (29, 28)
+  {\textbf{compute\_slope()}\\numpy.gradient\\Degrees from DEM};
+
+\node[mbw=box2] (lssusc) at (25.25, 23.5)
+  {\textbf{compute\_slope\_susceptibility()}\\Logistic transform on slope};
+
+\node[fb, text width=62mm, font=\large] (lsform) at (25.25, 19.5)
+  {$S(\theta) = \dfrac{1}{1 + e^{-(\theta - 20)/5}}$\\[5pt]
+   $\theta > 20^{\circ}$: high susceptibility\\
+   $\theta < 20^{\circ}$: low susceptibility};
+
+\node[mbw=box2] (lsagg) at (25.25, 14.5)
+  {\textbf{aggregate\_to\_upazila()}\\Zonal statistics per 12 CHT upazilas\\susceptibility, population, CVI class};
+
+\node[sb=box2, text width=66mm] at (25.25, 10.5)
+  {\textbf{CVI Classes:} 1=Very Low \(\cdot\) 2=Low\\
+   3=Moderate \(\cdot\) 4=High \(\cdot\) 5=Very High};
+
+\node[fb, text width=62mm] at (25.25, 7.5)
+  {$\text{CVI}(u) = f(\bar{S}_u)$\\
+   $\bar{S} < 0.2 \to 1$, \enspace $\bar{S} > 0.8 \to 5$};
+
+% Internal arrows L2 landslide
+\draw[arr] (lsdem) -- ++(0,-0.5) -| ([xshift=-5mm]lssusc.north);
+\draw[arr] (lsslopecalc) -- ++(0,-0.5) -| ([xshift=5mm]lssusc.north);
+\draw[arr] (lssusc) -- (lsform);
+\draw[arr] (lsform) -- (lsagg);
+
+
+% ── L3: LANDSLIDE FEATURES ──────────────────────────────────
+
+\node[seclab, text=landcolor] at (42.25, 31) {LANDSLIDE FEATURES};
+
+\node[mb=box3, text width=66mm] at (42.25, 28)
+  {\textbf{Slope-based Features}\\Primary: slope angle (degrees)\\Secondary: aspect, curvature\\Distance to roads \& faults};
+
+\node[mb=box3, text width=66mm] at (42.25, 24)
+  {\textbf{AHP Weight Matrix}\\Analytical Hierarchy Process\\Pairwise comparison of 11 factors\\Consistency ratio check};
+
+\node[fb, text width=62mm, font=\normalsize] at (42.25, 20)
+  {\textbf{Top AHP Flood Weights}\\
+   DEM \(\cdot\) Distance to river\\
+   HAND \(\cdot\) SAR flood extent\\
+   Rainfall intensity \(\cdot\) LULC};
+
+\node[seclab] at (42.25, 16.5) {NORMALIZATION};
+
+\node[fb, text width=62mm, font=\normalsize] at (42.25, 13)
+  {\begin{tabular}{ll}
+   Feature matrix $X$ & StandardScaler \\
+   Distance metrics & metres (0--50k) \\
+   Flood labels & binary $\{0,1\}$ \\
+   GNN risk scores & sigmoid $[0,1]$ \\
+   Kriged surface & clip$(0,1)$ \\
+   Composite risk & $H \times E \times V \to$ norm \\
+   \end{tabular}};
+
+
+% ── L4: CONFIDENCE METRICS ──────────────────────────────────
+
+\node[seclab] at (59.25, 31) {CONFIDENCE \& UNCERTAINTY};
+
+\node[mb=box4, text width=60mm] (confmeta) at (59.25, 28)
+  {\textbf{Kriging Variance}\\$\sigma^2_K(s_0)$ at each grid cell\\Interpolation uncertainty};
+
+\node[mb=box4, text width=60mm] at (59.25, 24)
+  {\textbf{GNN MC-Dropout}\\$T=30$ forward passes\\$\text{CI}_{90} = 3.29 \times \sigma$\\Epistemic uncertainty};
+
+\node[mb=box4, text width=60mm] at (59.25, 20)
+  {\textbf{Ensemble IQR}\\$Q_{75} - Q_{25}$ of risk scores\\Aleatoric uncertainty};
+
+\node[mb=box4, text width=60mm] at (59.25, 16)
+  {\textbf{Data Density}\\\% grid cells with $\geq 1$ node\\Coverage quality metric};
+
+\node[seclab] at (59.25, 13) {MODEL OUTPUTS};
+
+\node[sb=box4, text width=58mm] at (56, 10.5)
+  {flood\_risk\_kriged.tif\\gnn\_model.pt\\node\_embeddings.npy};
+\node[sb=box4, text width=58mm] at (62.5, 10.5)
+  {kriging\_variance.tif\\variogram\_params.json\\pipeline\_metadata.json};
+
+
+% ── L5: LANDSLIDE RISK + EXPORTS ─────────────────────────────
+
+\node[seclab, text=landcolor] at (76.25, 31) {LANDSLIDE RISK OUTPUT};
+
+\node[mb=box5, text width=60mm] at (76.25, 28)
+  {\textbf{CHT Upazila Risk}\\12 upazilas ranked\\susceptibility $\times$ population\\Exposed infrastructure count};
+
+\node[sb=box5, text width=56mm, draw=regionCHT, line width=0.8pt] at (76.25, 24)
+  {\textbf{\textcolor{regionCHT}{CHT Region Output}}\\
+   landslide\_upazila.json\\
+   landslide\_susceptibility.tif\\
+   Per-upazila CVI class};
+
+\node[seclab] at (76.25, 20.5) {ALL EXPORTS};
+
+\node[mb=box5, text width=60mm] (exports) at (76.25, 17.5)
+  {\textbf{export.py}\\
+   export\_ranked\_csv()\\
+   export\_geojson()\\
+   export\_union\_summary()\\
+   generate\_pdf\_report()};
+
+\node[sb=box5, text width=60mm] at (76.25, 13)
+  {\textbf{Output Files}\\
+   risk\_ranked\_assets.csv/.geojson\\
+   union\_risk\_summary.geojson\\
+   hotspot\_clusters.geojson\\
+   risk\_grid.geojson\\
+   top50\_risk\_assets.geojson\\
+   situation\_report.pdf};
+
+\node[sb=box5, text width=56mm, draw=regionSW, line width=0.8pt] at (76.25, 8)
+  {\textbf{\textcolor{regionSW}{SW Coastal Output}}\\
+   Tidal/cyclone risk grid\\
+   Sundarban exposure map\\
+   Saline crop risk};
+
+
+% ── L6: DASHBOARD ────────────────────────────────────────────
+
+\node[mb=box6, text width=66mm] (loader) at (94, 70)
+  {\textbf{data/loader.py}\\Parquet $>$ GeoJSON (600s TTL)\\Pre-rendered PNG raster cache\\In-memory kriging raster\\Mock fallback for all sources};
+
+\node[mb=box6, text width=66mm] (apppy) at (94, 64.5)
+  {\textbf{app.py --- Streamlit Main}\\Glassmorphism CSS, Inter/DM Sans\\Dark/Light theme toggle\\Asset search, region badges\\WCAG AA accessibility};
+
+\node[mb=box6, text width=40mm] (sidebar) at (88, 59)
+  {\textbf{sidebar.py}\\Pipeline status\\Confidence panel\\17 layer toggles\\Forecast horizon\\Climate scenario\\Data filters};
+
+\node[seclab] at (99, 61) {5 TABS};
+
+\node[sb=box6, text width=42mm] (tab1) at (99, 59)
+  {\textbf{Tab 1: Pipeline}\\Infrastructure map\\Risk cards, cofactors};
+\node[sb=box6, text width=42mm] (tab2) at (99, 56)
+  {\textbf{Tab 2: Flood Risk}\\Alert, KPIs, top-20\\Vulnerability chart};
+\node[sb=box6, text width=42mm] (tab3) at (99, 53)
+  {\textbf{Tab 3: Landslide}\\CHT map, 11 factors\\Literature panel};
+\node[sb=box6, text width=42mm] (tab4) at (99, 50)
+  {\textbf{Tab 4: Temporal}\\JS animated 24-month\\Play/Pause/Speed};
+\node[sb=box6, text width=42mm] (tab5) at (99, 47)
+  {\textbf{Tab 5: ACTION}\\Shelters, financing\\CSV/GeoJSON/PDF};
+
+\node[mb=box6, text width=66mm] (mapview) at (94, 43)
+  {\textbf{map\_view.py --- Folium Maps}\\LayerControl patch (let$\to$var)\\JS guards (HeatLayer, Map init)\\CartoDB dark\_all tiles\\Donut cluster icons\\Gauge popups with kriging CI};
+
+\node[mb=box6, text width=66mm] (temporal) at (94, 37.5)
+  {\textbf{temporal\_map.py --- JS Animation}\\Pure client-side Leaflet player\\24 months: Jan 2024 -- Dec 2025\\Play / Pause / Reset / Speed (0.5--3$\times$)\\Zero server round-trips};
+
+% Landslide dashboard
+\node[mb=box6, text width=40mm] (riskpanels) at (88, 32)
+  {\textbf{risk\_panels.py}\\Alert banners\\KPI metric row\\Infra table\\Vulnerability chart\\Agri risk panel};
+
+\node[mb=box6, text width=40mm] (cofactors) at (99, 32)
+  {\textbf{cofactors.py}\\8 flood factors\\11 landslide factors\\AHP weight display};
+
+\node[mb=box6, text width=66mm] (detailpanel) at (94, 27)
+  {\textbf{detail\_panel.py --- Asset Inspector}\\Click asset $\to$ side drawer\\Risk score, kriging CI, confidence\\Distance to services};
+
+\node[mb=box6, text width=66mm] (tempchart) at (94, 22.5)
+  {\textbf{render\_temporal\_chart()}\\Plotly line chart: 2024 vs 2025\\Monthly risk per region\\BMD/BWDB/ReliefWeb data};
+
+% Region-specific dashboard
+\node[seclab] at (94, 19) {REGION VIEWS};
+
+\node[sb=box6, text width=30mm, draw=regionNW, line width=0.8pt] at (88, 16.5)
+  {\textcolor{regionNW}{\textbf{NW Rangpur}}\\Flood map\\RED alert};
+\node[sb=box6, text width=30mm, draw=regionNE, line width=0.8pt] at (92.5, 16.5)
+  {\textcolor{regionNE}{\textbf{NE Sylhet}}\\Flash flood\\ORANGE alert};
+\node[sb=box6, text width=30mm, draw=regionSW, line width=0.8pt] at (97, 16.5)
+  {\textcolor{regionSW}{\textbf{SW Coastal}}\\Tidal risk\\YELLOW alert};
+\node[sb=box6, text width=30mm, draw=regionCHT, line width=0.8pt] at (101.5, 16.5)
+  {\textcolor{regionCHT}{\textbf{CHT}}\\Landslide\\RED alert};
+
+% Tech stack
+\node[seclab] at (94, 13.5) {TECHNOLOGY STACK};
+\node[sb=box6, text width=66mm] at (94, 10.5)
+  {\textbf{Frontend:} Streamlit, Folium, Leaflet.js, Plotly\\
+   \textbf{ML:} PyTorch Geometric, pykrige, UMAP, scikit-learn\\
+   \textbf{Geo:} GeoPandas, rasterio, shapely, pyproj\\
+   \textbf{Data:} GeoParquet, GeoTIFF, GeoJSON, GeoPackage};
+
+\node[mb=box6, text width=66mm] at (94, 6)
+  {\textbf{Deployment}\\fermium.systems/hazmapper\\Port 2020 \(\cdot\) nginx reverse proxy\\systemd service \(\cdot\) SSL\\GitHub: rakibhhridoy/hazmapper};
+
+% L6 internal arrows
+\draw[arr] (loader) -- (apppy);
+\draw[arr] (apppy.south west) -- ++(0,-0.5) -| (sidebar.north);
+\draw[arr] (apppy.south east) -- ++(0,-0.5) -| (tab1.north);
+\draw[arr] (tab1) -- (tab2);
+\draw[arr] (tab2) -- (tab3);
+\draw[arr] (tab3) -- (tab4);
+\draw[arr] (tab4) -- (tab5);
+
+
+% ════════════════════════════════════════════════════════════════
+% INTER-LANE ARROWS — Smooth Bezier Curves
+%   Flood: dashed cyan (floodarr)
+%   Landslide: solid red (landarr)
+%   Shared/dashboard: dotted purple (sharedarr)
+% ════════════════════════════════════════════════════════════════
+
+% ── L1 → L2 FLOOD (dashed cyan) ─────────────────────────────
+% Same-height: gentle S-curve
+\draw[floodarr] (s1.east) to[out=0, in=180] (dl.west);
+\draw[floodarr] (srtm.east) to[out=0, in=180] (demproc.west);
+\draw[floodarr] (osm.east) to[out=0, in=180] (osming.west);
+
+% Different height: sweeping curves through lane gap
+\draw[floodarr] (jrc.east) to[out=0, in=150] (ensemble.west);
+\draw[floodarr] (glofas.east) to[out=-10, in=170] (ensemble.west);
+\draw[floodarr] (wpop.east) to[out=-10, in=160] (preproc.west);
+\draw[floodarr] (gadm.east) to[out=-5, in=170] (preproc.west);
+
+% ── L1 → L2 LANDSLIDE (solid red) ───────────────────────────
+\draw[landarr] (lsrtm.east) to[out=0, in=180] (lsdem.west);
+\draw[landarr] (lrainfall.east) to[out=0, in=170] (lssusc.west);
+
+% ── L2 → L3 FLOOD (dashed cyan) ─────────────────────────────
+\draw[floodarr] (classify.east) to[out=0, in=180] (centroid.west);
+\draw[floodarr] (demproc.east) to[out=0, in=180] (rastsamp.west);
+\draw[floodarr] (ensform.east) to[out=0, in=200] (fmatrix.west);
+
+% ── L3 → L4 FLOOD (dashed cyan) ─────────────────────────────
+\draw[floodarr] (pygdata.east) to[out=0, in=180] (gnnarch.west);
+
+% ── L4 → L5 FLOOD (dashed cyan) ─────────────────────────────
+\draw[floodarr] (fusion.east) to[out=0, in=210] (hazard.west);
+\draw[floodarr] (gnnscores.east) to[out=-10, in=160] (assetrank.west);
+
+% ── L5 → L6 FLOOD (dashed cyan) ─────────────────────────────
+\draw[floodarr] (comprisk.east) to[out=-5, in=185] (mapview.west);
+\draw[floodarr] (assetrank.east) to[out=0, in=185] (temporal.west);
+
+% ── Long-distance: Cache (L2) → Loader (L6) ─────────────────
+%   Explicit control points through top corridor
+\draw[sharedarr]
+  (cache.north) .. controls (25.25, 73) and (94, 73) .. (loader.north);
+\node[font=\sffamily\tiny\itshape, text=sharedcolor!80, fill=white, inner sep=2pt]
+  at (60, 73.5) {cached Parquet / PNG $\to$ dashboard loader};
+
+% ── Long-distance: Exports (L5) → Loader (L6) ───────────────
+\draw[floodarr] (exports.east) .. controls (84, 30) and (84, 60) .. (loader.west);
+
+% ── Long-distance: Confidence (L4) → Sidebar (L6) ───────────
+%   Explicit control points through bottom corridor
+\draw[sharedarr]
+  (confmeta.south) .. controls (59.25, -2) and (88, -2) .. (sidebar.south);
+\node[font=\sffamily\tiny\itshape, text=sharedcolor!80, fill=white, inner sep=2pt]
+  at (73, -1.5) {confidence metrics $\to$ sidebar panel};
+
+% ── Long-distance: AlphaEarth (L1) → L3 ─────────────────────
+\node[mb=box1] (alphasrc) at (7.75, 3)
+  {\textbf{AlphaEarth (GEE)}\\Google satellite embeddings\\64-dim, 256\,m annual};
+\draw[sharedarr]
+  (alphasrc.south) .. controls (7.75, -3) and (39, -3) .. (aedl.south);
+\node[font=\sffamily\tiny\itshape, text=sharedcolor!80, fill=white, inner sep=2pt]
+  at (23, -2) {satellite embeddings $\to$ feature extraction};
+
+% ── Config box (centered) ────────────────────────────────────
+\node[mb=box1, text width=80mm] at (51, -2)
+  {\textbf{config.yaml}\\
+   AOI: [88.0, 24.0] -- [89.9, 26.7]\\
+   Divisions: Rangpur, Rajshahi\\
+   Grid: 500\,m \(\cdot\) k=6 \(\cdot\) GNN: 64-dim\\
+   Kriging: 0.005\textdegree\ \(\cdot\) Risk: 0.7};
+
+% ── LEGEND ──────────────────────────────────────────────────
+\node[draw=ltborder, fill=white, rounded corners=3pt, inner sep=8pt,
+      font=\sffamily\small, align=left] at (51, -5) {
+  \textbf{Arrow Legend:}\quad
+  \textcolor{floodcolor}{- - - Flood pipeline (dashed)}\quad
+  \textcolor{landcolor}{\rule[0.5ex]{12pt}{1.5pt}\ Landslide pipeline (solid)}\quad
+  \textcolor{sharedcolor}{$\cdots$ Shared / cross-pipeline (dotted)}
+};
+
+\end{tikzpicture}
+\end{document}

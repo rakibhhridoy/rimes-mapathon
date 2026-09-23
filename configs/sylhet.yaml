@@ -1,0 +1,66 @@
+# Sylhet division — flash flooding in the Surma–Meghna haor basin.
+#
+# Only the differences from the base config live here; everything else
+# (model, weights, thresholds) is shared, so results stay comparable
+# across regions.
+extends: ../config.yaml
+
+paths:
+  raw_dir: "data/sylhet/raw"
+  processed_dir: "data/sylhet/processed"
+  output_dir: "data/sylhet/output"
+
+aoi:
+  name: "sylhet"
+  divisions: ["Sylhet"]
+  # Sylhet, Sunamganj, Habiganj and Moulvibazar districts.
+  bbox: [90.6, 24.0, 92.7, 25.5]
+  crs: "EPSG:32646"
+  grid_resolution_m: 500
+
+data:
+  dem:
+    path: "data/sylhet/raw/dem_srtm_30m.tif"
+  admin_boundaries:
+    union: "data/sylhet/raw/bgd_union.gpkg"
+    upazila: "data/sylhet/raw/bgd_upazila.gpkg"
+    district: "data/sylhet/raw/bgd_district.gpkg"
+  vulnerability:
+    population_path: "data/sylhet/raw/worldpop_popdens.tif"
+
+# Flash floods rise and fall within days, so windows are tighter than for
+# the riverine regions. Dates from ReliefWeb reports (source per event).
+sentinel1:
+  events:
+    - name: "apr2017_haor"
+      # Haor flooding began 28 March and struck Sunamganj on 1 April.
+      source: "https://reliefweb.int/report/bangladesh/bangladesh-floods-northeast-haor-areas-april-may-2017"
+      start: "2017-03-30"
+      end: "2017-04-20"
+      baseline_start: "2017-01-15"
+      baseline_end: "2017-03-01"
+    - name: "jun2022"
+      # Heavy rain from 15 June, situation worst from 17 June.
+      source: "https://reliefweb.int/report/bangladesh/bangladesh-2022-severe-flash-flood-office-un-resident-coordinator-situation-update-1-19-june-2022"
+      start: "2022-06-15"
+      end: "2022-06-26"
+      baseline_start: "2022-01-15"
+      baseline_end: "2022-03-01"
+    - name: "jun2024"
+      # 2.25 million affected in Sylhet, Sunamganj and Moulvibazar by 22 June.
+      source: "https://reliefweb.int/report/bangladesh/bangladesh-needs-assessment-working-group-nawg-situation-analysis-northeastern-flood-june-2024-version-01-20-june-2024"
+      start: "2024-06-16"
+      end: "2024-06-28"
+      baseline_start: "2024-01-15"
+      baseline_end: "2024-03-01"
+    - name: "aug2024"
+      # Eastern floods from 20 August, including Moulvibazar and Habiganj.
+      source: "https://reliefweb.int/report/bangladesh/bangladesh-floods-emergency-appeal-no-mdrbd036"
+      start: "2024-08-18"
+      end: "2024-08-30"
+      baseline_start: "2024-01-15"
+      baseline_end: "2024-03-01"
+
+dashboard:
+  map_center: [24.75, 91.6]
+  map_zoom: 8

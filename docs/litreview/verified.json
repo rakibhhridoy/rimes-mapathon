@@ -1,0 +1,1033 @@
+{
+  "10.1038/nature20584": {
+    "doi": "10.1038/nature20584",
+    "crossref": true,
+    "title": "High-resolution mapping of global surface water and its long-term changes",
+    "journal": "Nature",
+    "year": 2016,
+    "authors": [
+      "Pekel, Jean-François",
+      "Cottam, Andrew",
+      "Gorelick, Noel",
+      "Belward, Alan S."
+    ],
+    "volume": "540",
+    "issue": "7633",
+    "pages": "418-422",
+    "type": "journal-article",
+    "abstract": null,
+    "cited_by": 5395
+  },
+  "10.1371/journal.pone.0218657": {
+    "doi": "10.1371/journal.pone.0218657",
+    "crossref": true,
+    "title": "Using citizen science to expand the global map of landslides: Introducing the Cooperative Open Online Landslide Repository (COOLR)",
+    "journal": "PLOS ONE",
+    "year": 2019,
+    "authors": [
+      "Juang, Caroline S.",
+      "Stanley, Thomas A.",
+      "Kirschbaum, Dalia B."
+    ],
+    "volume": "14",
+    "issue": "7",
+    "pages": "e0218657",
+    "type": "journal-article",
+    "abstract": "Robust inventories are vital for improving assessment of and response to deadly and costly landslide hazards. However, collecting landslide events in inventories is difficult at the global scale due to inconsistencies in or the absence of landslide reporting. Citizen science is a valuable opportunity for addressing some of these challenges. The new Cooperative Open Online Landslide Repository (COOLR) supplements data in a NASA-developed Global Landslide Catalog (GLC) with citizen science reports to build a more robust, publicly available global inventory. This manuscript introduces the COOLR project and its methods, evaluates the initial citizen science results from the first 13 months, and discusses future improvements to increase the global engagement with the project. The COOLR project (https://landslides.nasa.gov) contains Landslide Reporter, the first global citizen science project for landslides, and Landslide Viewer, a portal to visualize data from COOLR and other satellite and model products. From March 2018 to April 2019, 49 citizen scientists contributed 162 new landslide events to COOLR. These events spanned 37 countries in five continents. The initial results demonstrated that both expert and novice participants are contributing via Landslide Reporter. Citizen scientists are filling in data gaps through news sources in 11 different languages, in-person observations, and new landslide events occurring hundreds and thousands of kilometers away from any existing GLC data. The data is of sufficient accuracy to use in NASA susceptibility and hazard models. COOLR continues to expand as an open platform of landslide inventories with new data from citizen scientists, NASA scientists, and other landslide groups. Future work on the COOLR project will seek to increase participation and functionality of the platform as well as move towards collective post-disaster mapping.",
+    "cited_by": 111
+  },
+  "10.1007/s41748-019-00123-y": {
+    "doi": "10.1007/s41748-019-00123-y",
+    "crossref": true,
+    "title": "Flood Susceptibility Assessment in Bangladesh Using Machine Learning and Multi-criteria Decision Analysis",
+    "journal": "Earth Systems and Environment",
+    "year": 2019,
+    "authors": [
+      "Rahman, Mahfuzur",
+      "Ningsheng, Chen",
+      "Islam, Md Monirul",
+      "Dewan, Ashraf",
+      "Iqbal, Javed",
+      "Washakh, Rana Muhammad Ali",
+      "Shufeng, Tian"
+    ],
+    "volume": "3",
+    "issue": "3",
+    "pages": "585-601",
+    "type": "journal-article",
+    "abstract": "This study offers a new opportunity to the relevant authority for planning and designing flood control measures by integrating statistical, machine learning, and multi-criteria decision analysis, including artificial neural network (ANN), logistic regression (LR), frequency ratio (FR), and analytical hierarchy process.",
+    "cited_by": 296,
+    "abstract_source": "semanticscholar (tldr)"
+  },
+  "10.1016/j.gsf.2020.09.006": {
+    "doi": "10.1016/j.gsf.2020.09.006",
+    "crossref": true,
+    "title": "Flood susceptibility modelling using advanced ensemble machine learning models",
+    "journal": "Geoscience Frontiers",
+    "year": 2021,
+    "authors": [
+      "Towfiqul Islam, Abu Reza Md",
+      "Talukdar, Swapan",
+      "Mahato, Susanta",
+      "Kundu, Sonali",
+      "Eibek, Kutub Uddin",
+      "Pham, Quoc Bao",
+      "Kuriqi, Alban",
+      "Linh, Nguyen Thi Thuy"
+    ],
+    "volume": "12",
+    "issue": "3",
+    "pages": "101075",
+    "type": "journal-article",
+    "abstract": "Floods are one of nature's most destructive disasters because of the immense damage to land, buildings, and human fatalities. It is difficult to forecast the areas that are vulnerable to flash flooding due to the dynamic and complex nature of the flash floods. Therefore, earlier identification of flash flood susceptible sites can be performed using advanced machine learning models for managing flood disasters. In this study, we applied and assessed two new hybrid ensemble models, namely Dagging and Random Subspace (RS) coupled with Artificial Neural Network (ANN), Random Forest (RF), and Support Vector Machine (SVM) which are the other three state-of-the-art machine learning models for modelling flood susceptibility maps at the Teesta River basin, the northern region of Bangladesh. The application of these models includes twelve flood influencing factors with 413 current and former flooding points, which were transferred in a GIS environment. The information gain ratio, the multicollinearity diagnostics tests were employed to determine the association between the occurrences and flood influential factors. For the validation and the comparison of these models, for the ability to predict the statistical appraisal measures such as Freidman, Wilcoxon signed-rank, and t-paired tests and Receiver Operating Characteristic Curve (ROC) were employed. The value of the Area Under the Curve (AUC) of ROC was above 0.80 for all models. For flood susceptibility modelling, the Dagging model performs superior, followed by RF, the ANN, the SVM, and the RS, then the several benchmark models. The approach and solution-oriented outcomes outlined in this paper will assist state and local authorities as well as policy makers in reducing flood-related threats and will also assist in the implementation of effective mitigation strategies to mitigate future damage.",
+    "cited_by": 583
+  },
+  "10.1016/j.ocecoaman.2023.106503": {
+    "doi": "10.1016/j.ocecoaman.2023.106503",
+    "crossref": true,
+    "title": "Use of machine learning algorithms to assess flood susceptibility in the coastal area of Bangladesh",
+    "journal": "Ocean &amp; Coastal Management",
+    "year": 2023,
+    "authors": [
+      "Hasan, Md. Hasibul",
+      "Ahmed, Asib",
+      "Nafee, K.M.",
+      "Hossen, Md. Amzed"
+    ],
+    "volume": "236",
+    "issue": null,
+    "pages": "106503",
+    "type": "journal-article",
+    "abstract": null,
+    "cited_by": 44
+  },
+  "10.1016/j.envc.2023.100833": {
+    "doi": "10.1016/j.envc.2023.100833",
+    "crossref": true,
+    "title": "Local-scale flash flood susceptibility assessment in northeastern Bangladesh using machine learning algorithms",
+    "journal": "Environmental Challenges",
+    "year": 2024,
+    "authors": [
+      "Islam, Rakibul",
+      "Chowdhury, Padmanabha"
+    ],
+    "volume": "14",
+    "issue": null,
+    "pages": "100833",
+    "type": "journal-article",
+    "abstract": "The recurring flash floods in northeastern Bangladesh have been causing significant damage to the lives and livelihoods of local people every year, underscoring the necessity of effective flood management and mitigation efforts. Identifying flood hazard areas is the very first step in achieving such ends. While machine learning algorithms have been widely used in flood susceptibility studies, there is a significant dearth of research addressing their application for local-scale assessment of flood susceptibility in Bangladesh. Besides, in most of the flood susceptibility studies, only statistical metrics are used to evaluate the prediction capability of machine learning algorithms, overlooking their ability to account for spatial consistency. Therefore, this study attempts to evaluate the performance of Random Forest (RF) and Support Vector Machine (SVM) algorithms in flash flood susceptibility assessment at local scale using statistical and spatial metrics. RF model performed better than SVM with area under the curve (0.964), accuracy (92.1%) and kappa (0.894). Five susceptibility zones were identified using a natural breaks method: very high, high, moderate, low and very low. The overall spatial agreement between the susceptibility maps of RF and SVM was 73.3%. For very low susceptible classes, the spatial agreement was highest for RF-SVM (97.15%) and SVM-RF (81.54%). The findings of this study can be useful for a more accurate assessment of flash flood susceptibility in similar local settings. Moreover, the prepared susceptibility map can be helpful for taking sustainable measures to mitigate the devastating effects of flood hazard in northeastern Bangladesh.",
+    "cited_by": 30
+  },
+  "10.1007/s00477-020-01862-5": {
+    "doi": "10.1007/s00477-020-01862-5",
+    "crossref": true,
+    "title": "Flood susceptibility modeling in Teesta River basin, Bangladesh using novel ensembles of bagging algorithms",
+    "journal": "Stochastic Environmental Research and Risk Assessment",
+    "year": 2020,
+    "authors": [
+      "Talukdar, Swapan",
+      "Ghose, Bonosri",
+      "Shahfahad",
+      "Salam, Roquia",
+      "Mahato, Susanta",
+      "Pham, Quoc Bao",
+      "Linh, Nguyen Thi Thuy",
+      "Costache, Romulus",
+      "Avand, Mohammadtaghi"
+    ],
+    "volume": "34",
+    "issue": "12",
+    "pages": "2277-2300",
+    "type": "journal-article",
+    "abstract": null,
+    "cited_by": 228
+  },
+  "10.1007/s41748-021-00221-w": {
+    "doi": "10.1007/s41748-021-00221-w",
+    "crossref": true,
+    "title": "Geo-spatial Analysis for Flash Flood Susceptibility Mapping in the North-East Haor (Wetland) Region in Bangladesh",
+    "journal": "Earth Systems and Environment",
+    "year": 2021,
+    "authors": [
+      "Haque, Md. Nazmul",
+      "Siddika, Sharmin",
+      "Sresto, Mizbah Ahmed",
+      "Saroar, Md. Mustafa",
+      "Shabab, Kazi Redwan"
+    ],
+    "volume": "5",
+    "issue": "2",
+    "pages": "365-384",
+    "type": "journal-article",
+    "abstract": null,
+    "cited_by": 64
+  },
+  "10.1111/jfr3.12683": {
+    "doi": "10.1111/jfr3.12683",
+    "crossref": true,
+    "title": "Flood susceptibility mapping and assessment using a novel deep learning model combining multilayer perceptron and autoencoder neural networks",
+    "journal": "Journal of Flood Risk Management",
+    "year": 2020,
+    "authors": [
+      "Ahmadlou, Mohammad",
+      "Al‐Fugara, A'kif",
+      "Al‐Shabeeb, Abdel Rahman",
+      "Arora, Aman",
+      "Al‐Adamat, Rida",
+      "Pham, Quoc Bao",
+      "Al‐Ansari, Nadhir",
+      "Linh, Nguyen Thi Thuy",
+      "Sajedi, Hedieh"
+    ],
+    "volume": "14",
+    "issue": "1",
+    "pages": "e12683",
+    "type": "journal-article",
+    "abstract": "Abstract Floods are one of the most destructive natural disasters causing financial damages and casualties every year worldwide. Recently, the combination of data‐driven techniques with remote sensing (RS) and geographical information systems (GIS) has been widely used by researchers for flood susceptibility mapping. This study presents a novel hybrid model combining the multilayer perceptron (MLP) and autoencoder models to produce the susceptibility maps for two study areas located in Iran and India. For two cases, nine, and twelve factors were considered as the predictor variables for flood susceptibility mapping, respectively. The prediction capability of the proposed hybrid model was compared with that of the traditional MLP model through the area under the receiver operating characteristic (AUROC) criterion. The AUROC curve for the MLP and autoencoder‐MLP models were, respectively, 75 and 90, 74 and 93% in the training phase and 60 and 91, 81 and 97% in the testing phase, for Iran and India cases, respectively. The results suggested that the hybrid autoencoder‐MLP model outperformed the MLP model and, therefore, can be used as a powerful model in other studies for flood susceptibility mapping.",
+    "cited_by": 150
+  },
+  "10.1016/j.jenvman.2022.116813": {
+    "doi": "10.1016/j.jenvman.2022.116813",
+    "crossref": true,
+    "title": "A novel framework for addressing uncertainties in machine learning-based geospatial approaches for flood prediction",
+    "journal": "Journal of Environmental Management",
+    "year": 2023,
+    "authors": [
+      "Adnan, Mohammed Sarfaraz Gani",
+      "Siam, Zakaria Shams",
+      "Kabir, Irfat",
+      "Kabir, Zobaidul",
+      "Ahmed, M. Razu",
+      "Hassan, Quazi K.",
+      "Rahman, Rashedur M.",
+      "Dewan, Ashraf"
+    ],
+    "volume": "326",
+    "issue": null,
+    "pages": "116813",
+    "type": "journal-article",
+    "abstract": "Globally, many studies on machine learning (ML)-based flood susceptibility modeling have been carried out in recent years. While majority of those models produce reasonably accurate flood predictions, the outcomes are subject to uncertainty since flood susceptibility models (FSMs) may produce varying spatial predictions. However, there have not been many attempts to address these uncertainties because identifying spatial agreement in flood projections is a complex process. This study presents a framework for reducing spatial disagreement among four standalone and hybridized ML-based FSMs: random forest (RF), k-nearest neighbor (KNN), multilayer perceptron (MLP), and hybridized genetic algorithm-gaussian radial basis function-support vector regression (GA-RBF-SVR). Besides, an optimized model was developed combining the outcomes of those four models. The southwest coastal region of Bangladesh was selected as the case area. A comparable percentage of flood potential area (approximately 60% of the total land areas) was produced by all ML-based models. Despite achieving high prediction accuracy, spatial discrepancy in the model outcomes was observed, with pixel-wise correlation coefficients across different models ranging from 0.62 to 0.91. The optimized model exhibited high prediction accuracy and improved spatial agreement by reducing the number of classification errors. The framework presented in this study might aid in the formulation of risk-based development plans and enhancement of current early warning systems.",
+    "cited_by": 77
+  },
+  "10.1016/j.asr.2024.10.047": {
+    "doi": "10.1016/j.asr.2024.10.047",
+    "crossref": true,
+    "title": "A machine learning-based approach for flash flood susceptibility mapping considering rainfall extremes in the northeast region of Bangladesh",
+    "journal": "Advances in Space Research",
+    "year": 2025,
+    "authors": [
+      "Chowdhury, Md Enayet",
+      "Islam, A.K.M. Saiful",
+      "Zzaman, Rashed Uz",
+      "Khadem, Sharfaraj"
+    ],
+    "volume": "75",
+    "issue": "2",
+    "pages": "1990-2017",
+    "type": "journal-article",
+    "abstract": null,
+    "cited_by": 24
+  },
+  "10.1111/jfr3.70121": {
+    "doi": "10.1111/jfr3.70121",
+    "crossref": true,
+    "title": "Assessment and Zonation of Flood Susceptibility in Sylhet Division, Bangladesh Using\n                    <scp>GIS</scp>\n                    and Analytic Hierarchy Process (\n                    <scp>AHP</scp>\n                    )",
+    "journal": "Journal of Flood Risk Management",
+    "year": 2025,
+    "authors": [
+      "Islam, Iftekharul",
+      "Rahman, Md. Abdur",
+      "Adham, Md. Ibrahim",
+      "Majumder, Abdullah All‐Sahil",
+      "Zaman, Ahmadullah"
+    ],
+    "volume": "18",
+    "issue": "4",
+    "pages": "e70121",
+    "type": "journal-article",
+    "abstract": "ABSTRACT Flooding poses a persistent challenge in Bangladesh, where complete prevention remains difficult due to its geographical and climatic conditions. This study integrates the Analytical Hierarchy Process (AHP) with Geographic Information System (GIS) techniques to create a detailed flood susceptibility map for the Sylhet division in northern Bangladesh. The primary goal is to classify the region into distinct flood susceptibility zones, providing valuable insights for improving flood risk management, mitigation, and preparedness strategies. The study evaluates 12 critical flood‐influencing parameters, including elevation, slope, topographic wetness index (TWI), precipitation, drainage density, proximity to roads and rivers, vegetation, land use and land cover (LULC), and soil type. These factors were chosen based on their established relevance to flood dynamics, with data sourced from reliable spatial databases to ensure accuracy. Using AHP, weights were assigned to each parameter based on expert input, reflecting their relative importance in flood risk. These weighted factors were then integrated using GIS overlay analysis and weighted linear combination techniques to generate a flood susceptibility map. The results show that approximately 35.27% of the Sylhet division, particularly the northern regions and the low‐lying Haor basin, fall into the “high” flood susceptibility categories. These areas are highly vulnerable due to their flat topography, proximity to major rivers, and inadequate drainage systems. In contrast, the southern and southwestern areas, accounting for around 7.45% of the region, exhibit “low” flood susceptibility, benefiting from higher elevations and better natural drainage. This flood susceptibility map serves as an essential tool for identifying high‐risk areas, supporting targeted flood mitigation efforts, and enhancing disaster preparedness. By providing a scientific foundation for effective flood management, the study aids decision‐makers in reducing flood impacts and promoting the sustainable development of flood‐prone regions in northern Bangladesh.",
+    "cited_by": 6
+  },
+  "10.1111/ecog.02881": {
+    "doi": "10.1111/ecog.02881",
+    "crossref": true,
+    "title": "Cross‐validation strategies for data with temporal, spatial, hierarchical, or phylogenetic structure",
+    "journal": "Ecography",
+    "year": 2017,
+    "authors": [
+      "Roberts, David R.",
+      "Bahn, Volker",
+      "Ciuti, Simone",
+      "Boyce, Mark S.",
+      "Elith, Jane",
+      "Guillera‐Arroita, Gurutzeta",
+      "Hauenstein, Severin",
+      "Lahoz‐Monfort, José J.",
+      "Schröder, Boris",
+      "Thuiller, Wilfried",
+      "Warton, David I.",
+      "Wintle, Brendan A.",
+      "Hartig, Florian",
+      "Dormann, Carsten F."
+    ],
+    "volume": "40",
+    "issue": "8",
+    "pages": "913-929",
+    "type": "journal-article",
+    "abstract": "Ecological data often show temporal, spatial, hierarchical (random effects), or phylogenetic structure. Modern statistical approaches are increasingly accounting for such dependencies. However, when performing cross‐validation, these structures are regularly ignored, resulting in serious underestimation of predictive error. One cause for the poor performance of uncorrected (random) cross‐validation, noted often by modellers, are dependence structures in the data that persist as dependence structures in model residuals, violating the assumption of independence. Even more concerning, because often overlooked, is that structured data also provides ample opportunity for overfitting with non‐causal predictors. This problem can persist even if remedies such as autoregressive models, generalized least squares, or mixed models are used. Block cross‐validation, where data are split strategically rather than randomly, can address these issues. However, the blocking strategy must be carefully considered. Blocking in space, time, random effects or phylogenetic distance, while accounting for dependencies in the data, may also unwittingly induce extrapolations by restricting the ranges or combinations of predictor variables available for model training, thus overestimating interpolation errors. On the other hand, deliberate blocking in predictor space may also improve error estimates when extrapolation is the modelling goal. Here, we review the ecological literature on non‐random and blocked cross‐validation approaches. We also provide a series of simulations and case studies, in which we show that, for all instances tested, block cross‐validation is nearly universally more appropriate than random cross‐validation if the goal is predicting to new data or predictor space, or for selecting causal predictors. We recommend that block cross‐validation be used wherever dependence structures exist in a dataset, even if no correlation structure is visible in the fitted model residuals, or if the fitted models account for such correlations.",
+    "cited_by": 3149
+  },
+  "10.1038/s41467-020-18321-y": {
+    "doi": "10.1038/s41467-020-18321-y",
+    "crossref": true,
+    "title": "Spatial validation reveals poor predictive performance of large-scale ecological mapping models",
+    "journal": "Nature Communications",
+    "year": 2020,
+    "authors": [
+      "Ploton, Pierre",
+      "Mortier, Frédéric",
+      "Réjou-Méchain, Maxime",
+      "Barbier, Nicolas",
+      "Picard, Nicolas",
+      "Rossi, Vivien",
+      "Dormann, Carsten",
+      "Cornu, Guillaume",
+      "Viennois, Gaëlle",
+      "Bayol, Nicolas",
+      "Lyapustin, Alexei",
+      "Gourlet-Fleury, Sylvie",
+      "Pélissier, Raphaël"
+    ],
+    "volume": "11",
+    "issue": "1",
+    "pages": "4540",
+    "type": "journal-article",
+    "abstract": "Mapping aboveground forest biomass is central for assessing the global carbon balance. However, current large-scale maps show strong disparities, despite good validation statistics of their underlying models. Here, we attribute this contradiction to a flaw in the validation methods, which ignore spatial autocorrelation (SAC) in data, leading to overoptimistic assessment of model predictive power. To illustrate this issue, we reproduce the approach of large-scale mapping studies using a massive forest inventory dataset of 11.8 million trees in central Africa to train and validate a random forest model based on multispectral and environmental variables. A standard nonspatial validation method suggests that the model predicts more than half of the forest biomass variation, while spatial validation methods accounting for SAC reveal quasi-null predictive power. This study underscores how a common practice in big data mapping studies shows an apparent high predictive power, even when predictors have poor relationships with the ecological variable of interest, thus possibly leading to erroneous maps and interpretations.",
+    "cited_by": 838
+  },
+  "10.1111/2041-210x.13650": {
+    "doi": "10.1111/2041-210x.13650",
+    "crossref": true,
+    "title": "Predicting into unknown space? Estimating the area of applicability of spatial prediction models",
+    "journal": "Methods in Ecology and Evolution",
+    "year": 2021,
+    "authors": [
+      "Meyer, Hanna",
+      "Pebesma, Edzer"
+    ],
+    "volume": "12",
+    "issue": "9",
+    "pages": "1620-1633",
+    "type": "journal-article",
+    "abstract": "Abstract Machine learning algorithms have become very popular for spatial mapping of the environment due to their ability to fit nonlinear and complex relationships. However, this ability comes with the disadvantage that they can only be applied to new data if these are similar to the training data. Since spatial mapping requires predictions to new geographic space which in many cases goes along with new predictor properties, a method to assess the area to which a prediction model can be reliably applied is required. Here, we suggest a methodology that delineates the ‘area of applicability’ (AOA) that we define as the area where we enabled the model to learn about relationships based on the training data, and where the estimated cross‐validation performance holds. We first propose a ‘dissimilarity index’ (DI) that is based on the minimum distance to the training data in the multidimensional predictor space, with predictors being weighted by their respective importance in the model. The AOA is then derived by applying a threshold which is the (outlier‐removed) maximum DI of the training data derived via cross‐validation. We further use the relationship between the DI and the cross‐validation performance to map the estimated performance of predictions. We illustrate the approach in a simulated case study chosen to mimic ecological realities and test the credibility by using a large set of simulated data. The simulation studies showed that the prediction error within the AOA is comparable to the cross‐validation error of the trained model, while the cross‐validation error does not apply outside the AOA. This applies to models being trained with randomly distributed training data, as well as when training data are clustered in space and where spatial cross‐validation is applied. Using the relationship between DI and cross‐validation performance showed potential to limit predictions to the area where a user‐defined performance applies. We suggest to add the AOA computation to the modeller's standard toolkit and to present predictions for the AOA only. We further suggest to report a map of DI‐dependent performance estimates alongside prediction maps and complementary to (cross‐)validation performance measures and the common uncertainty estimates.",
+    "cited_by": 484
+  },
+  "10.1016/j.ecolmodel.2021.109692": {
+    "doi": "10.1016/j.ecolmodel.2021.109692",
+    "crossref": true,
+    "title": "Spatial cross-validation is not the right way to evaluate map accuracy",
+    "journal": "Ecological Modelling",
+    "year": 2021,
+    "authors": [
+      "Wadoux, Alexandre M.J.-C.",
+      "Heuvelink, Gerard B.M.",
+      "de Bruin, Sytze",
+      "Brus, Dick J."
+    ],
+    "volume": "457",
+    "issue": null,
+    "pages": "109692",
+    "type": "journal-article",
+    "abstract": "It is concluded that spatial cross-validation methods have no theoretical underpinning and should not be used for assessing map accuracy, while standard cross- validation is deficient in case of clustered data.",
+    "cited_by": 308,
+    "abstract_source": "semanticscholar (tldr)"
+  },
+  "10.1016/j.envsoft.2017.12.001": {
+    "doi": "10.1016/j.envsoft.2017.12.001",
+    "crossref": true,
+    "title": "Improving performance of spatio-temporal machine learning models using forward feature selection and target-oriented validation",
+    "journal": "Environmental Modelling &amp; Software",
+    "year": 2018,
+    "authors": [
+      "Meyer, Hanna",
+      "Reudenbach, Christoph",
+      "Hengl, Tomislav",
+      "Katurji, Marwan",
+      "Nauss, Thomas"
+    ],
+    "volume": "101",
+    "issue": null,
+    "pages": "1-9",
+    "type": "journal-article",
+    "abstract": null,
+    "cited_by": 573
+  },
+  "10.1038/s41586-021-03695-w": {
+    "doi": "10.1038/s41586-021-03695-w",
+    "crossref": true,
+    "title": "Satellite imaging reveals increased proportion of population exposed to floods",
+    "journal": "Nature",
+    "year": 2021,
+    "authors": [
+      "Tellman, B.",
+      "Sullivan, J. A.",
+      "Kuhn, C.",
+      "Kettner, A. J.",
+      "Doyle, C. S.",
+      "Brakenridge, G. R.",
+      "Erickson, T. A.",
+      "Slayback, D. A."
+    ],
+    "volume": "596",
+    "issue": "7870",
+    "pages": "80-86",
+    "type": "journal-article",
+    "abstract": "Flooding affects more people than any other environmental hazard and hinders sustainable development1,2. Investing in flood adaptation strategies may reduce the loss of life and livelihood caused by floods3. Where and how floods occur and who is exposed are changing as a result of rapid urbanization4, flood mitigation infrastructure5 and increasing settlements in floodplains6. Previous estimates of the global flood-exposed population have been limited by a lack of observational data, relying instead on models, which have high uncertainty3,7–11. Here we use daily satellite imagery at 250-metre resolution to estimate flood extent and population exposure for 913 large flood events from 2000 to 2018. We determine a total inundation area of 2.23 million square kilometres, with 255–290 million people directly affected by floods. We estimate that the total population in locations with satellite-observed inundation grew by 58–86 million from 2000 to 2015. This represents an increase of 20 to 24 per cent in the proportion of the global population exposed to floods, ten times higher than previous estimates7. Climate change projections for 2030 indicate that the proportion of the population exposed to floods will increase further. The high spatial and temporal resolution of the satellite observations will improve our understanding of where floods are changing and how best to adapt. The global flood database generated from these observations will help to improve vulnerability assessments, the accuracy of global and local flood models, the efficacy of adaptation interventions and our understanding of the interactions between landcover change, climate and floods. Satellite imagery for the period 2000–2018 reveals that population growth was greater in flood-prone regions than elsewhere, thus exposing a greater proportion of the population to floods.",
+    "cited_by": 1462,
+    "abstract_source": "semanticscholar"
+  },
+  "10.1016/j.rse.2019.111489": {
+    "doi": "10.1016/j.rse.2019.111489",
+    "crossref": true,
+    "title": "Both near-surface and satellite remote sensing confirm drought legacy effect on tropical forest leaf phenology after 2015/2016 ENSO drought",
+    "journal": "Remote Sensing of Environment",
+    "year": 2020,
+    "authors": [
+      "Gonçalves, Nathan Borges",
+      "Lopes, Aline Pontes",
+      "Dalagnol, Ricardo",
+      "Wu, Jin",
+      "Pinho, Davieliton Mesquita",
+      "Nelson, Bruce Walker"
+    ],
+    "volume": "237",
+    "issue": null,
+    "pages": "111489",
+    "type": "journal-article",
+    "abstract": null,
+    "cited_by": 92
+  },
+  "10.1080/01431161.2016.1192304": {
+    "doi": "10.1080/01431161.2016.1192304",
+    "crossref": true,
+    "title": "Sentinel-1-based flood mapping: a fully automated processing chain",
+    "journal": "International Journal of Remote Sensing",
+    "year": 2016,
+    "authors": [
+      "Twele, André",
+      "Cao, Wenxi",
+      "Plank, Simon",
+      "Martinis, Sandro"
+    ],
+    "volume": "37",
+    "issue": "13",
+    "pages": "2990-3004",
+    "type": "journal-article",
+    "abstract": "This article presents an automated Sentinel-1-based processing chain designed for flood detection and monitoring in near-real-time (NRT). Since no user intervention is required at any stage of the flood mapping procedure, the processing chain allows deriving time-critical disaster information in less than 45 min after a new data set is available on the Sentinel Data Hub of the European Space Agency (ESA). Due to the systematic acquisition strategy and high repetition rate of Sentinel-1, the processing chain can be set up as a web-based service that regularly informs users about the current flood conditions in a given area of interest. The thematic accuracy of the thematic processor has been assessed for two test sites of a flood situation at the border between Greece and Turkey with encouraging overall accuracies between 94.0% and 96.1% and Cohen’s kappa coefficients (κ) ranging from 0.879 to 0.910. The accuracy assessment, which was performed separately for the standard polarizations (VV/VH) of the interferometric wide swath (IW) mode of Sentinel-1, further indicates that under calm wind conditions, slightly higher thematic accuracies can be achieved by using VV instead of VH polarization data.",
+    "cited_by": 629
+  },
+  "10.1016/j.isprsjprs.2013.03.006": {
+    "doi": "10.1016/j.isprsjprs.2013.03.006",
+    "crossref": true,
+    "title": "Change detection from remotely sensed images: From pixel-based to object-based approaches",
+    "journal": "ISPRS Journal of Photogrammetry and Remote Sensing",
+    "year": 2013,
+    "authors": [
+      "Hussain, Masroor",
+      "Chen, Dongmei",
+      "Cheng, Angela",
+      "Wei, Hui",
+      "Stanley, David"
+    ],
+    "volume": "80",
+    "issue": null,
+    "pages": "91-106",
+    "type": "journal-article",
+    "abstract": null,
+    "cited_by": 1521
+  },
+  "10.3390/rs11131581": {
+    "doi": "10.3390/rs11131581",
+    "crossref": true,
+    "title": "Operational Flood Mapping Using Multi-Temporal Sentinel-1 SAR Images: A Case Study from Bangladesh",
+    "journal": "Remote Sensing",
+    "year": 2019,
+    "authors": [
+      "Uddin, Kabir",
+      "Matin, Mir A.",
+      "Meyer, Franz J."
+    ],
+    "volume": "11",
+    "issue": "13",
+    "pages": "1581",
+    "type": "journal-article",
+    "abstract": "Bangladesh is one of the most flood-affected countries in the world. In the last few decades, flood frequency, intensity, duration, and devastation have increased in Bangladesh. Identifying flood-damaged areas is highly essential for an effective flood response. This study aimed at developing an operational methodology for rapid flood inundation and potential flood damaged area mapping to support a quick and effective event response. Sentinel-1 images from March, April, June, and August 2017 were used to generate inundation extents of the corresponding months. The 2017 pre-flood land cover maps were prepared using Landsat-8 images to identify major land cover on the ground before flooding. The overall accuracy of flood inundation mapping was 96.44% and the accuracy of the land cover map was 87.51%. The total flood inundated area corresponded to 2.01%, 4.53%, and 7.01% for the months April, June, and August 2017, respectively. Based on the Landsat-8 derived land cover information, the study determined that cropland damaged by floods was 1.51% in April, 3.46% in June, 5.30% in August, located mostly in the Sylhet and Rangpur divisions. Finally, flood inundation maps were distributed to the broader user community to aid in hazard response. The data and methodology of the study can be replicated for every year to map flooding in Bangladesh.",
+    "cited_by": 344
+  },
+  "10.1016/j.jhydrol.2011.03.051": {
+    "doi": "10.1016/j.jhydrol.2011.03.051",
+    "crossref": true,
+    "title": "Height Above the Nearest Drainage – a hydrologically relevant new terrain model",
+    "journal": "Journal of Hydrology",
+    "year": 2011,
+    "authors": [
+      "Nobre, A.D.",
+      "Cuartas, L.A.",
+      "Hodnett, M.",
+      "Rennó, C.D.",
+      "Rodrigues, G.",
+      "Silveira, A.",
+      "Waterloo, M.",
+      "Saleska, S."
+    ],
+    "volume": "404",
+    "issue": "1-2",
+    "pages": "13-29",
+    "type": "journal-article",
+    "abstract": null,
+    "cited_by": 791
+  },
+  "10.1080/02626667909491834": {
+    "doi": "10.1080/02626667909491834",
+    "crossref": true,
+    "title": "A physically based, variable contributing area model of basin hydrology / Un modèle à base physique de zone d'appel variable de l'hydrologie du bassin versant",
+    "journal": "Hydrological Sciences Bulletin",
+    "year": 1979,
+    "authors": [
+      "BEVEN, K. J.",
+      "KIRKBY, M. J."
+    ],
+    "volume": "24",
+    "issue": "1",
+    "pages": "43-69",
+    "type": "journal-article",
+    "abstract": "A hydrological forecasting model is presented that attempts to combine the important distributed effects of channel network topology and dynamic contributing areas with the advantages of simple lumped parameter basin models. Quick response flow is predicted from a storage/contributing area relationship derived analytically from the topographic structure of a unit within a basin. Average soil water response is represented by a constant leakage infiltration store and an exponential subsurface water store. A simple non-linear routing procedure related to the link frequency distribution of the channel network completes the model and allows distinct basin sub-units, such as headwater and sideslope areas to be modelled separately. The model parameters are physically based in the sense that they may be determined directly by measurement and the model may be used at ungauged sites. Procedures for applying the model and tests with data from the Crimple Beck basin are described. Using only measured and estimated parameter values, without optimization, the model makes satisfactory predictions of basin response. The modular form of the model structure should allow application over a range of small and medium sized basins while retaining the possibility of including more complex model components when suitable data are available.",
+    "cited_by": 6822
+  },
+  "10.1016/j.earscirev.2018.03.001": {
+    "doi": "10.1016/j.earscirev.2018.03.001",
+    "crossref": true,
+    "title": "A review of statistically-based landslide susceptibility models",
+    "journal": "Earth-Science Reviews",
+    "year": 2018,
+    "authors": [
+      "Reichenbach, Paola",
+      "Rossi, Mauro",
+      "Malamud, Bruce D.",
+      "Mihir, Monika",
+      "Guzzetti, Fausto"
+    ],
+    "volume": "180",
+    "issue": null,
+    "pages": "60-91",
+    "type": "journal-article",
+    "abstract": "In this paper, we do a critical review of statistical methods for landslide susceptibility modelling and associated terrain zonations. Landslide susceptibility is the likelihood of a landslide occurring in an area depending on local terrain conditions, estimating “where” landslides are likely to occur. Since the first attempts to assess landslide susceptibility in the mid-1970s, hundreds of papers have been published using a variety of approaches and methods in different geological and climatic settings. Here, we critically review the statistically-based landslide susceptibility assessment literature by systematically searching for and then compiling an extensive database of 565 peer-review articles from 1983 to 2016. For each article in the literature database, we noted 31 categories/sub-categories of information including study region/extent, landslide type/number, inventory type and period covered, statistical model used, including variable types, model fit/prediction performance evaluation method, and strategy used to assess the model uncertainty. We present graphical visualisations and discussions of commonalities and differences found as a function of region and time, revealing a significant heterogeneity of thematic data types and scales, modelling approaches, and model evaluation criteria. We found that the range of thematic data types used for susceptibility assessment has not changed significantly with time, and that for a number of studies the geomorphological significance of the thematic data used is poorly justified. We also found that the most common statistical methods for landslide susceptibility modelling include logistic regression, neural network analysis, data-overlay, index-based and weight of evidence analyses, with an increasing preference towards machine learning methods in the recent years. Although an increasing number of studies in recent years have assessed the model performance, in terms of model fit and prediction performance, only a handful of studies have evaluated the model uncertainty. Adopting a Susceptibility Quality Level index, we found that the quality of published models has improved over the years, but top-quality assessments remain rare. We identified a clear geographical bias in susceptibility study locations, with many studies in China, India, Italy and Turkey, and only a few in Africa, South America and Oceania. Based on previous literature reviews, the analysis of the information collected in the literature database, and our own experience on the subject, we provide recommendations for the preparation, evaluation, and use of landslide susceptibility models and associated terrain zonations.",
+    "cited_by": 2397
+  },
+  "10.3390/data4020088": {
+    "doi": "10.3390/data4020088",
+    "crossref": true,
+    "title": "The Ionic Liquid Property Explorer: An Extensive Library of Task-Specific Solvents",
+    "journal": "Data",
+    "year": 2019,
+    "authors": [
+      "Venkatraman, Vishwesh",
+      "Evjen, Sigvart",
+      "Chellappan Lethesh, Kallidanthiyil"
+    ],
+    "volume": "4",
+    "issue": "2",
+    "pages": "88",
+    "type": "journal-article",
+    "abstract": "Ionic liquids have a broad spectrum of applications ranging from gas separation to sensors and pharmaceuticals. Rational selection of the constituent ions is key to achieving tailor-made materials with functional properties. To facilitate the discovery of new ionic liquids for sustainable applications, we have created a virtual library of over 8 million synthetically feasible ionic liquids. Each structure has been evaluated for their-task suitability using data-driven statistical models calculated for 12 highly relevant properties: melting point, thermal decomposition, glass transition, heat capacity, viscosity, density, cytotoxicity, CO 2 solubility, surface tension, and electrical and thermal conductivity. For comparison, values of six properties computed using quantum chemistry based equilibrium thermodynamics COSMO-RS methods are also provided. We believe the data set will be useful for future efforts directed towards targeted synthesis and optimization.",
+    "cited_by": 35
+  },
+  "10.1111/j.1538-4632.1992.tb00261.x": {
+    "doi": "10.1111/j.1538-4632.1992.tb00261.x",
+    "crossref": true,
+    "title": "The Analysis of Spatial Association by Use of Distance Statistics",
+    "journal": "Geographical Analysis",
+    "year": 1992,
+    "authors": [
+      "Getis, Arthur",
+      "Ord, J. K."
+    ],
+    "volume": "24",
+    "issue": "3",
+    "pages": "189-206",
+    "type": "journal-article",
+    "abstract": "Introduced in this paper is a family of statistics, G , that can be used as a measure of spatial association in a number of circumstances. The basic statistic is derived, its properties are identified, and its advantages explained. Several of the G statistics make it possible to evaluate the spatial association of a variable within a specified distance of a single point. A comparison is made between a general G statistic and Moran's I for similar hypothetical and empirical conditions. The empirical work includes studies of sudden infant death syndrome by county in North Carolina and dwelling unit prices in metropolitan San Diego by zip‐code districts. Results indicate that G statistics should be used in conjunction with I in order to identify characteristics of patterns not revealed by the I statistic alone and, specifically, the G i and G i * statistics enable us to detect local “pockets” of dependence that may not show up when using global statistics.",
+    "cited_by": 6228
+  },
+  "10.1145/1102351.1102430": {
+    "doi": "10.1145/1102351.1102430",
+    "crossref": true,
+    "title": "Predicting good probabilities with supervised learning",
+    "journal": "Proceedings of the 22nd international conference on Machine learning  - ICML '05",
+    "year": 2005,
+    "authors": [
+      "Niculescu-Mizil, Alexandru",
+      "Caruana, Rich"
+    ],
+    "volume": null,
+    "issue": null,
+    "pages": "625-632",
+    "type": "proceedings-article",
+    "abstract": "We examine the relationship between the predictions made by different learning algorithms and true posterior probabilities. We show that maximum margin methods such as boosted trees and boosted stumps push probability mass away from 0 and 1 yielding a characteristic sigmoid shaped distortion in the predicted probabilities. Models such as Naive Bayes, which make unrealistic independence assumptions, push probabilities toward 0 and 1. Other models such as neural nets and bagged trees do not have these biases and predict well calibrated probabilities. We experiment with two ways of correcting the biased probabilities predicted by some learning methods: Platt Scaling and Isotonic Regression. We qualitatively examine what kinds of distortions these calibration methods are suitable for and quantitatively examine how much data they need to be effective. The empirical results show that after calibration boosted trees, random forests, and SVMs predict the best probabilities.",
+    "cited_by": 1790
+  },
+  "10.1145/775047.775151": {
+    "doi": "10.1145/775047.775151",
+    "crossref": true,
+    "title": "Transforming classifier scores into accurate multiclass probability estimates",
+    "journal": "Proceedings of the eighth ACM SIGKDD international conference on Knowledge discovery and data mining",
+    "year": 2002,
+    "authors": [
+      "Zadrozny, Bianca",
+      "Elkan, Charles"
+    ],
+    "volume": null,
+    "issue": null,
+    "pages": "694-699",
+    "type": "proceedings-article",
+    "abstract": "Class membership probability estimates are important for many applications of data mining in which classification outputs are combined with other sources of information for decision-making, such as example-dependent misclassification costs, the outputs of other classifiers, or domain knowledge. Previous calibration methods apply only to two-class problems. Here, we show how to obtain accurate probability estimates for multiclass problems by combining calibrated binary probability estimates. We also propose a new method for obtaining calibrated two-class probability estimates that can be applied to any classifier that produces a ranking of examples. Using naive Bayes and support vector machine classifiers, we give experimental results from a variety of two-class and multiclass domains, including direct marketing, text categorization and digit recognition.",
+    "cited_by": 1205
+  },
+  "10.1111/j.2041-210x.2011.00172.x": {
+    "doi": "10.1111/j.2041-210x.2011.00172.x",
+    "crossref": true,
+    "title": "Selecting pseudo‐absences for species distribution models: how, where and how many?",
+    "journal": "Methods in Ecology and Evolution",
+    "year": 2012,
+    "authors": [
+      "Barbet‐Massin, Morgane",
+      "Jiguet, Frédéric",
+      "Albert, Cécile Hélène",
+      "Thuiller, Wilfried"
+    ],
+    "volume": "3",
+    "issue": "2",
+    "pages": "327-338",
+    "type": "journal-article",
+    "abstract": "Summary 1. Species distribution models are increasingly used to address questions in conservation biology, ecology and evolution. The most effective species distribution models require data on both species presence and the available environmental conditions (known as background or pseudo‐absence data) in the area. However, there is still no consensus on how and where to sample these pseudo‐absences and how many. 2. In this study, we conducted a comprehensive comparative analysis based on simple simulated species distributions to propose guidelines on how, where and how many pseudo‐absences should be generated to build reliable species distribution models. Depending on the quantity and quality of the initial presence data (unbiased vs. climatically or spatially biased), we assessed the relative effect of the method for selecting pseudo‐absences (random vs. environmentally or spatially stratified) and their number on the predictive accuracy of seven common modelling techniques (regression, classification and machine‐learning techniques). 3. When using regression techniques, the method used to select pseudo‐absences had the greatest impact on the model’s predictive accuracy. Randomly selected pseudo‐absences yielded the most reliable distribution models. Models fitted with a large number of pseudo‐absences but equally weighted to the presences (i.e. the weighted sum of presence equals the weighted sum of pseudo‐absence) produced the most accurate predicted distributions. For classification and machine‐learning techniques, the number of pseudo‐absences had the greatest impact on model accuracy, and averaging several runs with fewer pseudo‐absences than for regression techniques yielded the most predictive models. 4. Overall, we recommend the use of a large number (e.g. 10 000) of pseudo‐absences with equal weighting for presences and absences when using regression techniques (e.g. generalised linear model and generalised additive model); averaging several runs (e.g. 10) with fewer pseudo‐absences (e.g. 100) with equal weighting for presences and absences with multiple adaptive regression splines and discriminant analyses; and using the same number of pseudo‐absences as available presences (averaging several runs if few pseudo‐absences) for classification techniques such as boosted regression trees, classification trees and random forest. In addition, we recommend the random selection of pseudo‐absences when using regression techniques and the random selection of geographically and environmentally stratified pseudo‐absences when using classification and machine‐learning techniques.",
+    "cited_by": 2990
+  },
+  "10.1016/j.geomorph.2016.06.034": {
+    "doi": "10.1016/j.geomorph.2016.06.034",
+    "crossref": true,
+    "title": "Geomorphic response detection and quantification in a steep forested torrent",
+    "journal": "Geomorphology",
+    "year": 2017,
+    "authors": [
+      "Bezak, Nejc",
+      "Grigillo, Dejan",
+      "Urbančič, Tilen",
+      "Mikoš, Matjaž",
+      "Petrovič, Dušan",
+      "Rusjan, Simon"
+    ],
+    "volume": "291",
+    "issue": null,
+    "pages": "33-44",
+    "type": "journal-article",
+    "abstract": null,
+    "cited_by": 24
+  },
+  "10.1002/2017ef000715": {
+    "doi": "10.1002/2017ef000715",
+    "crossref": true,
+    "title": "Satellite‐Based Assessment of Rainfall‐Triggered Landslide Hazard for Situational Awareness",
+    "journal": "Earth's Future",
+    "year": 2018,
+    "authors": [
+      "Kirschbaum, Dalia",
+      "Stanley, Thomas"
+    ],
+    "volume": "6",
+    "issue": "3",
+    "pages": "505-523",
+    "type": "journal-article",
+    "abstract": "Determining the time, location, and severity of natural disaster impacts is fundamental to formulating mitigation strategies, appropriate and timely responses, and robust recovery plans. A Landslide Hazard Assessment for Situational Awareness (LHASA) model was developed to indicate potential landslide activity in near real-time. LHASA combines satellite-based precipitation estimates with a landslide susceptibility map derived from information on slope, geology, road networks, fault zones, and forest loss. Precipitation data from the Global Precipitation Measurement (GPM) mission are used to identify rainfall conditions from the past seven days. When rainfall is considered to be extreme and susceptibility values are moderate to very high, a \"nowcast\" is issued to indicate the times and places where landslides are more probable. When LHASA nowcasts were evaluated with a Global Landslide Catalog, the probability of detection (POD) ranged from 8 to 60%, depending on the evaluation period, precipitation product used, and the size of the spatial and temporal window considered around each landslide point. Applications of the LHASA system are also discussed, including how LHASA is used to estimate long-term trends in potential landslide activity at a nearly global scale and how it can be used as a tool to support disaster risk assessment. LHASA is intended to provide situational awareness of landslide hazards in near real-time, providing a flexible, open source framework that can be adapted to other spatial and temporal scales based on data availability.",
+    "cited_by": 334
+  },
+  "10.1007/s43621-025-02084-x": {
+    "doi": "10.1007/s43621-025-02084-x",
+    "crossref": true,
+    "title": "Remote sensing and GIS-driven landslide susceptibility mapping using machine learning for sustainable land management: a study from the Chittagong Hill Tracts of Bangladesh",
+    "journal": "Discover Sustainability",
+    "year": 2025,
+    "authors": [
+      "Hossain, Mohammad Ismail",
+      "Ferdous, Md Nahid",
+      "Bhattacharjee, Swarnali",
+      "Rahman, Mizanur"
+    ],
+    "volume": "6",
+    "issue": "1",
+    "pages": "1200",
+    "type": "journal-article",
+    "abstract": "Landslides pose a significant risk to the Chittagong Hill Tracts (CHT) of Bangladesh, causing severe socio-economic and environmental impacts that threaten the achievement of sustainable land management. In this study, a landslide susceptibility map for the CHT region was created using two machine learning models: Random Forest (RF) and Maximum Entropy (MaxEnt). A total of 15 landslide conditioning factors were considered, including elevation, slope, rainfall, soil texture, and land cover. A landslide inventory dataset comprising 730 landslide events was used for model training and validation. The results indicate that both models successfully classify landslide prone areas, with MaxEnt identifying 79.12% and RF identifying 78% of the study area as high to very high susceptibility zones. Performance evaluation using the Area Under the Curve (AUC) metric revealed that RF (AUC = 0.93) outperformed compared to MaxEnt (AUC = 0.86), demonstrating superior predictive accuracy. RF also exhibited higher overall accuracy (98%) and precision (99%) compared to MaxEnt (87% and 89%, respectively). Maximum rainfall and elevation were the most influential factors in both models for landslide susppectibilty. These findings provide a critical insight into disaster risk management and policy making in the CHT and directly support SDG 11 (Sustainable Cities and Communities) by improving urban resilience, SDG 13 (Climate Action) by improving adaptation strategies and SDG 15 (Life on the Land) by promoting sustainable land management. By integrating scientific modelling into a global sustainability agenda, the study contributes to the development of risk-informed policies and early warning systems to protect vulnerable communities in the CHT region.",
+    "cited_by": 6
+  },
+  "10.1007/s44288-025-00337-w": {
+    "doi": "10.1007/s44288-025-00337-w",
+    "crossref": true,
+    "title": "Landslide susceptibility assessment in Chittagong division using remote sensing, GIS, and machine learning",
+    "journal": "Discover Geoscience",
+    "year": 2025,
+    "authors": [
+      "Roy, Sujit Kumar",
+      "Zidan, Md. Zidanur Rahman",
+      "Ullah, Md. Shafayat",
+      "Moniruzzaman, Muhammad"
+    ],
+    "volume": "3",
+    "issue": "1",
+    "pages": "221",
+    "type": "journal-article",
+    "abstract": "Abstract Landslides pose a significant threat to the Chittagong Division of Bangladesh, particularly during the monsoon season, causing substantial socio-economic losses and fatalities. This study aims to develop a landslide susceptibility map (LSM) for the region by integrating remote sensing (RS) and geographic information system (GIS) data with advanced machine learning algorithms, specifically Gradient Boosting Machine (GBM) and Random Forest (RF). A comprehensive set of 12 conditioning factors, including elevation, slope, rainfall, and land use/land cover (LULC), was analyzed to assess landslide susceptibility. Historical landslide data from 170 locations were used to train and validate the models. Both GBM and RF models demonstrated high predictive accuracy, achieving an area under the curve (AUC) of 0.83. The KS Plot further validates the models, with the GBM model attaining KS values of 0.55 for the positive class and 0.54 for the negative class, while the RF model shows KS values of 0.54 for both classes. Comparative performance analysis revealed that the GBM model achieved 0.75 in Accuracy, 0.72 in Precision, 0.66 in Recall, and 0.69 in F1 Score. In contrast, the RF model slightly outperformed it with 0.76 in Accuracy, 0.74 in Precision, 0.67 in Recall, and 0.70 in F1 Score. These consistent improvements indicate that the RF model provides a marginally better overall performance across the evaluated metrics. The GBM model classified larger areas as very low or very high susceptibility, while RF distributed susceptibility more evenly across classes. The study highlights the effectiveness of machine learning in landslide susceptibility mapping and provides valuable insights for disaster risk management, land-use planning, and resource allocation in landslide-prone areas.",
+    "cited_by": 0
+  },
+  "10.1007/s11356-024-34949-5": {
+    "doi": "10.1007/s11356-024-34949-5",
+    "crossref": true,
+    "title": "Predictive landslide susceptibility modeling in the southeastern hilly region of Bangladesh: application of machine learning algorithms in Khagrachari district",
+    "journal": "Environmental Science and Pollution Research",
+    "year": 2024,
+    "authors": [
+      "Hasan, Md. Mahmudul",
+      "Roy, Sujit Kumar",
+      "Talha, MD",
+      "Ferdous, Md Tasim",
+      "Nasher, N. M. Refat"
+    ],
+    "volume": "32",
+    "issue": "59",
+    "pages": "31204-31221",
+    "type": "journal-article",
+    "abstract": null,
+    "cited_by": 12
+  },
+  "10.3329/dujees.v14i2.87606": {
+    "doi": "10.3329/dujees.v14i2.87606",
+    "crossref": true,
+    "title": "Geostatistical and Geospatial Modelling of Landslide Susceptibility Mapping in Rangamati District, Chittagong Hill Tracts, Bangladesh",
+    "journal": "The Dhaka University Journal of Earth and Environmental Sciences",
+    "year": 2026,
+    "authors": [
+      "Ullah, Md Sofi",
+      "Tuhin, Md Khayrul Islam"
+    ],
+    "volume": "14",
+    "issue": "2",
+    "pages": "193-209",
+    "type": "journal-article",
+    "abstract": "This study aims to assess and map landslide susceptibility in the Rangamati District of the Chittagong Hill Tracts, a hilly and steeply sloping area undergoing rapid urbanization and extensive deforestation. The region also receives excessive monsoon rainfall, making it highly prone to frequent landslides. Using an integrated geostatistical and geospatial approach, the research incorporates 12 causative factors, including terrain attributes, rainfall variability, geological characteristics, soil properties, proximity to fault lines, proximity to roads and rivers, and land-use changes, to identify high-risk zones. A total of 306 historical landslide events were analyzed, and key environmental factors were processed using geospatial simulation techniques. Kriging interpolation and weighted overlay analysis within a GIS framework were applied to generate susceptibility maps at a 30 m spatial resolution. Model validation was conducted through Union-level community consultations. The results indicate that 57% of the district area is moderately susceptible, 10.41% highly susceptible, and 0.29% very highly susceptible, representing 120 critical pinpoint locations. Baghai Chhari, Barkal, and Langadu were identified as the most vulnerable Upazilas. The key drivers of susceptibility include clay-loam soils, moderate slopes (10–30 degrees), weak sedimentary rock formations, extensive deforestation, heavy monsoon rainfall, and land alteration associated with road construction, 67% of historical landslides occurred within 500 meters of roads, highlighting their influence. The study recommends integrating susceptibility maps into local planning processes, early warning systems, and community-based disaster preparedness initiatives. Addressing landslide susceptibility and reducing associated risks will contribute to achieving SDG 11 (Sustainable Cities and Communities), while safeguarding human lives and biodiversity aligns with SDG 15 (Life on Land). The Dhaka University Journal of Earth and Environmental Sciences, Vol. 14(2), 2025, P 193-209",
+    "cited_by": 0
+  },
+  "10.3390/ijgi7120485": {
+    "doi": "10.3390/ijgi7120485",
+    "crossref": true,
+    "title": "Developing a Dynamic Web-GIS Based Landslide Early Warning System for the Chittagong Metropolitan Area, Bangladesh",
+    "journal": "ISPRS International Journal of Geo-Information",
+    "year": 2018,
+    "authors": [
+      "Ahmed, Bayes",
+      "Rahman, Md. Shahinoor",
+      "Islam, Rahenul",
+      "Sammonds, Peter",
+      "Zhou, Chao",
+      "Uddin, Kabir",
+      "Al-Hussaini, Tahmeed M."
+    ],
+    "volume": "7",
+    "issue": "12",
+    "pages": "485",
+    "type": "journal-article",
+    "abstract": "This article aims to develop a Web-GIS based landslide early warning system (EWS) for the Chittagong Metropolitan Area (CMA), Bangladesh, where, in recent years, rainfall-induced landslides have caused great losses of lives and property. A method for combining static landslide susceptibility maps and rainfall thresholds is proposed by introducing a purposely-build hazard matrix. To begin with, eleven factor maps: soil permeability; surface geology; landcover; altitude; slope; aspect; distance to stream; fault line; hill cut; road cut; and drainage network along with a detailed landslide inventory map were produced. These maps were used, and four methods were applied: artificial neural network (ANN); multiple regressions; principal component analysis; and support vector machine to produce landslide susceptibility maps. After model validation, the ANN map was found best fitting and was classified into never warning, low, medium, and high susceptibility zones. Rainfall threshold analysis (1960–2017) revealed consecutive 5-day periods of rainfall of 71–282 mm could initiate landslides in CMA. Later, the threshold was classified into three rainfall rates: low rainfall (70–160 mm), medium rainfall (161–250 mm), and high rainfall (>250 mm). Each landslide was associated with a hazard class (no warning vs. warning state) based on the assumption that the higher the susceptibility, the lower the rainfall. Finally, the EWS was developed using various libraries and frameworks that is connected with a reliable online-based weather application programming interface. The system is publicly available, dynamic, and replicable to similar contexts and is able to disseminate alerts five days in advance via email notifications. The proposed EWS is novel and the first of its kind in Bangladesh, and can be applied to mitigate landslide disaster risks.",
+    "cited_by": 81
+  },
+  "10.3390/data5010004": {
+    "doi": "10.3390/data5010004",
+    "crossref": true,
+    "title": "Landslide Inventory (2001–2017) of Chittagong Hilly Areas, Bangladesh",
+    "journal": "Data",
+    "year": 2019,
+    "authors": [
+      "Rabby, Yasin Wahid",
+      "Li, Yingkui"
+    ],
+    "volume": "5",
+    "issue": "1",
+    "pages": "4",
+    "type": "journal-article",
+    "abstract": "Landslides are a frequent natural hazard in Chittagong Hilly Areas (CHA), Bangladesh, which causes the loss of lives and damage to the economy. Despite this, an official landslide inventory is still lacking in this area. In this paper, we present a landslide inventory of this area prepared using the visual interpretation of Google Earth images (Google Earth Mapping), field mapping, and a literature search. We mapped 730 landslides that occurred from January 2001 to March 2017. Different landslide attributes including type, size, distribution, state, water content, and triggers are presented in the dataset. In this area, slide and flow were the two dominant types of landslides. Out of the five districts (Bandarban, Chittagong, Cox’s Bazar, Khagrachari, and Rangamati), most (55%) of the landslides occurred in the Chittagong and Rangamati districts. About 45% of the landslides were small (<100 m2) in size, while the maximum size of the detected landslides was 85202 m2. This dataset will help to understand the characteristics of landslides in CHA and provide useful guidance for policy implementation.",
+    "cited_by": 32
+  },
+  "10.1007/s10346-018-1107-9": {
+    "doi": "10.1007/s10346-018-1107-9",
+    "crossref": true,
+    "title": "An integrated approach to map landslides in Chittagong Hilly Areas, Bangladesh, using Google Earth and field mapping",
+    "journal": "Landslides",
+    "year": 2018,
+    "authors": [
+      "Rabby, Yasin Wahid",
+      "Li, Yingkui"
+    ],
+    "volume": "16",
+    "issue": "3",
+    "pages": "633-645",
+    "type": "journal-article",
+    "abstract": null,
+    "cited_by": 65
+  },
+  "10.1016/j.geogeo.2025.100354": {
+    "doi": "10.1016/j.geogeo.2025.100354",
+    "crossref": true,
+    "title": "Predicting urban landslides in the hilly regions of Bangladesh leveraging a hybrid machine learning model and CMIP6 climate projections",
+    "journal": "Geosystems and Geoenvironment",
+    "year": 2025,
+    "authors": [
+      "Islam, Md․ Ashraful",
+      "Arrafi, Musabbir Ahmed",
+      "Peas, Mehedi Hasan",
+      "Hossain, Tanvir",
+      "Hasan, Md Mehedi",
+      "Murshed, Sanzida",
+      "Tania, Monira Jahan"
+    ],
+    "volume": "4",
+    "issue": "2",
+    "pages": "100354",
+    "type": "journal-article",
+    "abstract": "Landslides pose significant risks to infrastructure and human lives in cities, exacerbated by climate change. Therefore, a reliable predictive landslide model is crucial for mitigation, especially in resource-limited nations. This study employs hybrid machine learning (ML) techniques and climate projections to predict landslides in the Chattogram development area (CDA) of Bangladesh – a rapidly growing urban city in Bangladesh. The model was trained using diverse geospatial parameters including topographical, hydrological, soil, and geological parameters, along with an updated landslide inventory, enabling spatially explicit predictions of landslide susceptibility. To incorporate future climate scenarios, we utilized the Coupled Model Intercomparison Project Phase 6 (CMIP6) Global Climate Model (GCM), projecting climate impacts under SSP1-2.6 and SSP5-8.5 scenarios for the periods of 2021–2040, 2041–2060, 2061–2080, and 2081–2100, respectively. These scenarios reflect different pathways of greenhouse gas emissions, providing a range of possible future climate conditions. We tested six ML classifiers: random forest (RF), extra trees (ExT), support vector machine (SVM), logistic regression (LR), Bernoulli Naïve Bayes (bNB), and K-nearest neighbor (KNN). Each base model demonstrated high accuracy (>90 %) but combining them improved both accuracy and computational efficiency. The LR-bNB hybrid model outperformed all others, effectively mapping landslide susceptibility in the study area for the current timeframe and future projections. Our results revealed significant variability in landslide-prone areas across the area, with 12 % of the region categorized as high to very high risk, a figure that slightly rises with predicted increased rainfall due to climate change. The present study demonstrates the efficacy of a hybrid ML model for nowcasting as well as forecasting landslide susceptibility under future climate scenarios. These findings offer valuable insights for proactive risk management and infrastructure planning in the CDA, helping to safeguard communities and improve resilience against future landslide events.",
+    "cited_by": 7
+  },
+  "10.1016/j.geomorph.2016.03.015": {
+    "doi": "10.1016/j.geomorph.2016.03.015",
+    "crossref": true,
+    "title": "Exploring discrepancies between quantitative validation results and the geomorphic plausibility of statistical landslide susceptibility maps",
+    "journal": "Geomorphology",
+    "year": 2016,
+    "authors": [
+      "Steger, Stefan",
+      "Brenning, Alexander",
+      "Bell, Rainer",
+      "Petschko, Helene",
+      "Glade, Thomas"
+    ],
+    "volume": "262",
+    "issue": null,
+    "pages": "8-23",
+    "type": "journal-article",
+    "abstract": null,
+    "cited_by": 193
+  },
+  "10.1016/j.scitotenv.2021.145935": {
+    "doi": "10.1016/j.scitotenv.2021.145935",
+    "crossref": true,
+    "title": "Correlation does not imply geomorphic causation in data-driven landslide susceptibility modelling – Benefits of exploring landslide data collection effects",
+    "journal": "Science of The Total Environment",
+    "year": 2021,
+    "authors": [
+      "Steger, Stefan",
+      "Mair, Volkmar",
+      "Kofler, Christian",
+      "Pittore, Massimiliano",
+      "Zebisch, Marc",
+      "Schneiderbauer, Stefan"
+    ],
+    "volume": "776",
+    "issue": null,
+    "pages": "145935",
+    "type": "journal-article",
+    "abstract": "Data-driven landslide susceptibility models formally integrate spatial landslide information with explanatory environmental variables that describe predisposing factors of slope instability. Well-performing models are commonly utilized to identify landslide-prone terrain or to understand the causes of slope instability. In most cases, however, the available landslide data is affected by spatial biases (e.g. underrepresentation of landslides far from infrastructure or in forests) and does therefore not perfectly represent the spatial distribution of past slope instabilities. Literature shows that implications of such data flaws are frequently ignored. This study was built upon landslide information that systematically relates to damage-causing and infrastructure-threatening events in South Tyrol, Italy (7400 km2). The created models represent three conceptually different strategies to deal with biased landslide information. The aims were to demonstrate why an inference of geomorphic causation from apparently well-performing models is invalid under common landslide data bias conditions (Model 1), to test a novel bias-adjustment approach (Model 2) and to exploit the underlying data bias to model areas likely affected by potentially damaging landslides (Model 3; intervention index), instead of landslide susceptibility. The study offers a novel perspective on how biases in landslide data can be considered within data-driven models by focusing not only on the process under investigation (landsliding), but also on the circumstances that led to the registration of landslide information (data collection effects). The results were evaluated in terms of statistical relationships, variable importance, predictive performance, and geomorphic plausibility. The results revealed that none of the models reflected landslide susceptibility. Despite partly high predictive performances, the models were unable to create geomorphically plausible spatial predictions. The impact-oriented intervention index, however, enabled to identify damage-causing landslides with high accuracy. We conclude that the frequent practice of inferring geomorphic causation from well-performing models without accounting for data limitations is invalid.",
+    "cited_by": 148
+  },
+  "10.5194/nhess-16-2729-2016": {
+    "doi": "10.5194/nhess-16-2729-2016",
+    "crossref": true,
+    "title": "The propagation of inventory-based positional errors into statistical landslide susceptibility models",
+    "journal": "Natural Hazards and Earth System Sciences",
+    "year": 2016,
+    "authors": [
+      "Steger, Stefan",
+      "Brenning, Alexander",
+      "Bell, Rainer",
+      "Glade, Thomas"
+    ],
+    "volume": "16",
+    "issue": "12",
+    "pages": "2729-2745",
+    "type": "journal-article",
+    "abstract": "Abstract. There is unanimous agreement that a precise spatial representation of past landslide occurrences is a prerequisite to produce high quality statistical landslide susceptibility models. Even though perfectly accurate landslide inventories rarely exist, investigations of how landslide inventory-based errors propagate into subsequent statistical landslide susceptibility models are scarce. The main objective of this research was to systematically examine whether and how inventory-based positional inaccuracies of different magnitudes influence modelled relationships, validation results, variable importance and the visual appearance of landslide susceptibility maps. The study was conducted for a landslide-prone site located in the districts of Amstetten and Waidhofen an der Ybbs, eastern Austria, where an earth-slide point inventory was available. The methodological approach comprised an artificial introduction of inventory-based positional errors into the present landslide data set and an in-depth evaluation of subsequent modelling results. Positional errors were introduced by artificially changing the original landslide position by a mean distance of 5, 10, 20, 50 and 120 m. The resulting differently precise response variables were separately used to train logistic regression models. Odds ratios of predictor variables provided insights into modelled relationships. Cross-validation and spatial cross-validation enabled an assessment of predictive performances and permutation-based variable importance. All analyses were additionally carried out with synthetically generated data sets to further verify the findings under rather controlled conditions. The results revealed that an increasing positional inventory-based error was generally related to increasing distortions of modelling and validation results. However, the findings also highlighted that interdependencies between inventory-based spatial inaccuracies and statistical landslide susceptibility models are complex. The systematic comparisons of 12 models provided valuable evidence that the respective error-propagation was not only determined by the degree of positional inaccuracy inherent in the landslide data, but also by the spatial representation of landslides and the environment, landslide magnitude, the characteristics of the study area, the selected classification method and an interplay of predictors within multiple variable models. Based on the results, we deduced that a direct propagation of minor to moderate inventory-based positional errors into modelling results can be partly counteracted by adapting the modelling design (e.g. generalization of input data, opting for strongly generalizing classifiers). Since positional errors within landslide inventories are common and subsequent modelling and validation results are likely to be distorted, the potential existence of inventory-based positional inaccuracies should always be considered when assessing landslide susceptibility by means of empirical models.",
+    "cited_by": 129
+  },
+  "10.1007/s12040-022-02020-x": {
+    "doi": "10.1007/s12040-022-02020-x",
+    "crossref": true,
+    "title": "A change detection approach to flood inundation mapping using multi-temporal Sentinel-1 SAR images, the Brahmaputra River, Assam (India): 2015–2020",
+    "journal": "Journal of Earth System Science",
+    "year": 2022,
+    "authors": [
+      "Vekaria, Darshil",
+      "Chander, Shard",
+      "Singh, R P",
+      "Dixit, Sudhanshu"
+    ],
+    "volume": "132",
+    "issue": "1",
+    "pages": "3",
+    "type": "journal-article",
+    "abstract": null,
+    "cited_by": 20
+  },
+  "10.3390/rs16040656": {
+    "doi": "10.3390/rs16040656",
+    "crossref": true,
+    "title": "Flood Detection with SAR: A Review of Techniques and Datasets",
+    "journal": "Remote Sensing",
+    "year": 2024,
+    "authors": [
+      "Amitrano, Donato",
+      "Di Martino, Gerardo",
+      "Di Simone, Alessio",
+      "Imperatore, Pasquale"
+    ],
+    "volume": "16",
+    "issue": "4",
+    "pages": "656",
+    "type": "journal-article",
+    "abstract": "Floods are among the most severe and impacting natural disasters. Their occurrence rate and intensity have been significantly increasing worldwide in the last years due to climate change and urbanization, bringing unprecedented effects on human lives and activities. Hence, providing a prompt response to flooding events is of crucial relevance for humanitarian, social and economic reasons. Satellite remote sensing using synthetic aperture radar (SAR) offers a great deal of support in facing flood events and mitigating their effects on a global scale. As opposed to multi-spectral sensors, SAR offers important advantages, as it enables Earth’s surface imaging regardless of weather and sunlight illumination conditions. In the last decade, the increasing availability of SAR data, even at no cost, thanks to the efforts of international and national space agencies, has been deeply stimulating research activities in every Earth observation field, including flood mapping and monitoring, where advanced processing paradigms, e.g., fuzzy logic, machine learning, data fusion, have been applied, demonstrating their superiority with respect to traditional classification strategies. However, a fair assessment of the performance and reliability of flood mapping techniques is of key importance for an efficient disasters response and, hence, should be addressed carefully and on a quantitative basis trough synthetic quality metrics and high-quality reference data. To this end, the recent development of open SAR datasets specifically covering flood events with related ground-truth reference data can support thorough and objective validation as well as reproducibility of results. Notwithstanding, SAR-based flood monitoring still suffers from severe limitations, especially in vegetated and urban areas, where complex scattering mechanisms can impair an accurate extraction of water regions. All such aspects, including classification methodologies, SAR datasets, validation strategies, challenges and future perspectives for SAR-based flood mapping are described and discussed.",
+    "cited_by": 211
+  },
+  "10.5194/hess-26-4345-2022": {
+    "doi": "10.5194/hess-26-4345-2022",
+    "crossref": true,
+    "title": "Deep learning methods for flood mapping: a review of existing applications and future research directions",
+    "journal": "Hydrology and Earth System Sciences",
+    "year": 2022,
+    "authors": [
+      "Bentivoglio, Roberto",
+      "Isufi, Elvin",
+      "Jonkman, Sebastian Nicolaas",
+      "Taormina, Riccardo"
+    ],
+    "volume": "26",
+    "issue": "16",
+    "pages": "4345-4378",
+    "type": "journal-article",
+    "abstract": "Deep learning techniques have been increasingly used in flood management to overcome the limitations of accurate, yet slow, numerical models and to improve the results of traditional methods for flood mapping. In this paper, we review 58 recent publications to outline the state of the art of the field, identify knowledge gaps, and propose future research directions. The review focuses on the type of deep learning models used for various flood mapping applications, the flood types considered, the spatial scale of the studied events, and the data used for model development. The results show that models based on convolutional layers are usually more accurate, as they leverage inductive biases to better process the spatial characteristics of the flooding events. Models based on fully connected layers, instead, provide accurate results when coupled with other statistical models. Deep learning models showed increased accuracy when compared to traditional approaches and increased speed when compared to numerical methods. While there exist several applications in flood susceptibility, inundation, and hazard mapping, more work is needed to understand how deep learning can assist in real-time flood warning during an emergency and how it can be employed to estimate flood risk. A major challenge lies in developing deep learning models that can generalize to unseen case studies. Furthermore, all reviewed models and their outputs are deterministic, with limited considerations for uncertainties in outcomes and probabilistic predictions. The authors argue that these identified gaps can be addressed by exploiting recent fundamental advancements in deep learning or by taking inspiration from developments in other applied areas. Models based on graph neural networks and neural operators can work with arbitrarily structured data and thus should be capable of generalizing across different case studies and could account for complex interactions with the natural and built environment. Physics-based deep learning can be used to preserve the underlying physical equations resulting in more reliable speed-up alternatives for numerical models. Similarly, probabilistic models can be built by resorting to deep Gaussian processes or Bayesian neural networks.",
+    "cited_by": 406
+  },
+  "10.3389/feart.2023.1132722": {
+    "doi": "10.3389/feart.2023.1132722",
+    "crossref": true,
+    "title": "Landslide susceptibility evaluation based on active deformation and graph convolutional network algorithm",
+    "journal": "Frontiers in Earth Science",
+    "year": 2023,
+    "authors": [
+      "Wang, Xianmin",
+      "Du, Aiheng",
+      "Hu, Fengchang",
+      "Liu, Zhiwei",
+      "Zhang, Xinlong",
+      "Wang, Lizhe",
+      "Guo, Haixiang"
+    ],
+    "volume": "11",
+    "issue": null,
+    "pages": "1132722",
+    "type": "journal-article",
+    "abstract": "Disastrous landslides have become a focus of the world’s attention. Landslide susceptibility evaluation (LSE) can predict where landslides may occur and has caught the attention of scientists all over the world. This work establishes integrated criteria of potential landslide recognition and combines the historical landslides and newly-identified potential landslides to improve the accuracy, rationality, and practicability of a LSE map. Moreover, slope units can well reflect the topographic constraint to landslide occurrence and development, and Graph Convolutional Network (GCN) can well portray the topological and feature relation among various slope units. The combination of slope units and GCN is for the first time employed in LSE. This work focuses on Wanzhou District, a famous landslide-serious region in the Three Gorges reservoir area, and employs multisource data to conduct potential landslide recognition and LSE and to reveal the distribution characteristics of high landslide susceptibility. Some new viewpoints are suggested as follows. 1) The established criteria of potential landslide recognition consist of the characteristics of active deformation, stratum and lithology, tectonics, topography, micro-geomorphology, environment, meteorology, earthquakes, and human engineering activity. These criteria can well eliminate 4 types of false alarm regions and is successfully validated by field survey. 2) 34 potential landslides are newly discovered, and the movement of these potential landslides were controlled or induced by the combined action of soft-hard interbedding rock mass, steep topography, frequent tectonic movement, strong fluvial erosion, abundant precipitation, and intensive road and building construction. 3) The GCN algorithm reaches a relatively high accuracy (AUC: 0.941) and outperforms the other representative machine learning algorithms of Convolutional Neural Network (AUC: 0.926), Support Vector Machine (AUC: 0.835), and CART Tree (AUC: 0.762). 4) High landslide susceptibility is caused by the coupled action of weathered rock cavities, soft rock and swelling soil, strong river erosion, abundant rainfall, and intensive human engineering activity.",
+    "cited_by": 24
+  },
+  "10.1016/j.catena.2025.109029": {
+    "doi": "10.1016/j.catena.2025.109029",
+    "crossref": true,
+    "title": "ConToGCN: A landslide susceptibility assessment model considering contour topographic features in slope units using graph convolution network",
+    "journal": "CATENA",
+    "year": 2025,
+    "authors": [
+      "Ma, Jingru",
+      "Han, Zhigang",
+      "Liu, Feng",
+      "Wang, Xiaodong",
+      "Hu, Jiyuan",
+      "Zhang, Pan"
+    ],
+    "volume": "255",
+    "issue": null,
+    "pages": "109029",
+    "type": "journal-article",
+    "abstract": "• A contour-based GCN model (ConToGCN) is proposed for land susceptibility assessment. • Multiple terrain points in slope unit enhance landslide feature representation. • The AUROC/AUPR were improved by a maximum of 14.81% and 14.63% over the baselines. • Detailed terrain features are captured by accounting for spatial autocorrelation. • The land susceptibility map is consistent with historical landslide patterns. Landslide susceptibility assessment (LSA) plays a critical role in disaster prevention and mitigation. While machine learning techniques have been widely applied to LSA with notable progress, they face limitations in LSA precision, and struggle to capture micro-topographic features with multi-points instead of single one in slope units. To address these limitations, this study proposes an LSA model based on contour topographic features and Graph Convolution Networks (ConToGCN). First, the graph structure for each slope unit is built by generating nodes and edges from contour lines. Next, 9 factors, including elevation, are extracted for graph nodes using feature engineering, and the steepness between nodes is calculated to identify critical features such as steep scarps and flow zones. The ConToGCN model is then developed to aggregate adjacent node features and generate landslide probability. Changxing County in Zhejiang, China, was selected as the study area. A dataset comprising 124 landslide and 124 non-landslide samples was collected, with 70% used for training and 30% for testing. A comparative performance evaluation was conducted against Graphormer, a GCN model based on slope unit centroids (CentGCN), Random Forest (RF), and Support Vector Machine (SVM). The results demonstrate ConToGCN model outperforms these other models, with an area under the ROC (AUROC) of 0.93 and an area under the PR curve (AUPR) of 0.94. This represents improvements of 14.81% and 14.63% over the SVM model, respectively. The ConToGCN model effectively captured the complex topographic structures and improved the LSA precision significantly. We believe the model provides a novel approach to landslide disaster prevention and mitigation.",
+    "cited_by": 12
+  },
+  "10.1038/s41467-023-39698-6": {
+    "doi": "10.1038/s41467-023-39698-6",
+    "crossref": true,
+    "title": "A spatio-temporal analysis investigating completeness and inequalities of global urban building data in OpenStreetMap",
+    "journal": "Nature Communications",
+    "year": 2023,
+    "authors": [
+      "Herfort, Benjamin",
+      "Lautenbach, Sven",
+      "Porto de Albuquerque, João",
+      "Anderson, Jennings",
+      "Zipf, Alexander"
+    ],
+    "volume": "14",
+    "issue": "1",
+    "pages": "3985",
+    "type": "journal-article",
+    "abstract": "OpenStreetMap (OSM) has evolved as a popular dataset for global urban analyses, such as assessing progress towards the Sustainable Development Goals. However, many analyses do not account for the uneven spatial coverage of existing data. We employ a machine-learning model to infer the completeness of OSM building stock data for 13,189 urban agglomerations worldwide. For 1,848 urban centres (16% of the urban population), OSM building footprint data exceeds 80% completeness, but completeness remains lower than 20% for 9,163 cities (48% of the urban population). Although OSM data inequalities have recently receded, partially as a result of humanitarian mapping efforts, a complex unequal pattern of spatial biases remains, which vary across various human development index groups, population sizes and geographic regions. Based on these results, we provide recommendations for data producers and urban analysts to manage the uneven coverage of OSM data, as well as a framework to support the assessment of completeness biases.",
+    "cited_by": 270
+  },
+  "10.1038/s41467-019-10442-3": {
+    "doi": "10.1038/s41467-019-10442-3",
+    "crossref": true,
+    "title": "A global multi-hazard risk analysis of road and railway infrastructure assets",
+    "journal": "Nature Communications",
+    "year": 2019,
+    "authors": [
+      "Koks, E. E.",
+      "Rozenberg, J.",
+      "Zorn, C.",
+      "Tariverdi, M.",
+      "Vousdoukas, M.",
+      "Fraser, S. A.",
+      "Hall, J. W.",
+      "Hallegatte, S."
+    ],
+    "volume": "10",
+    "issue": "1",
+    "pages": "2677",
+    "type": "journal-article",
+    "abstract": "Transport infrastructure is exposed to natural hazards all around the world. Here we present the first global estimates of multi-hazard exposure and risk to road and rail infrastructure. Results reveal that ~27% of all global road and railway assets are exposed to at least one hazard and ~7.5% of all assets are exposed to a 1/100 year flood event. Global Expected Annual Damages (EAD) due to direct damage to road and railway assets range from 3.1 to 22 billion US dollars, of which ~73% is caused by surface and river flooding. Global EAD are small relative to global GDP (~0.02%). However, in some countries EAD reach 0.5 to 1% of GDP annually, which is the same order of magnitude as national transport infrastructure budgets. A cost-benefit analysis suggests that increasing flood protection would have positive returns on ~60% of roads exposed to a 1/100 year flood event.",
+    "cited_by": 615
+  },
+  "10.1007/s12145-025-01816-x": {
+    "doi": "10.1007/s12145-025-01816-x",
+    "crossref": true,
+    "title": "Predicting flood risks using advanced machine learning algorithms with a focus on Bangladesh: influencing factors, gaps and future challenges",
+    "journal": "Earth Science Informatics",
+    "year": 2025,
+    "authors": [
+      "Islam, Abu Reza Md Towfiqul",
+      "Jibon, Md. Jannatul Naeem",
+      "Siddik, Md Abubakkor",
+      "Mallick, Javed",
+      "Alqadhi, Saeed",
+      "Pal, Subodh Chandra",
+      "Purohit, Sanju",
+      "Senapathi, Venkatramanan"
+    ],
+    "volume": "18",
+    "issue": "3",
+    "pages": "300",
+    "type": "journal-article",
+    "abstract": "This report provides a comprehensive overview of the use of advanced machine learning algorithms for flood risk prediction in Bangladesh and identifies 42 unique factors that influence flooding, with precipitation, distance from the river, elevation, orientation, land use and land cover, and soil type emerging as the most important.",
+    "cited_by": 15,
+    "abstract_source": "semanticscholar (tldr)"
+  }
+}

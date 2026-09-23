@@ -1,28 +1,100 @@
 """
-Interactive Folium map with:
-  - Color-coded circle markers sized by risk
-  - Donut-style cluster icons
-  - Rich gauge-style popups
-  - Risk heatmap, admin boundaries, hotspot overlays
-  - Kriging interpolation rings (from Fermium-HazMapper)
-  - AlphaEarth cluster overlay + population density (from Fermium-HazMapper)
+Interactive Folium map: asset markers with model scores, kriged hazard
+surface, population density, union boundaries and Gi* hotspots.
+
+Popups show values computed by the pipeline. Nothing on the map is derived
+by rescaling one score into others.
 """
 
-import folium
-import geopandas as gpd
-import numpy as np
 import streamlit as st
-from folium.plugins import MarkerCluster, HeatMap
-from streamlit_folium import st_folium
+
 from dashboard.data.loader import (
-    get_alphaearth_clusters,
+    get_kriging_ci_batch,
     get_pop_density_points,
-    get_kriging_ci_at_point,
     get_raster_overlay,
+    load_heatmap_points,
 )
 
+# Tile providers require visible attribution — see their terms of use.
+CARTO_ATTR = ('&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> '
+              'contributors &copy; <a href="https://carto.com/attributions">CARTO</a>')
+OSM_ATTR = ('&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> '
+            'contributors')
+ESRI_ATTR = ('Imagery &copy; <a href="https://www.esri.com">Esri</a>, Maxar, '
+             'Earthstar Geographics, and the GIS User Community')
 
-# Asset type → (emoji, default color)
+
+def _get_map_imports():
+    """Lazy import folium and related heavy libs."""
+    import folium
+    from folium.plugins import MarkerCluster, HeatMap
+    from streamlit_folium import st_folium
+
+    # Folium's LayerControl template uses `let`, which throws a SyntaxError
+    # when st_folium re-evaluates the script on a Streamlit rerun.
+    if not getattr(folium.LayerControl, '_template_patched', False):
+        from folium.template import Template
+        folium.LayerControl._template = Template("""
+        {% macro script(this,kwargs) %}
+            var {{ this.get_name() }}_layers = {
+                base_layers : {
+                    {%- for key, val in this.base_layers.items() %}
+                    {{ key|tojson }} : {{val}},
+                    {%- endfor %}
+                },
+                overlays :  {
+                    {%- for key, val in this.overlays.items() %}
+                    {{ key|tojson }} : {{val}},
+                    {%- endfor %}
+                },
+            };
+            var {{ this.get_name() }} = L.control.layers(
+                {{ this.get_name() }}_layers.base_layers,
+                {{ this.get_name() }}_layers.overlays,
+                {{ this.options|tojavascript }}
+            ).addTo({{this._parent.get_name()}});
+
+            {%- if this.draggable %}
+            new L.Draggable({{ this.get_name() }}.getContainer()).enable();
+            {%- endif %}
+
+        {% endmacro %}
+        """)
+        folium.LayerControl._template_patched = True
+
+    return folium, MarkerCluster, HeatMap, st_folium
+
+
+# JS guard injected into the folium HTML — runs in the iframe before any map
+# code, so it works regardless of Python-side patching.
+_BROWSER_JS_GUARD = """
+<script>
+(function(){
+    // Guard HeatMap: prevent getImageData on 0-width canvas
+    if(typeof L!=="undefined"&&L.HeatLayer){
+        var _origDraw=L.HeatLayer.prototype._draw;
+        L.HeatLayer.prototype._draw=function(){
+            if(this._canvas&&this._canvas.width>0&&this._canvas.height>0){
+                _origDraw.call(this);
+            }
+        };
+    }
+    // Guard Map: prevent "already initialized" error
+    if(typeof L!=="undefined"&&L.Map){
+        var _origInit=L.Map.prototype.initialize;
+        L.Map.prototype.initialize=function(id,options){
+            var container=typeof id==='string'?document.getElementById(id):id;
+            if(container&&container._leaflet_id){
+                container._leaflet_id=null;
+                container.innerHTML='';
+            }
+            return _origInit.call(this,id,options);
+        };
+    }
+})();
+</script>
+"""
+
 TYPE_COLORS = {
     "hospital": "#ef4444",
     "school": "#3b82f6",
@@ -36,23 +108,14 @@ TYPE_COLORS = {
     "fishpond": "#67e8f9",
     "irrigation": "#06b6d4",
     "market": "#f43f5e",
-    "shelter": "#10b981",
 }
 
-TYPE_EMOJI = {
+TYPE_ABBR = {
     "hospital": "H", "school": "S", "bridge": "B", "road": "R",
     "flood_shelter": "FS", "embankment": "E", "railway": "Rl",
     "ferry_ghat": "F", "cropland": "C", "fishpond": "FP",
-    "irrigation": "I", "market": "M", "shelter": "Sh",
+    "irrigation": "I", "market": "M",
 }
-
-RISK_COLOR_STOPS = [
-    (0.00, "#1a6b52"),
-    (0.25, "#3a9a3a"),
-    (0.50, "#dea03c"),
-    (0.75, "#de7a3c"),
-    (1.00, "#de3c3c"),
-]
 
 
 def _risk_color(score) -> str:
@@ -62,21 +125,11 @@ def _risk_color(score) -> str:
         return "#64748b"
     if score >= 0.7:
         return "#ef4444"
-    elif score >= 0.5:
+    if score >= 0.5:
         return "#f59e0b"
-    elif score >= 0.3:
+    if score >= 0.3:
         return "#eab308"
     return "#22c55e"
-
-
-def _risk_to_color(score: float) -> str:
-    """Gradient risk color from Fermium-HazMapper."""
-    for i in range(len(RISK_COLOR_STOPS) - 1):
-        lo_val, lo_col = RISK_COLOR_STOPS[i]
-        hi_val, hi_col = RISK_COLOR_STOPS[i + 1]
-        if lo_val <= score <= hi_val:
-            return hi_col if score > (lo_val + hi_val) / 2 else lo_col
-    return "#de3c3c"
 
 
 def _risk_label(score) -> str:
@@ -85,458 +138,322 @@ def _risk_label(score) -> str:
     except (TypeError, ValueError):
         return "N/A"
     if score >= 0.7:
-        return "CRITICAL"
-    elif score >= 0.5:
+        return "VERY HIGH"
+    if score >= 0.5:
         return "HIGH"
-    elif score >= 0.3:
+    if score >= 0.3:
         return "MODERATE"
     return "LOW"
 
 
-def _kriging_rings(m, lat, lon, score):
-    """Draw concentric risk rings to simulate Kriging interpolation surface."""
-    for r, alpha, offset in [
-        (5000, 0.08, 0.0),
-        (3000, 0.12, 0.05),
-        (1500, 0.18, 0.10),
-        (600,  0.28, 0.15),
-    ]:
-        folium.Circle(
-            location=[lat, lon],
-            radius=r,
-            color=_risk_to_color(min(1.0, score + offset)),
-            fill=True,
-            fill_opacity=alpha,
-            weight=0.5,
-        ).add_to(m)
+def _factor_bar(label, value, color) -> str:
+    """Horizontal bar for one pipeline-computed factor; blank when missing."""
+    if value is None:
+        return (
+            f'<div style="display:flex;gap:6px;margin:3px 0;font-size:9px;">'
+            f'<span style="color:#8ab4d4;width:62px;text-align:right;">{label}</span>'
+            f'<span style="color:#94a3b8;">not available</span></div>'
+        )
+    pct = max(0.0, min(float(value), 1.0)) * 100
+    return (
+        f'<div style="display:flex;align-items:center;gap:6px;margin:3px 0;">'
+        f'<span style="color:#8ab4d4;font-size:9px;width:62px;text-align:right;'
+        f'font-family:Inter,sans-serif;">{label}</span>'
+        f'<div style="flex:1;background:#1e293b;border-radius:3px;height:6px;overflow:hidden;">'
+        f'<div style="background:linear-gradient(90deg,{color}88,{color});'
+        f'width:{pct:.0f}%;height:6px;border-radius:3px;"></div></div>'
+        f'<span style="color:#f0f6ff;font-size:9px;font-family:DM Mono,monospace;'
+        f'width:32px;">{float(value):.2f}</span></div>'
+    )
 
 
-def _gauge_popup(name, atype, risk, rank, division="") -> str:
-    """Rich HTML popup with semicircle gauge and stats."""
-    color = _risk_color(risk)
-    label = _risk_label(risk)
-    emoji = TYPE_EMOJI.get(atype, "?")
-    risk_val = f"{risk:.3f}" if isinstance(risk, (int, float)) and risk > 0 else "N/A"
-    rank_val = f"#{int(rank)}" if isinstance(rank, (int, float)) and rank > 0 else "—"
-    pct = min(float(risk) * 100, 100) if isinstance(risk, (int, float)) else 0
-    kriging_ci = f"{get_kriging_ci_at_point(0, 0, risk):.3f}" if isinstance(risk, (int, float)) else "N/A"
-    cvi_class = "IV" if isinstance(risk, (int, float)) and risk > 0.75 else "III" if isinstance(risk, (int, float)) and risk > 0.55 else "II"
+def _popup_html(row, ci=None) -> str:
+    """Popup for one asset, using only values present on the row."""
+    name = row.get("name") or "unnamed"
+    atype = str(row.get("asset_type", "other"))
+    risk = row.get("flood_risk")
+    rank = row.get("risk_rank")
+    division = row.get("division", "")
 
-    gauge_svg = f"""
-    <svg width="100" height="55" viewBox="0 0 100 55">
-      <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#334155" stroke-width="8" stroke-linecap="round"/>
-      <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="{color}" stroke-width="8" stroke-linecap="round"
+    risk_f = float(risk) if isinstance(risk, (int, float)) else None
+    color = _risk_color(risk_f if risk_f is not None else -1)
+    pct = (risk_f or 0) * 100
+    risk_txt = f"{risk_f:.3f}" if risk_f is not None else "N/A"
+    rank_txt = f"#{int(rank)}" if isinstance(rank, (int, float)) and rank > 0 else "—"
+    ci_txt = f"&plusmn;{ci:.3f}" if ci is not None else "not available"
+
+    def cell(key):
+        v = row.get(f"cell_{key}")
+        return float(v) if isinstance(v, (int, float)) and v == v else None
+
+    prob = row.get("flood_probability")
+    prob_html = ""
+    if isinstance(prob, (int, float)) and prob == prob:
+        prob_html = (
+            f'<div style="font-size:10px;color:#1e293b;margin:4px 0;">'
+            f'Approximate flood probability: <b>{100 * float(prob):.0f}%</b>'
+            f'<span style="color:#64748b;"> (calibrated on other areas of the region; '
+            f'local rates can differ severalfold)</span></div>'
+        )
+
+    factors = (
+        _factor_bar("Hazard", cell("hazard"), "#ef4444")
+        + _factor_bar("Exposure", cell("exposure"), "#f59e0b")
+        + _factor_bar("Vulnerab.", cell("vulnerability"), "#8b5cf6")
+        + _factor_bar("Cell risk", cell("composite_risk"), "#00d4ff")
+    )
+
+    gauge = f"""
+    <svg width="100" height="55" viewBox="0 0 100 55" role="img"
+         aria-label="Susceptibility {risk_txt}">
+      <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#1e293b"
+            stroke-width="8" stroke-linecap="round"/>
+      <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="{color}"
+            stroke-width="8" stroke-linecap="round"
             stroke-dasharray="{pct * 1.26} 126"/>
-      <text x="50" y="45" text-anchor="middle" font-size="14" font-weight="bold" fill="{color}">{risk_val}</text>
+      <text x="50" y="45" text-anchor="middle" font-size="14" font-weight="bold"
+            fill="{color}" font-family="DM Mono,monospace">{risk_txt}</text>
     </svg>
     """
 
     return f"""
-    <div style="font-family:'Segoe UI',sans-serif; min-width:210px; padding:4px;">
-        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
-            <span style="font-size:14px;font-weight:700;background:{color}22;color:{color};
-                         padding:2px 6px;border-radius:4px;">{emoji}</span>
+    <div style="font-family:Inter,'Segoe UI',sans-serif;min-width:235px;padding:4px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+            <span style="font-size:13px;font-weight:700;background:{color}22;color:{color};
+                         padding:2px 7px;border-radius:5px;font-family:DM Mono,monospace;">
+                {TYPE_ABBR.get(atype, '?')}</span>
             <div>
-                <div style="font-size:13px; font-weight:700; color:#1e293b; line-height:1.2;">
-                    {name}
-                </div>
-                <div style="font-size:10px; color:#64748b;">
-                    {atype.replace('_',' ').title()} {('| ' + division) if division else ''}
-                </div>
+                <div style="font-size:13px;font-weight:600;color:#1e293b;line-height:1.2;">
+                    {name}</div>
+                <div style="font-size:10px;color:#64748b;">
+                    {atype.replace('_', ' ').title()}{(' | ' + division) if division else ''}</div>
             </div>
         </div>
-
-        <div style="text-align:center; margin:4px 0;">
-            {gauge_svg}
+        <div style="text-align:center;margin:2px 0 4px 0;">{gauge}</div>
+        <div style="font-size:9px;color:#64748b;text-align:center;margin-bottom:4px;">
+            modelled flood susceptibility (ranking score)</div>
+        {prob_html}
+        <div style="background:#f8fafc;border-radius:6px;padding:6px 8px;margin:4px 0;">
+            {factors}
         </div>
-
-        <div style="font-size:10px;color:#64748b;margin-top:4px;">
-            <span>Kriging CI: +/-{kriging_ci}</span> |
-            <span>CVI: {cvi_class}</span>
+        <div style="display:flex;gap:10px;font-size:9px;color:#64748b;margin-top:5px;
+                    font-family:DM Mono,monospace;">
+            <span>95% CI: {ci_txt}</span><span>Rank: {rank_txt}</span>
         </div>
-
-        <div style="display:flex; justify-content:space-between; font-size:11px; margin-top:4px;">
-            <span style="
-                background:{color}18; color:{color}; padding:2px 8px;
-                border-radius:10px; font-weight:600; font-size:10px;
-            ">{label}</span>
-            <span style="color:#64748b;">Rank: <b>{rank_val}</b></span>
+        <div style="margin-top:6px;">
+            <span style="background:{color}15;color:{color};padding:2px 10px;
+                         border-radius:10px;font-weight:600;font-size:10px;">
+                {_risk_label(risk_f if risk_f is not None else -1)}</span>
         </div>
     </div>
     """
 
 
-def render_map(infra: gpd.GeoDataFrame,
-                grid_gdf: gpd.GeoDataFrame = None,
-                union_gdf: gpd.GeoDataFrame = None,
-                hotspot_gdf: gpd.GeoDataFrame = None,
-                cfg: dict = None,
-                is_dark: bool = True,
-                layers: dict = None):
-    """Render the main interactive map with all overlays."""
-    if layers is None:
-        layers = {}
-
-    center = cfg.get("dashboard", {}).get("map_center", [25.5, 89.0]) if cfg else [25.5, 89.0]
-    zoom = cfg.get("dashboard", {}).get("map_zoom", 8) if cfg else 8
-
-    m = folium.Map(location=center, zoom_start=zoom, tiles=None,
-                   control_scale=False)
-
-    # Hide Leaflet attribution watermark
-    m.get_root().html.add_child(folium.Element(
-        "<style>.leaflet-control-attribution{display:none !important;}</style>"
-    ))
-
-    # Base layers
+def _add_base_layers(folium, m, is_dark: bool):
     if is_dark:
         folium.TileLayer(
-            tiles="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
-            attr=" ", name="Dark",
+            tiles="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+            attr=CARTO_ATTR, name="Dark",
         ).add_to(m)
-    else:
-        folium.TileLayer("OpenStreetMap", name="Street", attr=" ").add_to(m)
-
-    folium.TileLayer("OpenStreetMap", name="OpenStreetMap", overlay=False, attr=" ").add_to(m)
+    folium.TileLayer("OpenStreetMap", name="OpenStreetMap", attr=OSM_ATTR).add_to(m)
     folium.TileLayer(
         tiles="https://server.arcgisonline.com/ArcGIS/rest/services/"
               "World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        attr=" ", name="Satellite", overlay=False,
+        attr=ESRI_ATTR, name="Satellite",
     ).add_to(m)
 
-    # --- Kriging interpolation rings ---
-    if layers.get("show_hand", True) or layers.get("show_cvi", True):
-        if infra is not None and len(infra) > 0 and "flood_risk" in infra.columns:
-            high_risk = infra[infra["flood_risk"] >= 0.6].head(20)
-            for _, row in high_risk.iterrows():
-                lat = row.get("lat", None)
-                lon = row.get("lon", None)
-                if lat is not None and lon is not None:
-                    _kriging_rings(m, lat, lon, row["flood_risk"])
 
-    # --- AlphaEarth cluster overlay ---
-    if layers.get("show_alphearth", False):
-        ae_data = get_alphaearth_clusters()
-        if ae_data and "features" in ae_data:
-            for feat in ae_data["features"]:
-                props = feat.get("properties", {})
-                coords = feat["geometry"]["coordinates"]
-                color = props.get("color", "#a03cde")
-                is_centroid = props.get("is_centroid", False)
-                radius = 1500 if is_centroid else 600
-                opacity = 0.15 if is_centroid else 0.08
-                tooltip = (f"Cluster {props.get('cluster', '?')} centroid "
-                          f"({props.get('n_points', '?')} pts)"
-                          if is_centroid else
-                          f"AlphaEarth cluster {props.get('cluster', '?')}")
-                folium.Circle(
-                    location=[coords[1], coords[0]],
-                    radius=radius,
-                    color=color,
-                    fill=True,
-                    fill_opacity=opacity,
-                    weight=0.8 if is_centroid else 0.3,
-                    tooltip=tooltip,
-                ).add_to(m)
-        else:
-            # No real data — show placeholder message
-            folium.Marker(
-                location=center,
-                icon=folium.DivIcon(html='<div style="color:#a03cde;font-size:10px;">AlphaEarth: run pipeline</div>'),
-            ).add_to(m)
+def _risk_legend() -> str:
+    return """
+    <div style="position:fixed;bottom:30px;left:10px;z-index:9999;
+                background:rgba(13,31,45,0.92);border:1px solid #1e3a52;border-radius:6px;
+                padding:8px 12px;font-size:10px;font-family:monospace;color:#a0c0d8;">
+      <b style="color:#00d4ff;">Susceptibility</b><br>
+      <span style="color:#22c55e;">&#9679;</span> Low (&lt;0.30)<br>
+      <span style="color:#eab308;">&#9679;</span> Moderate (0.30-0.50)<br>
+      <span style="color:#f59e0b;">&#9679;</span> High (0.50-0.70)<br>
+      <span style="color:#ef4444;">&#9679;</span> Very high (&ge;0.70)
+    </div>
+    """
 
-    # --- Population density heatmap ---
-    if layers.get("show_popdens", False):
-        pop_points = get_pop_density_points(center, radius_deg=0.3, n_points=200)
-        if pop_points:
-            heat_data = [[lat, lon, w] for lat, lon, w in pop_points]
-            HeatMap(
-                heat_data, name="Population Density",
-                min_opacity=0.15, radius=12, blur=10,
-                gradient={"0.2": "#fce7f3", "0.5": "#f472b6", "0.8": "#db2777", "1.0": "#9d174d"},
-            ).add_to(m)
 
-    # --- Raster overlays ---
-    for raster_key, layer_key in [("dem", "show_dem"), ("slope", "show_slope"),
-                                   ("hand", "show_hand"), ("flood_risk", "show_cvi")]:
-        if layers.get(layer_key, False) and raster_key not in ("hand",):  # hand uses kriging rings
-            overlay = get_raster_overlay(raster_key)
+def render_map(region, infra, grid_gdf=None, union_gdf=None, hotspot_gdf=None,
+               cfg=None, is_dark=True, layers=None, height=620):
+    """Render the main interactive map."""
+    layers = layers or {}
+    _, _, _, st_folium_fn = _get_map_imports()
+    m = _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf,
+                        cfg, is_dark, layers)
+    st_folium_fn(m, width=None, height=height, returned_objects=[])
+
+
+def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
+                    is_dark, layers):
+    """Build the folium Map object with all layers."""
+    folium, MarkerCluster, HeatMap, _ = _get_map_imports()
+
+    dash_cfg = (cfg or {}).get("dashboard", {})
+    center = dash_cfg.get("map_center", [25.5, 89.0])
+    zoom = dash_cfg.get("map_zoom", 8)
+    bbox = (cfg or {}).get("aoi", {}).get("bbox", [88.0, 24.0, 89.9, 26.7])
+
+    m = folium.Map(location=center, zoom_start=zoom, tiles=None,
+                   control_scale=True, zoom_control=False)
+    m.get_root().html.add_child(folium.Element(_BROWSER_JS_GUARD))
+
+    from folium import MacroElement
+    from jinja2 import Template
+    zoom_br = MacroElement()
+    zoom_br._template = Template(
+        "{% macro script(this, kwargs) %}"
+        "L.control.zoom({position: 'bottomright'}).addTo({{this._parent.get_name()}});"
+        "{% endmacro %}"
+    )
+    m.add_child(zoom_br)
+
+    _add_base_layers(folium, m, is_dark)
+
+    # --- Raster overlays (pre-rendered in WGS84 by preprocess_cache.py) ---
+    for layer_key, raster_key, label in [
+        ("show_flood_surface", "flood_risk", "Kriged hazard surface"),
+        ("show_landslide", "landslide", "Landslide susceptibility"),
+        ("show_hand", "hand", "Height above drainage"),
+        ("show_slope", "slope", "Slope"),
+        ("show_dem", "dem", "Elevation"),
+    ]:
+        if layers.get(layer_key, False):
+            overlay = get_raster_overlay(region, raster_key)
             if overlay:
-                import base64
                 folium.raster_layers.ImageOverlay(
                     image=f"data:image/png;base64,{overlay['image_base64']}",
-                    bounds=overlay["bounds"],
-                    name=raster_key.replace("_", " ").title(),
-                    opacity=0.6,
+                    bounds=overlay["bounds"], name=label, opacity=0.6,
                 ).add_to(m)
 
-    # --- Circle markers (color by type, size by risk) ---
-    if infra is not None and len(infra) > 0:
-        marker_cluster = MarkerCluster(
-            name="Infrastructure",
-            options={
-                "maxClusterRadius": 40,
-                "spiderfyOnMaxZoom": True,
-                "showCoverageOnHover": False,
-            },
-        )
+    # --- Population density (sampled from WorldPop) ---
+    if layers.get("show_popdens", False):
+        pop_points = get_pop_density_points(region, tuple(bbox))
+        if pop_points:
+            HeatMap(
+                [[lat, lon, w] for lat, lon, w in pop_points],
+                name="Population density (WorldPop)",
+                min_opacity=0.15, radius=12, blur=10,
+                gradient={"0.2": "#fce7f3", "0.5": "#f472b6",
+                          "0.8": "#db2777", "1.0": "#9d174d"},
+            ).add_to(m)
 
-        for _, row in infra.iterrows():
-            lat = row.get("lat", None)
-            lon = row.get("lon", None)
+    # --- Asset markers ---
+    if infra is not None and len(infra) > 0:
+        display_infra = infra
+        if "asset_type" in infra.columns:
+            exclude = set()
+            if not layers.get("osm_hospitals", True):
+                exclude.update(("hospital", "clinic"))
+            if not layers.get("osm_bridges", True):
+                exclude.add("bridge")
+            if not layers.get("osm_schools", True):
+                exclude.update(("school", "college"))
+            if not layers.get("osm_roads", True):
+                exclude.update(("road", "railway"))
+            if exclude:
+                display_infra = display_infra[~display_infra["asset_type"].isin(exclude)]
+
+        # Cap markers for browser performance; the table and exports keep all rows.
+        capped = False
+        if len(display_infra) > 2000 and "flood_risk" in display_infra.columns:
+            display_infra = display_infra.nlargest(2000, "flood_risk")
+            capped = True
+
+        rows = []
+        for _, row in display_infra.iterrows():
+            lat, lon = row.get("lat"), row.get("lon")
             if lat is None or lon is None:
                 pt = row.geometry.representative_point()
                 lat, lon = pt.y, pt.x
+            rows.append((lat, lon, row))
 
+        ci_values = get_kriging_ci_batch(
+            region, tuple((lat, lon) for lat, lon, _ in rows))
+
+        marker_cluster = MarkerCluster(
+            name="Infrastructure",
+            options={"maxClusterRadius": 40, "spiderfyOnMaxZoom": True,
+                     "showCoverageOnHover": False},
+        )
+        for i, (lat, lon, row) in enumerate(rows):
             atype = row.get("asset_type", "other")
             risk = row.get("flood_risk", 0)
-            name = row.get("name", "unnamed")
-            rank = row.get("risk_rank", 0)
-            division = row.get("division", "")
-
-            # Layer filter: skip if asset type is toggled off
-            if atype == "hospital" and not layers.get("osm_hospitals", True):
-                continue
-            if atype == "bridge" and not layers.get("osm_bridges", True):
-                continue
-            if atype == "school" and not layers.get("osm_schools", True):
-                continue
-            if atype in ("road", "railway") and not layers.get("osm_roads", True):
-                continue
-
-            type_color = TYPE_COLORS.get(atype, "#64748b")
-            risk_radius = max(4, min(12, float(risk) * 15)) if isinstance(risk, (int, float)) and risk > 0 else 5
-
-            popup_html = _gauge_popup(name, atype, risk, rank, division)
-
+            radius = (max(4, min(12, float(risk) * 15))
+                      if isinstance(risk, (int, float)) and risk > 0 else 5)
+            color = TYPE_COLORS.get(atype, "#64748b")
             folium.CircleMarker(
-                location=[lat, lon],
-                radius=risk_radius,
-                color=type_color,
-                fill=True,
-                fill_color=type_color,
-                fill_opacity=0.7,
-                weight=1.5,
-                popup=folium.Popup(popup_html, max_width=240),
-                tooltip=f"{TYPE_EMOJI.get(atype, '')} {name}",
+                location=[lat, lon], radius=radius, color=color, fill=True,
+                fill_color=color, fill_opacity=0.7, weight=1.5,
+                popup=folium.Popup(_popup_html(row, ci_values[i]), max_width=250),
+                tooltip=f"{row.get('name', 'unnamed')}",
             ).add_to(marker_cluster)
-
         marker_cluster.add_to(m)
 
-    # --- Risk heatmap ---
-    if grid_gdf is not None and "composite_risk" in grid_gdf.columns:
-        heat_data = []
-        for _, row in grid_gdf.iterrows():
-            c = row.geometry.centroid
-            risk_val = row.get("composite_risk", 0)
-            if risk_val > 0.1:
-                heat_data.append([c.y, c.x, risk_val])
+        if capped:
+            m.get_root().html.add_child(folium.Element(
+                '<div style="position:fixed;top:10px;right:10px;z-index:9999;'
+                'background:rgba(13,31,45,0.92);border:1px solid #1e3a52;'
+                'border-radius:6px;padding:6px 10px;font-size:10px;color:#a0c0d8;'
+                'font-family:Inter,sans-serif;">Showing the 2,000 highest-scoring '
+                'assets of the current filter</div>'
+            ))
+
+    # --- Composite risk heatmap ---
+    if layers.get("show_heatmap", True):
+        heat_data = load_heatmap_points(region)
+        if not heat_data and grid_gdf is not None and "composite_risk" in getattr(grid_gdf, "columns", []):
+            b = grid_gdf.geometry.bounds
+            risks = grid_gdf["composite_risk"].values
+            mask = risks > 0.1
+            heat_data = list(zip(((b.miny + b.maxy) / 2)[mask],
+                                 ((b.minx + b.maxx) / 2)[mask], risks[mask]))
         if heat_data:
             HeatMap(
-                heat_data, name="Flood Risk Heatmap",
-                min_opacity=0.25, radius=18, blur=12,
-                gradient={"0.2": "#0ea5e9", "0.4": "#22c55e",
-                          "0.6": "#eab308", "0.8": "#f59e0b", "1.0": "#ef4444"},
+                heat_data, name="Composite risk", min_opacity=0.25, radius=18, blur=12,
+                gradient={"0.2": "#0ea5e9", "0.4": "#22c55e", "0.6": "#eab308",
+                          "0.8": "#f59e0b", "1.0": "#ef4444"},
             ).add_to(m)
 
     # --- Admin boundaries ---
-    if union_gdf is not None and len(union_gdf) > 0:
+    if layers.get("show_unions", True) and union_gdf is not None and len(union_gdf) > 0:
+        name_field = ("admin_label" if "admin_label" in union_gdf.columns
+                      else "admin_name")
         folium.GeoJson(
             union_gdf.to_json(),
-            name="Union Boundaries",
+            name="Union boundaries",
             style_function=lambda f: {
-                "fillColor": _risk_color(f["properties"].get("mean_risk", 0)),
+                # Grey where there is nothing to score, so missing data does
+                # not read as low risk.
+                "fillColor": ("#475569"
+                              if f["properties"].get("mean_risk") is None
+                              else _risk_color(f["properties"].get("mean_risk"))),
                 "color": "#94a3b8" if is_dark else "#475569",
-                "weight": 1,
-                "fillOpacity": 0.25,
-                "dashArray": "4",
+                "weight": 1, "fillOpacity": 0.25, "dashArray": "4",
             },
             tooltip=folium.GeoJsonTooltip(
-                fields=["admin_name", "mean_risk", "risk_rank"],
-                aliases=["Union:", "Risk:", "Rank:"],
+                fields=[name_field, "mean_risk", "risk_rank"],
+                aliases=["Union:", "Mean risk:", "Rank:"],
             ),
         ).add_to(m)
 
     # --- Hotspots ---
-    if hotspot_gdf is not None and len(hotspot_gdf) > 0:
-        if "is_hotspot" in hotspot_gdf.columns:
-            hotspots = hotspot_gdf[hotspot_gdf["is_hotspot"] == True]
-        else:
-            hotspots = hotspot_gdf
+    if layers.get("show_hotspots", True) and hotspot_gdf is not None and len(hotspot_gdf) > 0:
+        hotspots = (hotspot_gdf[hotspot_gdf["is_hotspot"] == True]
+                    if "is_hotspot" in hotspot_gdf.columns else hotspot_gdf)
         if len(hotspots) > 0:
             folium.GeoJson(
                 hotspots.to_json(),
-                name="Hotspots (Gi*)",
+                name="Hotspots (Gi*, 95%)",
                 style_function=lambda x: {
-                    "fillColor": "#ef4444",
-                    "color": "#ef4444",
-                    "weight": 2,
-                    "fillOpacity": 0.35,
+                    "fillColor": "#ef4444", "color": "#ef4444",
+                    "weight": 2, "fillOpacity": 0.35,
                 },
             ).add_to(m)
 
-    # --- LULC legend ---
-    if layers.get("show_lulc", False):
-        legend_html = """
-        <div style="position:fixed;bottom:30px;left:30px;z-index:9999;
-                    background:#0d1f2d;border:1px solid #1a3a50;border-radius:6px;
-                    padding:8px 12px;font-size:10px;font-family:monospace;color:#a0c0d8;">
-          <b style="color:#3cb8de;">LULC Classes</b><br>
-          <span style="color:#3cdea0;">|</span> Cropland &nbsp;
-          <span style="color:#3cb8de;">|</span> Water &nbsp;
-          <span style="color:#8a6a1a;">|</span> Built-up &nbsp;
-          <span style="color:#4a7a4a;">|</span> Forest
-        </div>
-        """
-        m.get_root().html.add_child(folium.Element(legend_html))
-
-    # --- DEM legend ---
-    if layers.get("show_dem", False):
-        dem_html = """
-        <div style="position:fixed;bottom:30px;right:30px;z-index:9999;
-                    background:#0d1f2d;border:1px solid #1a3a50;border-radius:6px;
-                    padding:8px 12px;font-size:10px;font-family:monospace;color:#a0c0d8;">
-          <b style="color:#3cb8de;">Elevation (SRTM 30m)</b><br>
-          Low ------- High<br>
-          <span style="color:#5a8ab0;">0m to 100m+ (simulated)</span>
-        </div>
-        """
-        m.get_root().html.add_child(folium.Element(dem_html))
-
-    # --- Risk color legend ---
-    risk_legend = """
-    <div style="position:fixed;top:80px;right:10px;z-index:9999;
-                background:#0d1f2d;border:1px solid #1a3a50;border-radius:6px;
-                padding:8px 12px;font-size:10px;font-family:monospace;color:#a0c0d8;">
-      <b style="color:#3cb8de;">Risk Score</b><br>
-      <span style="color:#3cdea0;">o</span> Very Low (&lt;0.20)<br>
-      <span style="color:#3a9a3a;">o</span> Low (0.20-0.40)<br>
-      <span style="color:#dea03c;">o</span> Moderate (0.40-0.60)<br>
-      <span style="color:#de7a3c;">o</span> High (0.60-0.80)<br>
-      <span style="color:#de3c3c;">o</span> Very High (&gt;0.80)
-    </div>
-    """
-    m.get_root().html.add_child(folium.Element(risk_legend))
-
+    m.get_root().html.add_child(folium.Element(_risk_legend()))
     folium.LayerControl(collapsed=True).add_to(m)
-    st_folium(m, width=None, height=620, returned_objects=[])
-
-
-def render_region_map(region_key: str, region_data: dict, layers: dict, map_key: str = "region_map"):
-    """Render an interactive Folium map for a specific region using real data with fallback."""
-    from dashboard.data.loader import get_regional_assets
-
-    center = region_data.get("center", [23.68, 90.35])
-    zoom   = region_data.get("zoom",   9)
-    assets = get_regional_assets(region_key, center, radius_deg=0.5)
-
-    m = folium.Map(
-        location=center,
-        zoom_start=zoom,
-        tiles="CartoDB dark_matter",
-        attr=" ",
-        prefer_canvas=True,
-        control_scale=False,
-    )
-
-    # Hide Leaflet attribution watermark
-    m.get_root().html.add_child(folium.Element(
-        "<style>.leaflet-control-attribution{display:none !important;}</style>"
-    ))
-
-    # Kriging risk surface rings (from real kriging variance if available)
-    if layers.get("show_hand", True) or layers.get("show_cvi", True):
-        for asset in assets:
-            _kriging_rings(m, asset[0], asset[1], asset[4])
-
-    # AlphaEarth cluster overlay
-    if layers.get("show_alphearth", False):
-        ae_data = get_alphaearth_clusters()
-        if ae_data and "features" in ae_data:
-            # Filter to region bbox
-            for feat in ae_data["features"]:
-                coords = feat["geometry"]["coordinates"]
-                props = feat.get("properties", {})
-                if (abs(coords[1] - center[0]) < 0.5 and
-                    abs(coords[0] - center[1]) < 0.5):
-                    is_centroid = props.get("is_centroid", False)
-                    folium.Circle(
-                        location=[coords[1], coords[0]],
-                        radius=1200 if is_centroid else 500,
-                        color=props.get("color", "#a03cde"),
-                        fill=True,
-                        fill_opacity=0.12 if is_centroid else 0.06,
-                        weight=0.8,
-                        tooltip=f"AlphaEarth cluster {props.get('cluster', '?')}",
-                    ).add_to(m)
-
-    # Population density heatmap
-    if layers.get("show_popdens", False):
-        pop_points = get_pop_density_points(center, radius_deg=0.15, n_points=100)
-        if pop_points:
-            heat_data = [[lat, lon, w] for lat, lon, w in pop_points]
-            HeatMap(
-                heat_data, name="Population Density",
-                min_opacity=0.15, radius=10, blur=8,
-                gradient={"0.2": "#fce7f3", "0.5": "#f472b6", "0.8": "#db2777", "1.0": "#9d174d"},
-            ).add_to(m)
-
-    # Asset markers
-    for lat, lon, name, atype, score in assets:
-        show = True
-        if atype == "hospital" and not layers.get("osm_hospitals", True):
-            show = False
-        if atype == "bridge"   and not layers.get("osm_bridges",   True):
-            show = False
-        if atype == "school"   and not layers.get("osm_schools",   True):
-            show = False
-        if atype == "road"     and not layers.get("osm_roads",     True):
-            show = False
-
-        if not show:
-            continue
-
-        col = _risk_to_color(score)
-        risk_lbl = _risk_label(score)
-        kriging_ci = get_kriging_ci_at_point(lat, lon, score)
-        cvi_class = "IV" if score > 0.75 else "III" if score > 0.55 else "II"
-
-        popup_html = f"""
-        <div style="background:#0d1f2d;color:#e8f4ff;padding:8px 12px;
-                    border-radius:6px;font-family:monospace;font-size:11px;min-width:180px;">
-          <b style="color:#3cb8de;">{name}</b><br>
-          <span style="color:#5a8ab0;">Type:</span> {atype.title()}<br>
-          <span style="color:#5a8ab0;">GNN Risk:</span>
-          <span style="color:{col};font-weight:700;">{score:.2f} — {risk_lbl}</span><br>
-          <span style="color:#5a8ab0;">Kriging CI:</span> +/-{kriging_ci}<br>
-          <span style="color:#5a8ab0;">CVI class:</span> {cvi_class}
-        </div>
-        """
-        folium.CircleMarker(
-            location=[lat, lon],
-            radius=8 + score * 10,
-            color=col,
-            fill=True,
-            fill_color=col,
-            fill_opacity=0.85,
-            weight=1.5,
-            tooltip=f"{name} | Risk: {score:.2f}",
-            popup=folium.Popup(popup_html, max_width=240),
-        ).add_to(m)
-
-    # Risk legend
-    risk_legend = """
-    <div style="position:fixed;top:80px;right:10px;z-index:9999;
-                background:#0d1f2d;border:1px solid #1a3a50;border-radius:6px;
-                padding:8px 12px;font-size:10px;font-family:monospace;color:#a0c0d8;">
-      <b style="color:#3cb8de;">Risk Score</b><br>
-      <span style="color:#3cdea0;">o</span> Very Low (&lt;0.20)<br>
-      <span style="color:#3a9a3a;">o</span> Low (0.20-0.40)<br>
-      <span style="color:#dea03c;">o</span> Moderate (0.40-0.60)<br>
-      <span style="color:#de7a3c;">o</span> High (0.60-0.80)<br>
-      <span style="color:#de3c3c;">o</span> Very High (&gt;0.80)
-    </div>
-    """
-    m.get_root().html.add_child(folium.Element(risk_legend))
-
-    return st_folium(m, width="100%", height=480, key=map_key, returned_objects=[])
+    return m

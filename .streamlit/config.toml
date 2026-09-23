@@ -1,0 +1,29 @@
+[server]
+port = 2020
+# Bind to loopback only: nginx terminates TLS and proxies to this port.
+address = "127.0.0.1"
+headless = true
+baseUrlPath = "hazmapper"
+# CSRF protection on. Streamlit sets and checks its own token; this works
+# behind the nginx proxy because the proxy passes cookies and headers through.
+enableXsrfProtection = true
+enableCORS = true
+# The dashboard accepts no uploads; keep the limit minimal.
+maxUploadSize = 1
+maxMessageSize = 50
+fileWatcherType = "none"
+runOnSave = false
+
+[client]
+toolbarMode = "viewer"
+# Public deployment: never show tracebacks to visitors (they go to the journal).
+showErrorDetails = "none"
+
+[theme]
+base = "dark"
+
+[browser]
+gatherUsageStats = false
+
+[logger]
+level = "warning"

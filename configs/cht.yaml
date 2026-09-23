@@ -1,0 +1,35 @@
+# Chittagong Hill Tracts — rainfall-triggered landslides.
+#
+# Unlike the flood regions this one fits a susceptibility model to an
+# observed inventory (NASA COOLR), so its results can be validated.
+extends: ../config.yaml
+
+paths:
+  raw_dir: "data/cht/raw"
+  processed_dir: "data/cht/processed"
+  output_dir: "data/cht/output"
+
+aoi:
+  name: "cht"
+  divisions: ["Chittagong"]
+  # Rangamati, Khagrachhari and Bandarban districts.
+  bbox: [91.5, 21.5, 92.7, 23.5]
+  crs: "EPSG:32646"
+  grid_resolution_m: 500
+
+data:
+  dem:
+    path: "data/cht/raw/dem_srtm_30m.tif"
+  admin_boundaries:
+    union: "data/cht/raw/bgd_union.gpkg"
+    upazila: "data/cht/raw/bgd_upazila.gpkg"
+    district: "data/cht/raw/bgd_district.gpkg"
+  vulnerability:
+    population_path: "data/cht/raw/worldpop_popdens.tif"
+
+landslide:
+  enabled: true
+
+dashboard:
+  map_center: [22.5, 92.1]
+  map_zoom: 9

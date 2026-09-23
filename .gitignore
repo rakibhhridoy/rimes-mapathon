@@ -1,21 +1,48 @@
-# Cache
+# Caches and build artefacts
 cache/
+data/cache/
 __pycache__/
 *.pyc
-
-# Data (too large for git)
-data/raw/
-data/processed/
-data/output/
-
-# OS
-.DS_Store
-
-# IDE
-.vscode/
-.idea/
-
-# Python
 *.egg-info/
 dist/
 build/
+
+# Data — too large for git; archived on Zenodo (see README).
+# Covers the base region (data/raw ...), each region (data/sylhet/raw ...)
+# and the cross-region cache of national downloads (data/shared).
+data/raw/
+data/processed/
+data/output/
+data/cache/
+data/*/raw/
+data/*/processed/
+data/*/output/
+data/*/cache/
+data/shared/
+data.zip
+/tmp/
+
+# LaTeX build artefacts (the built PDF in docs/ is committed)
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Local environment
+.env
+.venv/
+venv/
+
+# OS and editors
+.DS_Store
+._*
+.vscode/
+.idea/
+dist/
+docs/figures/chain_d3/node_modules/
+
+# Superseded version-1 diagrams, kept on disk but not in the repo
+docs/archive_v1/legacy_figures/

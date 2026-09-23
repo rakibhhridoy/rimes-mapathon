@@ -70,13 +70,20 @@ def fit_and_execute_kriging(coords: np.ndarray, values: np.ndarray,
         weight=weight,
     )
 
-    # Extract variogram parameters
+    # PyKrige's parameter vector is [partial sill, range, nugget]; the full
+    # sill, which the nugget and the Kriging variance should be compared
+    # against, is their sum. An earlier version stored the partial sill under
+    # the name "sill", which overstated every ratio built on it.
+    params = ok.variogram_model_parameters
+    psill = float(params[0])
+    nugget = float(params[2]) if len(params) > 2 else 0.0
     variogram_params = {
         "model": variogram_model,
-        "sill": float(ok.variogram_model_parameters[0]),
-        "range": float(ok.variogram_model_parameters[1]),
-        "nugget": float(ok.variogram_model_parameters[2])
-        if len(ok.variogram_model_parameters) > 2 else 0.0,
+        "partial_sill": psill,
+        "nugget": nugget,
+        "sill": psill + nugget,
+        "range": float(params[1]),
+        "nugget_fraction": nugget / (psill + nugget) if psill + nugget > 0 else None,
     }
     logger.info(f"Variogram params: {variogram_params}")
 

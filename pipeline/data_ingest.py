@@ -4,6 +4,7 @@ Step 2 — Preprocessing: CRS alignment, clipping, DEM derivatives.
 """
 
 import logging
+import math
 from pathlib import Path
 
 import geopandas as gpd
@@ -29,141 +30,224 @@ def load_config(config_path: str) -> dict:
         return yaml.safe_load(f)
 
 
-def fetch_osm_infrastructure(cfg: dict, output_dir: Path) -> gpd.GeoDataFrame:
-    """Download OSM infrastructure for Rangpur & Rajshahi divisions.
+# The main Overpass endpoint allows two connections per address and refuses
+# the rest outright, so failed queries are retried with a growing pause
+# rather than sent elsewhere: the public mirrors tested in September 2026
+# either hung for the full request timeout or refused connections, and a
+# hanging mirror costs more than waiting for a slot. Extra endpoints can be
+# listed in data.osm.overpass_endpoints for a deployment that has a reliable
+# one.
+OVERPASS_ENDPOINTS = ["https://overpass-api.de/api"]
+RETRY_PAUSES_S = (15, 30, 60, 120)
 
-    Strategy: query by place name (per division) with batched tags to avoid
-    Overpass timeouts on huge bounding boxes.
+
+TAG_BATCHES = [
+    (
+        "lifeline",
+        1,
+        {
+            "amenity": ["hospital", "clinic", "school", "college", "shelter"],
+            "man_made": ["bridge", "embankment"],
+            "waterway": "dam",
+        },
+    ),
+    (
+        "transport",
+        1,
+        {
+            "highway": ["primary", "secondary", "tertiary", "trunk"],
+            "railway": "rail",
+            "bridge": "yes",
+        },
+    ),
+    (
+        "agriculture",
+        2,
+        {
+            "landuse": ["farmland", "aquaculture"],
+            "waterway": ["canal", "ditch"],
+            "amenity": "marketplace",
+        },
+    ),
+]
+
+
+def _bbox_tiles(bbox, max_span_deg: float = 0.75):
+    """Split a bbox into tiles small enough for Overpass to answer.
+
+    A whole division in one query either times out or is throttled; tiles of
+    under a degree come back reliably and can be retried individually.
+    """
+    west, south, east, north = bbox
+    n_lon = max(1, math.ceil((east - west) / max_span_deg))
+    n_lat = max(1, math.ceil((north - south) / max_span_deg))
+    lon_edges = np.linspace(west, east, n_lon + 1)
+    lat_edges = np.linspace(south, north, n_lat + 1)
+    return [
+        (lon_edges[i], lat_edges[j], lon_edges[i + 1], lat_edges[j + 1])
+        for i in range(n_lon) for j in range(n_lat)
+    ]
+
+
+def merge_tile_results(frames: list, bbox) -> gpd.GeoDataFrame:
+    """Combine per-tile Overpass results into one clipped, de-duplicated frame.
+
+    Tiles overshoot the bounding box slightly, and a long way crossing a tile
+    edge is returned by both tiles, so results are clipped to the study area
+    and duplicates removed by OSM element type and id. Without the ids (older
+    responses) the geometry itself is the key.
+    """
+    import pandas as pd
+    from shapely.geometry import box as shapely_box
+
+    infra = gpd.GeoDataFrame(
+        data=pd.concat(frames, ignore_index=True), crs="EPSG:4326",
+    )
+
+    before = len(infra)
+    infra = infra[infra.geometry.notna() & ~infra.geometry.is_empty]
+    infra = infra[infra.intersects(shapely_box(*bbox))]
+    logger.info(f"Clipped to the study area: {len(infra)} of {before} features")
+
+    id_cols = [c for c in ("element", "id") if c in infra.columns]
+    before = len(infra)
+    if id_cols:
+        infra = infra.drop_duplicates(subset=id_cols)
+    else:
+        infra = infra[~infra.geometry.apply(lambda g: g.wkb_hex).duplicated()]
+    if len(infra) < before:
+        logger.info(f"Removed {before - len(infra)} features returned by more "
+                    "than one tile")
+    if "id" in infra.columns:
+        infra = infra.rename(columns={"id": "osm_id", "element": "osm_type"})
+    return infra
+
+
+def fetch_osm_infrastructure(cfg: dict, output_dir: Path) -> gpd.GeoDataFrame:
+    """Download OSM infrastructure for the study area.
+
+    Queries run tile by tile over the configured bounding box, not by place
+    name. The bounding box is what the rest of the pipeline uses — the grid,
+    the kriging surface, the rasters — so fetching by division name pulled in
+    assets far outside the study area (the CHT config covers the hill tracts,
+    while "Chittagong Division" reaches the coast and Cox's Bazar) and made
+    Overpass time out on the larger divisions.
     """
     import time
+
     import pandas as pd
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Configure osmnx for longer timeouts and smaller subdivisions
-    ox.settings.timeout = 300
+    ox.settings.timeout = 180                # server-side query budget
+    ox.settings.requests_timeout = 90        # give up on a silent connection
     ox.settings.max_query_area_size = 25_000_000_000  # 25B sq m
 
-    divisions = cfg["aoi"].get("divisions", ["Rangpur", "Rajshahi"])
-    all_gdfs = []
+    bbox = tuple(cfg["aoi"]["bbox"])
+    tiles = _bbox_tiles(bbox, cfg["data"]["osm"].get("tile_span_deg", 0.75))
+    region_name = cfg["aoi"].get("name", "region")
+    logger.info(f"Fetching OSM features for {region_name} in {len(tiles)} tiles")
 
-    # Batch tags by priority into combined dicts (single Overpass query each)
-    tag_batches = [
-        (
-            "lifeline",
-            1,
-            {
-                "amenity": ["hospital", "clinic", "school", "college", "shelter"],
-                "man_made": ["bridge", "embankment"],
-                "waterway": "dam",
-            },
-        ),
-        (
-            "transport",
-            1,
-            {
-                "highway": ["primary", "secondary", "tertiary", "trunk"],
-                "railway": "rail",
-            },
-        ),
-        (
-            "agriculture",
-            2,
-            {
-                "landuse": ["farmland", "aquaculture"],
-                "waterway": ["canal", "ditch"],
-                "amenity": "marketplace",
-            },
-        ),
-    ]
+    endpoints = cfg["data"]["osm"].get("overpass_endpoints") or OVERPASS_ENDPOINTS
 
-    for division in divisions:
-        place_name = f"{division} Division, Bangladesh"
-        logger.info(f"Fetching OSM data for: {place_name}")
-
-        for batch_name, priority, tags in tag_batches:
-            try:
-                logger.info(f"  Querying {batch_name} tags for {division}...")
-                gdf = ox.features_from_place(place_name, tags=tags)
-                gdf["priority"] = priority
-                gdf["division"] = division
-
-                # Tag each row with its primary source tag for classification
-                gdf["source_tag"] = gdf.apply(
-                    lambda row: _detect_source_tag(row, tags), axis=1
-                )
-
-                all_gdfs.append(gdf)
-                logger.info(
-                    f"  {batch_name}: {len(gdf)} features for {division}"
-                )
-            except Exception as exc:
-                logger.warning(
-                    f"  {batch_name} failed for {division}: {exc}"
-                )
-
-            # Small delay between queries to be polite to Overpass
-            time.sleep(5)
-
-    # Also try bridge=yes separately (it's a tag on ways, not amenity)
-    for division in divisions:
-        place_name = f"{division} Division, Bangladesh"
-        try:
-            logger.info(f"  Querying bridge=yes for {division}...")
-            gdf = ox.features_from_place(place_name, tags={"bridge": "yes"})
-            gdf["priority"] = 1
-            gdf["division"] = division
-            gdf["source_tag"] = "bridge=yes"
-            all_gdfs.append(gdf)
-            logger.info(f"  bridge=yes: {len(gdf)} features for {division}")
-        except Exception as exc:
-            logger.warning(f"  bridge=yes failed for {division}: {exc}")
-        time.sleep(5)
+    all_gdfs, failures = [], []
+    for i, tile in enumerate(tiles, start=1):
+        for batch_name, priority, tags in TAG_BATCHES:
+            # osmnx 2.x takes (left, bottom, right, top). Each attempt cycles
+            # through the endpoints; pauses grow between rounds.
+            attempts = [(pause, endpoint)
+                        for pause in (0,) + RETRY_PAUSES_S
+                        for endpoint in endpoints]
+            for attempt, (pause, endpoint) in enumerate(attempts):
+                if pause:
+                    time.sleep(pause)
+                ox.settings.overpass_url = endpoint
+                try:
+                    gdf = ox.features_from_bbox(bbox=tile, tags=tags)
+                    if len(gdf):
+                        # osmnx indexes features by (element, id); keep both
+                        # as columns so features returned by two adjacent
+                        # tiles can be recognised and so the OSM id travels
+                        # with the asset for provenance.
+                        gdf = gdf.reset_index()
+                        gdf["priority"] = priority
+                        gdf["source_tag"] = gdf.apply(
+                            lambda row: _detect_source_tag(row, tags), axis=1
+                        )
+                        all_gdfs.append(gdf)
+                    logger.info(f"  tile {i}/{len(tiles)} {batch_name}: "
+                                f"{len(gdf)} features")
+                    break
+                except ox._errors.InsufficientResponseError:
+                    # Nothing of this kind in this tile — not an error.
+                    logger.info(f"  tile {i}/{len(tiles)} {batch_name}: none")
+                    break
+                except Exception as exc:
+                    host = endpoint.split("//")[-1].split("/")[0]
+                    logger.warning(f"  tile {i}/{len(tiles)} {batch_name} via "
+                                   f"{host} failed: {type(exc).__name__}")
+                    if attempt == len(attempts) - 1:
+                        failures.append((tile, batch_name, str(exc)))
+            time.sleep(2)  # be polite between queries
 
     if not all_gdfs:
         raise RuntimeError(
-            "No OSM features fetched. Check internet connection and try again."
+            "No OSM features fetched — check the connection and Overpass status."
         )
+    if failures:
+        logger.warning(f"{len(failures)} tile/tag queries failed after retries; "
+                       "coverage may be incomplete")
 
-    infra = gpd.GeoDataFrame(
-        data=pd.concat(all_gdfs, ignore_index=True),
-        crs="EPSG:4326",
-    )
+    infra = merge_tile_results(all_gdfs, bbox)
 
-    # Assign simplified asset_type
     infra["asset_type"] = infra["source_tag"].apply(_classify_asset)
 
-    # Ensure name column exists
     if "name" not in infra.columns:
         infra["name"] = "unnamed"
     infra["name"] = infra["name"].fillna("unnamed")
 
-    # Deduplicate column names (OSM has case variants like damage_per / damage_Per
-    # which collide in case-insensitive SQLite/GPKG). Keep only the first occurrence.
-    seen = {}
-    drop_cols = []
+    # Label each asset with the district it falls in, replacing the old
+    # division label that came from the query itself.
+    infra["division"] = region_name
+    district_path = cfg["data"].get("admin_boundaries", {}).get("district", "")
+    if district_path and Path(district_path).exists():
+        try:
+            districts = gpd.read_file(district_path)[["admin_name", "geometry"]]
+            points = infra[["geometry"]].copy()
+            points["geometry"] = points.geometry.representative_point()
+            joined = gpd.sjoin(points, districts, how="left", predicate="within")
+            joined = joined[~joined.index.duplicated(keep="first")]
+            infra["division"] = (
+                joined["admin_name"].reindex(infra.index).fillna(region_name).values
+            )
+            logger.info("Labelled assets with their district")
+        except Exception as exc:
+            logger.warning(f"Could not label assets by district: {exc}")
+
+    # Deduplicate column names (OSM has case variants like damage_per /
+    # damage_Per which collide in case-insensitive GPKG).
+    seen, drop_cols = {}, []
     for col in infra.columns:
         lower = col.lower()
         if lower in seen:
             drop_cols.append(col)
-            logger.warning(f"Dropping duplicate column '{col}' (conflicts with '{seen[lower]}')")
         else:
             seen[lower] = col
     if drop_cols:
         infra = infra.drop(columns=drop_cols)
 
-    # Keep only essential columns to avoid fragmentation and GPKG issues
     keep_cols = [
-        "geometry", "name", "asset_type", "source_tag", "priority", "division",
+        "geometry", "osm_type", "osm_id", "name", "asset_type", "source_tag",
+        "priority", "division",
         "amenity", "highway", "bridge", "railway", "waterway", "landuse",
         "man_made", "building",
     ]
-    keep_cols = [c for c in keep_cols if c in infra.columns]
-    infra = infra[keep_cols].copy()
+    infra = infra[[c for c in keep_cols if c in infra.columns]].copy()
 
     out_path = output_dir / "infrastructure_raw.gpkg"
     infra.to_file(out_path, driver="GPKG")
     logger.info(f"Saved {len(infra)} infrastructure features → {out_path}")
+    logger.info(f"Asset types: {infra['asset_type'].value_counts().to_dict()}")
     return infra
 
 
@@ -329,61 +413,109 @@ def _write_single_band(path: str, data: np.ndarray, meta: dict) -> None:
         dst.write(data, 1)
 
 
-def _simple_flow_accumulation(dem: np.ndarray, nodata: float) -> np.ndarray:
-    """Simplified D8 flow accumulation (approximate)."""
+def _d8_receivers(dem: np.ndarray, nodata: float) -> np.ndarray:
+    """Index of each cell's steepest-descent neighbour, or -1 where none.
+
+    Vectorised over the eight neighbour directions: comparing eight shifted
+    copies of the array costs eight passes, where the per-cell Python loop it
+    replaces cost eight operations per cell.
+    """
     rows, cols = dem.shape
-    flow_acc = np.zeros_like(dem, dtype=np.float64)
-    # D8 direction offsets
-    dr = [-1, -1, 0, 1, 1, 1, 0, -1]
-    dc = [0, 1, 1, 1, 0, -1, -1, -1]
-
-    # Sort cells by descending elevation
     valid = dem != nodata
-    indices = np.argwhere(valid)
-    elevations = dem[valid]
-    order = np.argsort(-elevations)
-    sorted_indices = indices[order]
 
-    for r, c in sorted_indices:
-        min_elev = dem[r, c]
-        min_dir = -1
-        for d in range(8):
-            nr, nc = r + dr[d], c + dc[d]
-            if 0 <= nr < rows and 0 <= nc < cols and dem[nr, nc] != nodata:
-                if dem[nr, nc] < min_elev:
-                    min_elev = dem[nr, nc]
-                    min_dir = d
-        if min_dir >= 0:
-            nr, nc = r + dr[min_dir], c + dc[min_dir]
-            flow_acc[nr, nc] += flow_acc[r, c] + 1
+    best_drop = np.zeros_like(dem, dtype=np.float32)
+    receiver = np.full(dem.shape, -1, dtype=np.int64)
+    flat_index = np.arange(rows * cols, dtype=np.int64).reshape(rows, cols)
 
-    return flow_acc
+    for dr, dc in ((-1, 0), (-1, 1), (0, 1), (1, 1),
+                   (1, 0), (1, -1), (0, -1), (-1, -1)):
+        shifted = np.full_like(dem, nodata)
+        shifted_idx = np.full(dem.shape, -1, dtype=np.int64)
+
+        src_rows = slice(max(0, dr), rows + min(0, dr))
+        src_cols = slice(max(0, dc), cols + min(0, dc))
+        dst_rows = slice(max(0, -dr), rows + min(0, -dr))
+        dst_cols = slice(max(0, -dc), cols + min(0, -dc))
+
+        shifted[dst_rows, dst_cols] = dem[src_rows, src_cols]
+        shifted_idx[dst_rows, dst_cols] = flat_index[src_rows, src_cols]
+
+        drop = dem - shifted
+        better = valid & (shifted != nodata) & (drop > best_drop)
+        best_drop = np.where(better, drop, best_drop)
+        receiver = np.where(better, shifted_idx, receiver)
+
+    receiver[~valid] = -1
+    return receiver
+
+
+def _accumulate_flow(receiver: np.ndarray, order: np.ndarray) -> np.ndarray:
+    """Push one unit of flow from every cell downslope, in elevation order.
+
+    Sequential by nature — a cell's total depends on everything upstream —
+    so it is JIT-compiled when numba is available and falls back to plain
+    Python otherwise.
+    """
+    acc = np.zeros(receiver.shape[0], dtype=np.float64)
+    for i in order:
+        target = receiver[i]
+        if target >= 0:
+            acc[target] += acc[i] + 1.0
+    return acc
+
+
+try:  # numba turns the accumulation from tens of minutes into seconds
+    from numba import njit
+
+    _accumulate_flow = njit(cache=True)(_accumulate_flow)
+    _HAS_NUMBA = True
+except ImportError:  # pragma: no cover - depends on the environment
+    _HAS_NUMBA = False
+    logger.info("numba not installed; flow accumulation will be slower")
+
+
+def _simple_flow_accumulation(dem: np.ndarray, nodata: float) -> np.ndarray:
+    """D8 flow accumulation: cells drained through each cell."""
+    receiver = _d8_receivers(dem, nodata)
+
+    valid = (dem != nodata).ravel()
+    flat_dem = dem.ravel()
+    # Descending elevation: every cell is processed after everything that
+    # drains into it.
+    order = np.argsort(-flat_dem)
+    order = order[valid[order]].astype(np.int64)
+
+    logger.info(f"Flow accumulation over {order.size:,} cells "
+                f"({'numba' if _HAS_NUMBA else 'pure Python'})")
+    acc = _accumulate_flow(receiver.ravel(), order)
+    return acc.reshape(dem.shape)
 
 
 def _compute_hand(dem: np.ndarray, drainage_mask: np.ndarray,
                    nodata: float) -> np.ndarray:
-    """Height Above Nearest Drainage — BFS from drainage cells."""
-    from scipy.ndimage import distance_transform_edt, label
+    """Height Above Nearest Drainage.
 
-    rows, cols = dem.shape
-    hand = np.full_like(dem, -9999, dtype=np.float64)
+    The distance transform already returns, for every cell, the indices of
+    the nearest drainage cell; looking up those elevations is a single fancy
+    index rather than a per-cell Python loop over tens of millions of cells.
+    """
+    from scipy.ndimage import distance_transform_edt
 
-    # For each non-drainage cell, find nearest drainage cell elevation
-    # Use distance transform to find nearest drainage
-    inv_mask = ~drainage_mask
-    dist, indices = distance_transform_edt(inv_mask, return_distances=True,
-                                            return_indices=True)
+    if not drainage_mask.any():
+        logger.warning("No drainage cells found; HAND is zero everywhere.")
+        hand = np.zeros_like(dem, dtype=np.float64)
+        hand[dem == nodata] = -9999.0
+        return hand
 
-    for r in range(rows):
-        for c in range(cols):
-            if dem[r, c] == nodata:
-                continue
-            nearest_r, nearest_c = indices[0, r, c], indices[1, r, c]
-            if drainage_mask[nearest_r, nearest_c]:
-                hand[r, c] = max(0, dem[r, c] - dem[nearest_r, nearest_c])
-            else:
-                hand[r, c] = 0  # cell is itself drainage or isolated
+    # Distances are measured to the nearest zero of the input, so invert the
+    # mask to find the nearest drainage cell.
+    _, indices = distance_transform_edt(
+        ~drainage_mask, return_distances=True, return_indices=True
+    )
+    nearest_elevation = dem[indices[0], indices[1]]
 
+    hand = np.maximum(0.0, dem.astype(np.float64) - nearest_elevation)
+    hand[dem == nodata] = -9999.0
     return hand
 
 
@@ -500,6 +632,58 @@ def build_ensemble_flood_labels(cfg: dict, dem_derivatives: dict,
     return out_path
 
 
+def build_observed_flood_labels(cfg: dict, dem_derivatives: dict,
+                                output_dir: Path,
+                                raw_dir: Path = Path("data/raw")) -> str:
+    """Training labels from Sentinel-1 observed flood extents.
+
+    Preferred over the proxy ensemble: the proxy thresholds TWI and HAND,
+    which the model also receives as inputs, so a model trained on it can
+    only relearn the threshold rule. Observed water is independent evidence.
+
+    A pixel is labelled flooded when it was under water in at least
+    `data.labels.min_events` of the mapped events.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    labels_cfg = cfg["data"].get("labels", {})
+
+    freq_path = raw_dir / "s1_flood_frequency.tif"
+    if not freq_path.exists():
+        raise FileNotFoundError(
+            f"{freq_path} missing. Run `python -m pipeline.cli sentinel1` first."
+        )
+
+    # Reference grid: the DEM derivatives, so labels align with the features.
+    with rasterio.open(dem_derivatives["twi"]) as src:
+        ref_shape, ref_transform, ref_crs = src.shape, src.transform, src.crs
+        meta = src.meta.copy()
+
+    # Stored as a percentage of events (0-100) to keep the download small.
+    freq_pct = _resample_to_ref(str(freq_path), ref_shape, ref_transform, ref_crs)
+
+    n_events = len(cfg.get("sentinel1", {}).get("events", [])) or 1
+    min_events = labels_cfg.get("min_events", 1)
+    threshold_pct = 100.0 * min_events / n_events - 1e-6
+
+    labels = (freq_pct >= threshold_pct).astype(np.float32)
+    positive_rate = float(labels.mean())
+    logger.info(
+        f"Observed flood labels: {positive_rate:.2%} of pixels flooded in "
+        f">= {min_events} of {n_events} events"
+    )
+    if positive_rate == 0:
+        raise RuntimeError(
+            "No pixels flagged as flooded — check the Sentinel-1 event windows."
+        )
+
+    meta.update(dtype="float32", count=1, nodata=-9999)
+    out_path = str(output_dir / "flood_observed_labels.tif")
+    with rasterio.open(out_path, "w", **meta) as dst:
+        dst.write(labels, 1)
+    logger.info(f"Observed flood labels → {out_path}")
+    return out_path
+
+
 def preprocess_all(cfg: dict, raw_dir: Path, processed_dir: Path) -> dict:
     """Run full preprocessing pipeline."""
     processed_dir.mkdir(parents=True, exist_ok=True)
@@ -520,11 +704,26 @@ def preprocess_all(cfg: dict, raw_dir: Path, processed_dir: Path) -> dict:
     else:
         logger.warning(f"DEM not found at {dem_raw}. Skipping DEM derivatives.")
 
-    # Build ensemble flood labels
+    # Build training labels. "observed" uses Sentinel-1 flood extents;
+    # "proxy" keeps the terrain-threshold ensemble for comparison.
     if "derivatives" in outputs:
-        label_path = build_ensemble_flood_labels(
-            cfg, outputs["derivatives"], processed_dir
-        )
-        outputs["flood_labels"] = label_path
+        source = cfg["data"].get("labels", {}).get("source", "proxy")
+        if source == "observed":
+            outputs["flood_labels"] = build_observed_flood_labels(
+                cfg, outputs["derivatives"], processed_dir, raw_dir
+            )
+        else:
+            outputs["flood_labels"] = build_ensemble_flood_labels(
+                cfg, outputs["derivatives"], processed_dir
+            )
+        # The proxy ensemble is always written too: the paper compares the
+        # two label sets against each other.
+        if source == "observed":
+            try:
+                outputs["proxy_labels"] = build_ensemble_flood_labels(
+                    cfg, outputs["derivatives"], processed_dir
+                )
+            except Exception as exc:
+                logger.warning(f"Proxy label comparison unavailable: {exc}")
 
     return outputs
