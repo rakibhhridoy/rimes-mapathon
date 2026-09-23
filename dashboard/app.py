@@ -389,23 +389,24 @@ st.markdown(f"""
         box-shadow: 0 6px 24px rgba(15,23,42,0.10);
     }}
     .st-key-fm_title, .st-key-fm_controls, .st-key-fm_pills,
-    .st-key-fm_kpis, .st-key-fm_detail, .st-key-fm_sheet,
-    .st-key-fm_notice {{
+    .st-key-fm_kpis, .st-key-fm_detail, .st-key-fm_sheet {{
         z-index: 600;
     }}
     /* Identity sits at the foot of the map, centred. */
     .st-key-fm_title {{
-        position: absolute; bottom: 18px; left: 50%; right: auto;
-        transform: translateX(-50%); width: 400px; text-align: center;
+        position: absolute; bottom: 18px; left: 16px; right: auto;
+        transform: none; width: 320px; overflow: hidden;
+        padding: 12px 16px 14px;
     }}
     /* Search and region, centred at the top. */
     .st-key-fm_controls {{
         position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
         width: min(460px, 38vw); text-align: center;
     }}
-    .st-key-fm_controls [data-testid="stHorizontalBlock"],
-    .st-key-fm_controls [role="radiogroup"] {{
+    .st-key-fm_controls [data-testid="stButtonGroup"] {{
+        display: flex !important;
         justify-content: center;
+        width: 100%;
     }}
     .st-key-fm_controls input {{ text-align: center; }}
     /* Panels open from the foot of the left edge. */
@@ -423,18 +424,13 @@ st.markdown(f"""
         transform: translateY(-50%); width: 176px; padding: 10px 12px;
     }}
     .st-key-fm_detail {{
-        position: absolute; bottom: 18px; left: 16px; width: 360px;
-        max-height: 52vh; overflow-y: auto; z-index: 650;
-    }}
-    /* What the map is actually showing, above the identity card. */
-    .st-key-fm_notice {{
-        position: absolute; bottom: 146px; left: 50%;
-        transform: translateX(-50%); width: auto; max-width: 460px;
-        padding: 5px 12px;
+        position: absolute; bottom: 18px; left: 50%; right: auto;
+        transform: translateX(-50%); width: 380px;
+        max-height: 60vh; overflow-y: auto; z-index: 650;
     }}
     /* Glass treatment for the floating containers themselves */
     .st-key-fm_title, .st-key-fm_controls, .st-key-fm_pills,
-    .st-key-fm_kpis, .st-key-fm_detail, .st-key-fm_notice {{
+    .st-key-fm_kpis, .st-key-fm_detail {{
         background: rgba(255,255,255,0.93);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
@@ -558,15 +554,12 @@ def main():
     filtered, layers = render_sidebar(region, infra)
 
     sheet_slot = st.empty()
-    notice_slot = st.empty()
     _floating_title(region, cfg)
     st.session_state.map_capped = False
     _render_map_view(region, filtered, union_gdf, hotspot_gdf, cfg, layers)
+    _report_marker_cap()
     if not panel:
         _floating_kpis(filtered)
-        _floating_notice(notice_slot)
-    else:
-        notice_slot.empty()
 
     if st.session_state.get("selected_asset"):
         with st.container(key="fm_detail"):
@@ -640,6 +633,29 @@ def _short_region(region_id: str) -> str:
 PANELS = ["Rankings & export", "Preparedness", "About the data"]
 
 
+def _report_marker_cap():
+    """Say in the sidebar when the map is drawing only the top 2,000 markers.
+
+    The map caps markers for the browser's sake; tables and exports keep every
+    row. That belongs with the other provenance figures rather than floating
+    over the map.
+    """
+    slot = st.session_state.get("cap_slot")
+    if slot is None:
+        return
+    if not st.session_state.get("map_capped"):
+        slot.empty()
+        return
+    slot.markdown(
+        f'<div style="background:{BG3};border:1px solid {BORDER};'
+        'border-radius:8px;padding:9px 12px;margin-bottom:16px;font-size:10.5px;'
+        f'color:{TEXT2};line-height:1.5;">Map draws the '
+        f'<b style="color:{TEXT};">2,000</b> highest-scoring assets of the '
+        'current filter. Tables and exports keep every row.</div>',
+        unsafe_allow_html=True,
+    )
+
+
 def _floating_title(region: str, cfg: dict):
     """Name, region line and the prototype warning, top-left over the map."""
 
@@ -665,20 +681,6 @@ def _floating_title(region: str, cfg: dict):
               Map data &copy; OpenStreetMap contributors &middot; Tiles &copy; Esri
             </div>
             """,
-            unsafe_allow_html=True,
-        )
-
-
-def _floating_notice(slot):
-    """What the map is actually showing, above the identity card."""
-    if not st.session_state.get("map_capped"):
-        slot.empty()
-        return
-    with slot.container(key="fm_notice"):
-        st.markdown(
-            f'<div style="color:{TEXT2};font-size:10.5px;text-align:center;">'
-            "Showing the 2,000 highest-scoring assets of the current filter"
-            "</div>",
             unsafe_allow_html=True,
         )
 

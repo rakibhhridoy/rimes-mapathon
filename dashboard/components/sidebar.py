@@ -86,6 +86,11 @@ def render_provenance(meta: dict | None, validation: dict | None = None,
         unsafe_allow_html=True,
     )
 
+    # Whether the map capped its markers is only known once the map has been
+    # built, which happens after the sidebar. The row is written into this
+    # placeholder at that point.
+    st.session_state["cap_slot"] = st.empty()
+
     # Validation against observed floods, when it has been run.
     held = ((validation or {}).get("assets_vs_observed") or {}).get("held_out_blocks")
     if held and "auc_roc" in held:
