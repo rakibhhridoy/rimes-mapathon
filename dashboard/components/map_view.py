@@ -276,34 +276,28 @@ def fill_frame(folium, m):
     ))
 
 
-BASEMAPS = ("Light", "Streets", "Satellite")
+def _add_base_layers(folium, m):
+    """The three basemaps, switched from Leaflet's own layer box.
 
-
-def _add_base_layers(folium, m, basemap: str = "Light"):
-    """Add the one basemap the page asked for.
-
-    Only one is added, rather than three with a Leaflet switcher: the page has
-    its own basemap buttons, and Leaflet draws base layers in the order they
-    arrive, so extra ones simply covered the map.
+    The alternatives are added switched off: Leaflet draws base layers in the
+    order they arrive, so without this the last one added covers the rest and
+    the map always opens on satellite imagery.
     """
-    if basemap == "Satellite":
-        folium.TileLayer(
-            tiles="https://server.arcgisonline.com/ArcGIS/rest/services/"
-                  "World_Imagery/MapServer/tile/{z}/{y}/{x}",
-            attr=ESRI_ATTR, name="Satellite",
-        ).add_to(m)
-    elif basemap == "Streets":
-        folium.TileLayer("OpenStreetMap", name="OpenStreetMap",
-                         attr=OSM_ATTR).add_to(m)
-    else:
-        folium.TileLayer(
-            tiles=theme.TILE_URL, attr=theme.TILE_ATTR, name="Light",
-        ).add_to(m)
+    folium.TileLayer(
+        tiles=theme.TILE_URL, attr=theme.TILE_ATTR, name="Light",
+    ).add_to(m)
+    folium.TileLayer("OpenStreetMap", name="Streets", attr=OSM_ATTR,
+                     show=False).add_to(m)
+    folium.TileLayer(
+        tiles="https://server.arcgisonline.com/ArcGIS/rest/services/"
+              "World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        attr=ESRI_ATTR, name="Satellite", show=False,
+    ).add_to(m)
 
 
 def _risk_legend() -> str:
     return """
-    <div style="position:fixed;bottom:26px;right:10px;z-index:9999;
+    <div style="position:fixed;top:56px;right:10px;z-index:9999;
                 background:rgba(255,255,255,0.96);border:1px solid #dbe3ec;border-radius:6px;
                 padding:8px 12px;font-size:10px;font-family:monospace;color:#475569;">
       <b style="color:#2a78d6;">Susceptibility</b><br>
@@ -353,7 +347,7 @@ def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
     m.add_child(zoom_br)
 
     fill_frame(folium, m)
-    _add_base_layers(folium, m, st.session_state.get('basemap', 'Light'))
+    _add_base_layers(folium, m)
 
     # --- Raster overlays (pre-rendered in WGS84 by preprocess_cache.py) ---
     for layer_key, raster_key, label in [
@@ -490,5 +484,6 @@ def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
                 },
             ).add_to(m)
 
+    folium.LayerControl(collapsed=True, position='topright').add_to(m)
     m.get_root().html.add_child(folium.Element(_risk_legend()))
     return m
