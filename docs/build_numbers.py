@@ -258,6 +258,29 @@ def region_numbers(region_id: str) -> list[str]:
         _macro(f"{prefix}LabelAhead", gap.get("seeds_observed_ahead")),
     ]
 
+    # Temporal hold-out: trained on the earlier events, scored against the
+    # later ones on held-out blocks, beside the past-flooding reference.
+    temporal = _read_json(paths["output"] / "temporal_holdout.json") or {}
+    tsum = temporal.get("summary") or {}
+    tpast = tsum.get("temporal_minus_past_flooding") or {}
+    tall = tsum.get("temporal_minus_all_events") or {}
+    lines += [
+        _macro(f"{prefix}TempAUC", (tsum.get("temporal") or {}).get("auc_mean")),
+        _macro(f"{prefix}TempSD", (tsum.get("temporal") or {}).get("auc_sd")),
+        _macro(f"{prefix}TempLift", (tsum.get("temporal") or {}).get("ap_lift_mean")),
+        _macro(f"{prefix}TempAllAUC", (tsum.get("all_events") or {}).get("auc_mean")),
+        _macro(f"{prefix}TempPastAUC", (tsum.get("past_flooding") or {}).get("auc_mean")),
+        _macro(f"{prefix}TempPastSD", (tsum.get("past_flooding") or {}).get("auc_sd")),
+        _macro(f"{prefix}TempPastLift", (tsum.get("past_flooding") or {}).get("ap_lift_mean")),
+        _macro(f"{prefix}TempMinusPast", tpast.get("mean")),
+        _macro(f"{prefix}TempMinusPastP", tpast.get("p_value")),
+        _macro(f"{prefix}TempAheadPast", tpast.get("seeds_temporal_ahead")),
+        _macro(f"{prefix}TempMinusAll", tall.get("mean")),
+        _macro(f"{prefix}TempMinusAllP", tall.get("p_value")),
+        _macro(f"{prefix}TempSeeds", (tsum.get("temporal") or {}).get("n_seeds")),
+        _macro(f"{prefix}TempTestRate", _pct(temporal.get("test_positive_rate"))),
+    ]
+
     # Weight sensitivity of the composite risk.
     sens = _read_json(paths["output"] / "sensitivity.json") or {}
     scenarios = sens.get("scenarios") or {}

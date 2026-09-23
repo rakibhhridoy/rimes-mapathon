@@ -1,0 +1,492 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+
+% ── Page ────────────────────────────────────────────────────
+\usepackage[a4paper, left=1.7cm, right=1.7cm, top=2.3cm, bottom=2.0cm,
+            headheight=18pt, headsep=10pt, columnsep=6mm]{geometry}
+
+% ── Fonts: Times-like text and maths, as in most journals ───
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{newtxtext}
+\usepackage{newtxmath}
+\usepackage{microtype}
+
+% ── Content ─────────────────────────────────────────────────
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{textcomp}
+\usepackage[round]{natbib}
+\usepackage[font=small, labelfont=bf, labelsep=period, skip=4pt]{caption}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage[colorlinks=true, linkcolor=MidnightBlue, citecolor=MidnightBlue,
+            urlcolor=MidnightBlue, bookmarks=true]{hyperref}
+
+\usepackage{xurl}                          % long URLs break across lines
+\usepackage{orcidlink}
+
+% ── Journal-style headings: numbered, serif, restrained ─────
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize\itshape}{\thesubsubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{1.4ex plus 0.6ex}{0.7ex}
+\titlespacing*{\subsection}{0pt}{1.1ex plus 0.4ex}{0.5ex}
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0pt}
+\raggedbottom                               % no stretched gaps to fill columns
+\setlist{leftmargin=*, itemsep=0.2em, topsep=0.3em}
+
+
+% ── Journal draft: plain pages, no running header ──────────
+\pagestyle{plain}
+\hypersetup{pdftitle={Flood and landslide susceptibility of mapped infrastructure in Bangladesh, trained on radar-observed floods and tested on held-out areas},
+            pdfauthor={Md Rakib Hasan, Shoumik Zubyer, Fazla Zawadul Arabi}}
+\graphicspath{{../}}
+% Marks work still to be done before submission. Remove every one.
+\newcommand{\pending}[1]{\textcolor{red}{[PENDING: #1]}}
+
+% ── Code listings fit a single column ──────────────────────
+\lstset{basicstyle=\footnotesize\ttfamily, breaklines=true,
+        columns=fullflexible, frame=tb, framerule=0.3pt,
+        aboveskip=0.5em, belowskip=0.5em}
+
+% ── Monospace that breaks at underscores ───────────────────
+\makeatletter
+\let\orig@texttt\texttt
+\renewcommand{\texttt}[1]{%
+  \ifmmode\text{\orig@texttt{#1}}\else
+  \begingroup\ttfamily\def\_{\textunderscore\allowbreak}#1\endgroup\fi}
+\makeatother
+\newcommand{\fileref}[1]{\texttt{#1}}
+
+\input{../numbers.tex}
+
+\begin{document}
+
+\twocolumn[{%
+\begin{center}
+{\LARGE\bfseries Flood and landslide susceptibility of mapped infrastructure in Bangladesh, trained on radar-observed floods and tested on held-out areas\par}
+\vspace{0.9em}
+{\large Md Rakib Hasan\textsuperscript{1,2,*}\,\orcidlink{0009-0002-4007-7590},
+Shoumik Zubyer\textsuperscript{1}\,\orcidlink{0009-0006-4085-1493} and
+Fazla Zawadul Arabi\textsuperscript{1}\,\orcidlink{0009-0001-4632-9579}\par}
+\vspace{0.5em}
+{\small \textsuperscript{1}Department of Soil, Water and Environment, University of Dhaka, Dhaka-1000, Bangladesh\\
+\textsuperscript{2}Fermium Systems, Dhaka-1207, Bangladesh\\[0.2em]
+\textsuperscript{*}Correspondence: \href{mailto:rakibhhridoy@fermium.systems}{rakibhhridoy@fermium.systems}\par}
+\end{center}
+\vspace{1.6em}
+
+\begin{center}
+\begin{minipage}{0.85\textwidth}
+\centerline{\bfseries Abstract}
+\vspace{0.5em}
+\setlength{\parindent}{0pt}
+\input{abstract.tex}
+
+\vspace{0.7em}
+\textbf{Keywords:} flood susceptibility; Sentinel-1; spatial cross-validation; gradient boosting; graph neural network; landslide susceptibility; Bangladesh
+\end{minipage}
+\end{center}
+
+\vspace{2.4em}
+}]
+
+\thispagestyle{plain}
+
+\section{Introduction}
+\label{sec:intro}
+
+Riverine and flash floods recur across northern Bangladesh in most monsoon seasons and cyclone surges strike its south-west coast, yet the susceptibility maps meant to show where flooding would do most harm are rarely tested against floods that actually occurred. Data-driven susceptibility mapping in the country has grown quickly, with a recent review counting 42 distinct conditioning factors in use \citep{islam2025review}, and the studies closest to this one report AUCs between 0.88 and 0.96 \citep{rahman2019, talukdar2020, islamr2024}. Two choices decide what such a figure means, and neither is usually the focus of the paper that reports it. The first is where the flood locations come from, which in most studies is an inventory of a few hundred points drawn from field survey, historical records or a hydrological model. The second is how the test set is separated from the training set, and a random split of spatially clustered points tests a model mostly on locations next to training points, a design known to inflate accuracy \citep{roberts2017, ploton2020}.
+
+Both choices can now be made differently. Sentinel-1 radar sees through monsoon cloud and has been processed into flood maps with overall accuracies above 94\,\% \citep{twele2016, uddin2019}, so every pixel observed to flood can serve as a training label. Whole areas can also be held out when measuring accuracy, so that the test asks how well a model carries to ground it has not seen. A third choice concerns the model itself. Graph neural networks, which pass information between neighbouring locations, have entered hazard mapping mainly for landslides \citep{wang2023, ma2025}, and their appeal for infrastructure is that a road or embankment floods together with its neighbours. Whether that structure adds anything over an ordinary tabular model given the same features has seldom been tested on identical data.
+
+This study addresses three questions, of which the first is the most consequential for how published maps should be read. It asks whether radar-observed flood extents make better training labels than terrain thresholds for ranking flood-prone ground in areas a model has not seen. It then asks whether a graph neural network outperforms ordinary tabular models on the same features, assets and held-out blocks, and finally how far a model trained on earlier floods carries to a later one. \pending{the third question depends on the temporal hold-out in Section~\ref{sec:temporal}.} The answers are drawn from three flood regions with contrasting regimes, riverine flooding in Rangpur and Rajshahi, flash flooding in the Sylhet haor basin and cyclone surge on the south-west coast, and a landslide model for the Chittagong Hill Tracts completes the hazard coverage. For every cell of a 500\,m grid the flood hazard is combined with exposure, which is what stands on the ground, and vulnerability, which is how hard it would be for the people there to cope, and the results are published through an open dashboard with the data and code behind them.
+
+\section{Related work}
+\label{sec:related}
+
+This section places the system against published work in the four areas it draws on: data-driven flood susceptibility mapping in Bangladesh, satellite flood mapping as a source of training labels, the validation of spatial models, and landslide and composite risk assessment. The review is critical by design, setting reported accuracies beside the evidence behind them, including how the flood or landslide locations were obtained and how the test set was separated from the training set, because those two choices decide what an accuracy figure can mean. \pending{Every study must be checked against its full text, not its abstract. Revise Table~\ref{tab:litflood} and the sentences that rest on abstracts accordingly.}
+
+\subsection{Flood susceptibility in Bangladesh}
+
+Data-driven flood susceptibility mapping in Bangladesh has grown quickly, and a recent review of machine-learning flood prediction in the country identified 42 distinct conditioning factors in use, led by precipitation, distance from rivers, elevation, land cover and soil type \citep{islam2025review}. The studies closest to this system, summarised in Table~\ref{tab:litflood}, mostly report high accuracies. In the Teesta basin, which overlaps the Rangpur region studied here, ensemble models trained on 413 current and former flood points all exceeded an AUC of 0.80 \citep{islam2021}, and a bagging ensemble reached 0.945 \citep{talukdar2020}. A national study combining logistic regression with frequency ratio reported an AUROC of 0.881 \citep{rahman2019}, a local study of flash floods in the north-east reported 0.964 for a random forest \citep{islamr2024}, and a coastal study reported an accuracy of 86.7\,\% \citep{hasan2023}.
+
+These figures cannot be compared with the ones in Section~\ref{sec:validation} at face value, and the reason is methodological rather than a matter of model choice. The one study in Table~\ref{tab:litflood} whose split is known from its abstract divided its flood inventory at random into 70\,\% for training and 30\,\% for testing \citep{rahman2019}, and none of the abstracts that could be read describes holding out whole areas. A random split of spatially clustered points tests a model mostly on locations next to training points, a design shown to inflate accuracy (Section~\ref{sec:litval}). The inventories differ in kind as well, with Rahman et al.\ building theirs partly from a hydrological model \citep{rahman2019}, so that their test measures agreement with a simulation as much as with floods that occurred. Two studies examined not accuracy but agreement between models, and their findings are the more instructive. On the south-west coast four machine-learning models each classified roughly 60\,\% of the land as flood-prone, yet their pixel-wise correlations ranged from 0.62 to 0.91 despite high reported accuracy \citep{adnan2023}. In the north-east, a random forest and a support vector machine with AUCs above 0.9 agreed on only 73.3\,\% of the map \citep{islamr2024}. Models that score equally well can therefore disagree substantially about where flooding will happen, which is the property a map exists to convey.
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.4cm}>{\raggedright\arraybackslash}p{2.1cm}>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{2.2cm}}
+\toprule
+Study & Region & Model & Flood locations and split & Reported accuracy \\
+\midrule
+\citet{rahman2019}$^{*}$ & Bangladesh & LR--FR, ANN, AHP & 475 locations from remote sensing and a MIKE-11 model, random 70:30 & AUROC 0.881 \\
+\citet{talukdar2020}$^{*}$ & Teesta basin & bagging ensembles & not stated in abstract & AUC 0.945 \\
+\citet{islam2021} & Teesta basin & Dagging, RS, RF, ANN, SVM & 413 current and former flood points & AUC $>$0.80 (all) \\
+\citet{islamr2024} & north-east, local & RF, SVM & not stated in abstract & AUC 0.964 (RF) \\
+\citet{hasan2023}$^{*}$ & coast & RF, XGBoost, KNN & not stated in abstract & accuracy 86.7\,\% \\
+\citet{adnan2023} & south-west coast & RF, KNN, MLP, GA-RBF-SVR & not stated in abstract & inter-model $r$ 0.62--0.91 \\
+\midrule
+This system & Rangpur \& Rajshahi & Gradient boosting & Sentinel-1, 5 events, 10\,km blocks & AUC \RRObsAUC{} \\
+This system & Sylhet & Gradient boosting & Sentinel-1, 4 events, 10\,km blocks & AUC \SylhetObsAUC{} \\
+This system & south-west coast & Gradient boosting & Sentinel-1, 4 cyclones, 10\,km blocks & AUC \CoastalObsAUC{} \\
+\bottomrule
+\end{tabularx}
+\caption{Flood susceptibility studies in Bangladesh compared with this system. The abstracts of the studies marked $^{*}$ are not available from open indexes, and their figures are taken from the indexed abstract text returned by search rather than read from the article. This system's figures are against observed floods on spatially held-out blocks, so the columns are not directly comparable, for the reasons given in the text.}
+\label{tab:litflood}
+\end{table*}
+
+\subsection{Label sources}
+
+Most of the studies above train on a flood inventory of a few hundred points drawn from field survey, historical records, satellite interpretation or a hydrological model. Satellite radar offers an alternative that covers every pixel, and Sentinel-1 imagery has been processed into automated flood maps with overall accuracies of 94.0--96.1\,\% \citep{twele2016}, applied operationally to the 2017 Bangladesh floods with an accuracy of 96.44\,\% \citep{uddin2019}, and at global scale daily 250\,m imagery has mapped 913 large flood events from 2000 to 2018 \citep{tellman2021}. A recent review of SAR flood detection stresses that methods need quantitative validation against high-quality reference data, and that SAR still struggles in vegetated and urban areas \citep{amitrano2024}. The method used here follows the change-detection practice recommended by UN-SPIDER \citep{unspider} and removes permanent water using the JRC surface-water record \citep{pekel2016}.
+
+The comparison between label sources is the result from this system that bears most directly on the literature, and it is more nuanced than a simple verdict on proxy labels. Terrain-threshold labels built from the topographic wetness index \citep{beven1979} and height above nearest drainage \citep{nobre2011}, which are also common predictors in the studies above, reached a probability of detection of only \RRProxyPOD{} against the ground that Sentinel-1 saw flood in Rangpur and Rajshahi, with a false alarm ratio of \RRProxyFAR{}, so as a map of flooding they are poor. They are also weaker as a training signal than the ranking ability of terrain might suggest. On the same held-out blocks, against the same definition of flooding and over \RRBenchSeeds{} block assignments, the default model trained on them reaches an AUC of \RRLabelProxyAUC{} in Rangpur and Rajshahi, \SylhetLabelProxyAUC{} in Sylhet and \CoastalLabelProxyAUC{} on the coast, against \RRLabelObsAUC{}, \SylhetLabelObsAUC{} and \CoastalLabelObsAUC{} when trained on the observed extents. The gap is \RRLabelGap{} in Rangpur and Rajshahi and \SylhetLabelGap{} in Sylhet, each on every assignment, and \CoastalLabelGap{} on the coast. Terrain still orders flood-prone ground better than chance, yet a model that fits thresholded terrain labels closely inherits their errors, so training on what the radar saw is worth considerably more than a comparison with a smoother model implied. The practical lesson for the studies above concerns their evaluation more than their training, because a model scored against labels derived from the same terrain or a hydrological model cannot show how far its ranking holds against floods that occurred.
+
+\subsection{Accuracy assessment}
+\label{sec:litval}
+
+The case for holding out whole areas rests on work outside flood mapping. Random cross-validation of data with spatial structure underestimates prediction error, and block cross-validation, which splits data by area, can address this \citep{roberts2017}. The effect can be dramatic, as a forest-biomass model that explained more than half the variance under random validation showed almost no predictive power under spatial validation \citep{ploton2020}. Spatially blocked validation is therefore used throughout this system. The approach has critics, and their argument limits what the blocked scores reported here can claim. Blocking can force a model to extrapolate into predictor combinations it never saw and so overstate error \citep{roberts2017}, and Wadoux et al.\ argue that spatial cross-validation has no theoretical basis for estimating map accuracy, while also finding standard cross-validation deficient for clustered data \citep{wadoux2021}. The area-of-applicability method of \citet{meyer2021} offers a complementary check, delineating where the training data support a prediction at all. The blocked AUCs in Section~\ref{sec:validation} are best read as estimates of performance on unseen areas of similar terrain, not as design-based measures of map accuracy, and an independent probability sample of the published maps, checked against observed flooding, would be a stronger test. Calibration is treated separately from ranking, by isotonic regression, which maps classifier scores onto observed frequencies without changing their order \citep{zadrozny2002} and is one of the two standard corrections for the distorted probabilities that many learning methods produce \citep{niculescu2005}. None of the Bangladesh abstracts that could be read reports calibrated probabilities.
+
+\subsection{Graphs and interpolation}
+
+Graph neural networks aggregate information from a node's neighbours and, in the inductive form used here, learn functions that generalise to nodes unseen in training \citep{hamilton2017}. In hazard mapping they have appeared mainly for landslides, where slope units form the nodes of a graph convolutional network \citep{wang2023, ma2025}. A review of 58 deep-learning flood mapping studies found models built on convolutional layers usually the more accurate \citep{bentivoglio2022}, and the searches made for this review returned no application of a graph neural network to the flood susceptibility of mapped infrastructure. Treating each asset as a node linked to its neighbours is therefore a less common design, and the comparison in Section~\ref{sec:benchmark}, on the same assets and the same blocks, shows that it does not outperform a gradient-boosted tree or a random forest. Interpolating model scores by Kriging is a long-established way to produce a continuous surface, but Section~\ref{sec:hazard} shows its value depends on the spatial structure of the scores. Across the grid the terrain model outperformed the Kriged surface against observed flooding in all three flood regions.
+
+\subsection{Landslide susceptibility}
+
+Statistical landslide susceptibility modelling is a large field, and a review of 565 studies found that model performance is increasingly assessed but that uncertainty is rarely evaluated and top-quality assessments remain rare \citep{reichenbach2018}. Recent work in the Hill Tracts reports high accuracy, with a random forest trained on 730 landslide events reaching an AUC of 0.93 and classifying 78\,\% of the region as highly or very highly susceptible at an overall accuracy of 98\,\% \citep{hossain2025}. Gradient boosting and random forest trained on 170 locations in Chittagong Division reached 0.83 \citep{roy2025}, and hybrid classifiers for the Chattogram development area exceeded 90\,\% accuracy under current and projected climate \citep{islama2025}. A further study in Khagrachhari compared random forest, boosted regression trees and $k$-nearest neighbours \citep{hasanm2024}.
+
+The quality of the inventory limits all of these results, since larger positional errors in landslide points were generally associated with larger distortions of both the modelled relationships and the validation results \citep{steger2016}, and inventories biased towards landslides that damage infrastructure produce models that appear to perform well while encoding the bias rather than the geomorphology \citep{steger2021}. Background points drawn from outside the surveyed area have the same effect, which is why guidance on pseudo-absences stresses where they are sampled as much as how many \citep{barbetmassin2012}. The model in Section~\ref{sec:landslide} follows that guidance by drawing background points only from the inventory's footprint. Measured against this literature, the system's landslide model is weaker in one respect that matters. Its AUC of \CHTLSAUC{} is lower than the published figures, although it is scored on held-out blocks and they are not known to be, but it is also fitted to a single storm. Rabby and Li published a 730-landslide inventory for the Chittagong Hilly Areas covering January 2001 to March 2017, compiled from Google Earth interpretation, field mapping and literature \citep{rabby2019}, the same count as the inventory used by \citet{hossain2025}. Retraining on that multi-year inventory, or on its union with the COOLR points \citep{juang2019}, is the most direct improvement available, and rainfall thresholds of the kind used by the LHASA nowcasting model \citep{kirschbaum2018} would be needed before the surface could inform warnings.
+
+\subsection{Exposure and vulnerability}
+
+Composite indices that combine hazard, exposure and vulnerability are standard in risk assessment. The INFORM index combines its three dimensions, hazard and exposure, vulnerability, and lack of coping capacity, by geometric mean \citep{inform2017}. The composite here uses the same aggregation over a different split, with hazard and exposure kept separate and no coping-capacity term, so that no factor can fully compensate for the absence of another. At global scale about 27\,\% of road and railway assets are exposed to at least one hazard, and about 7.5\,\% to a 1-in-100-year flood \citep{koks2019}, which illustrates the kind of asset-level exposure analysis this system performs regionally. The exposure measure depends on OpenStreetMap, and its completeness is the most serious external limitation. Building footprints exceed 80\,\% completeness for 1,848 urban centres holding 16\,\% of the world's urban population, but fall below 20\,\% for 9,163 cities holding 48\,\% \citep{herfort2023}. That study measured urban areas, and the completeness of OpenStreetMap across rural Bangladesh has not been measured for this system. The infrastructure composite should therefore be read as mapped exposure, which is why areas with no mapped assets are reported as missing and not as safe (Section~\ref{sec:aggregation}).
+
+\section{Study area and data}
+
+\subsection{Regions}
+
+Four regions are configured, each with its own bounding box, data directory and, where appropriate, flood events for validation (Table~\ref{tab:regions}). The regions share one set of model settings through configuration inheritance, so a change to the shared settings reaches every region and results stay comparable. Three of the four estimate flood risk, while the fourth, the Chittagong Hill Tracts, fits a landslide susceptibility model because its dominant hazard is slope failure, not inundation (Fig.~\ref{fig:study}).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig_study_area.pdf}
+\caption{The four study regions, drawn as their configured bounding boxes over the district boundaries of geoBoundaries and tinted inside Bangladesh, blue for the three flood regions and orange for the landslide region. Neighbouring countries are from Natural Earth.}
+\label{fig:study}
+\end{figure}
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{llll}
+\toprule
+Region & Hazard & Bounding box (W, S, E, N) & Configuration \\
+\midrule
+Rangpur \& Rajshahi & riverine flood & 88.0, 24.0, 89.9, 26.7 & \fileref{config.yaml} \\
+Sylhet & flash flood & 90.6, 24.0, 92.7, 25.5 & \fileref{configs/sylhet.yaml} \\
+South-west coast & coastal and tidal flooding & 88.9, 21.5, 90.8, 23.2 & \fileref{configs/sw\_coastal.yaml} \\
+Chittagong Hill Tracts & rainfall-triggered landslide & 91.5, 21.5, 92.7, 23.5 & \fileref{configs/cht.yaml} \\
+\bottomrule
+\end{tabular}
+\caption{Configured study regions. All use UTM zone 46N (EPSG:32646) for distance and area calculations.}
+\label{tab:regions}
+\end{table*}
+
+\subsection{Data sources}
+
+Table~\ref{tab:data} lists every dataset the pipeline ingests, all under open licences. Administrative boundaries come from geoBoundaries instead of GADM because GADM forbids redistribution and therefore could not ship in the open data archive, and geoBoundaries also carries a union level, which GADM does not hold for Bangladesh. Two properties of these datasets shape what the results can say. OpenStreetMap coverage is uneven, so an area with few mapped assets shows low exposure whether or not much stands there, and the dashboard treats areas with no mapped assets as missing data and not as safe (Section~\ref{sec:aggregation}). WorldPop's constrained product carries values only where buildings were detected in imagery, so scattered rural settlement can be missed, and population exposure inherits that gap.
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabularx}{\textwidth}{lXll}
+\toprule
+Dataset & Use & Resolution & Licence \\
+\midrule
+OpenStreetMap & infrastructure assets (roads, bridges, schools, hospitals, shelters, embankments, cropland) & vector & ODbL 1.0 \\
+SRTM 1 arc-second & elevation, slope, topographic wetness, height above drainage, flow accumulation & 30\,m & public domain \\
+JRC Global Surface Water & historical water occurrence, one proxy-label vote & 30\,m & free with attribution \\
+WorldPop constrained 2020 & population density for vulnerability and population exposure & 100\,m & CC BY 4.0 \\
+geoBoundaries gbOpen & districts (ADM2), upazilas (ADM3), unions (ADM4) & vector & CC BY 4.0 \\
+NASA COOLR & mapped landslide locations, Chittagong Hill Tracts & point & open \\
+Sentinel-1 GRD (via Earth Engine) & observed flood extents for training labels and validation & 10\,m, exported at 100\,m & Copernicus open \\
+\bottomrule
+\end{tabularx}
+\caption{Datasets ingested by the pipeline. National files (WorldPop, geoBoundaries, JRC tiles) are downloaded once into a shared cache and clipped per region.}
+\label{tab:data}
+\end{table*}
+\section{Methods}
+\label{sec:chain}
+
+The pipeline runs as a chain of steps, each reading the previous step's outputs, and this section follows that chain in order. Figure~\ref{fig:chain} shows the stages and the data each one draws on.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_chain.pdf}
+\caption{The processing chain, top to bottom. Source counts are totals over the three flood regions, except the landslide inventory. Each asset enters the models as a vector of terrain, population, access-distance and asset-type features, with a label from the Sentinel-1 flood frequency. The asset model is expanded, with the graph network it replaced shown as the alternative it now is. Both models train on the same spatial blocks, and dashed connectors mark what the validation scores on the test blocks. In the Chittagong Hill Tracts a landslide model fitted to the COOLR inventory takes the place of the flood labels (Section~\ref{sec:landslide}).}
+\label{fig:chain}
+\end{figure*}
+\subsection{Infrastructure}
+
+Assets are fetched from the Overpass API by bounding box, in tiles of 0.75$^\circ$, and clipped to the region afterwards. Tiling avoids the timeouts that a query for a whole division produces, and a query refused by the Overpass server, which allows two connections per address, is retried with a growing pause, since the public mirrors tested either hung or refused connections. Three tag groups are requested, with lifeline assets covering hospitals, clinics, schools, colleges, shelters, bridges, embankments and dams, transport assets covering primary to trunk roads, railways and tagged bridges, and agricultural assets covering farmland, aquaculture, canals, ditches and marketplaces. Each feature is classified into one asset type from its tags and labelled with the district it falls in.
+
+\subsection{Terrain derivatives}
+
+The SRTM tiles covering the bounding box are merged, reprojected to UTM zone 46N and clipped. From the projected elevation model the pipeline derives slope, the topographic wetness index (TWI), height above nearest drainage (HAND) and D8 flow accumulation. Drainage cells for HAND are those above the 90th percentile of flow accumulation, and HAND is the elevation difference between each cell and the nearest drainage cell found by a distance transform. Both are vectorised, with the sequential part of flow accumulation compiled with numba.
+
+\subsection{Training labels}
+\label{sec:labels}
+
+Two label sources are supported, of which the proxy ensemble marks a pixel as flood-prone where at least two of three indicators agree, the indicators being TWI above 8, HAND below 5\,m, and JRC water occurrence above 25\,\%. The proxy ensemble has a limitation that the results must carry, because TWI and HAND are also inputs to the model, so a model trained on proxy labels can succeed by relearning the threshold rule, and its validation score then measures how well it recovers that rule and not how well it anticipates flooding. The observed source replaces the ensemble with flood extents mapped from Sentinel-1 radar during past floods (Section~\ref{sec:observed}), which are independent of the terrain features. Switching between the two is a single configuration setting, and the pipeline always writes the proxy labels too, so the two can be compared.
+
+\subsection{Flood extents from Sentinel-1}
+\label{sec:observed}
+
+Flood extents observed by radar supply both the training labels and the reference against which the flood models are scored. The pipeline maps flood extents from Sentinel-1 synthetic-aperture radar with Google Earth Engine, following the method recommended by UN-SPIDER. For each configured event the minimum VV backscatter during the flood window is compared against the median of a dry-season baseline from the same year, and a pixel is flagged as flooded where it is both dark in absolute terms (below $-16$\,dB) and at least 3\,dB darker than its baseline. Permanent water from the JRC occurrence layer, slopes above 5$^\circ$ where radar shadow mimics water, and specks smaller than eight connected pixels are removed. The masks of all events are averaged into a flood-frequency layer, and the run stops if any event has no imagery, so that an empty mask cannot pass as an absence of flooding.
+
+Five events are configured for Rangpur and Rajshahi, four for Sylhet and four cyclone landfalls for the south-west coast (Table~\ref{tab:events}). Each window was set from ReliefWeb situation reports and the source is recorded against the event in the region configuration, so a reader can check the dates and a later run can add events the same way. Figure~\ref{fig:frequency} shows the resulting flood-frequency layers.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/fig_flood_frequency.pdf}
+\caption{Share of the mapped Sentinel-1 events in which each 100\,m cell was flooded, for the three flood regions. Cells never seen flooded are left blank, and the removal of permanent water leaves the main river channels empty. Straight-edged bands follow the edges of radar swaths.}
+\label{fig:frequency}
+\end{figure*}
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+Region & Window & Basis \\
+\midrule
+Rangpur \& Rajshahi & 12--26 Aug 2017 & second monsoon flood from 12 August; Dinajpur, Kurigram, Lalmonirhat and Rangpur among the worst affected \\
+ & 12--26 Jul 2019 & rain from 9 July, Brahmaputra--Jamuna rising to 18 July, Kurigram more than 1\,m above danger level \\
+ & 11--31 Jul 2020 & second phase from 9--10 July, peak about 18 July, 27 basin gauges above danger into late July \\
+ & 28 Jun--16 Jul 2024 & northern floods from mid-June, Brahmaputra above danger at Nunkhawa, Hatia and Chilmari in early July \\
+ & 27 Sep--12 Oct 2024 & Teesta flooding of Lalmonirhat, Nilphamari, Kurigram and Rangpur from late September \\
+\midrule
+Sylhet & 30 Mar--20 Apr 2017 & haor flooding from 28 March, striking Sunamganj on 1 April \\
+ & 15--26 Jun 2022 & heavy rain from 15 June, situation worst from 17 June \\
+ & 16--28 Jun 2024 & 2.25 million affected in Sylhet, Sunamganj and Moulvibazar by 22 June \\
+ & 18--30 Aug 2024 & eastern floods from 20 August, including Moulvibazar and Habiganj \\
+\midrule
+South-west coast & 20--31 May 2020 & Cyclone Amphan, landfall 20 May \\
+ & 25 May--4 Jun 2021 & Cyclone Yaas, landfall 26 May \\
+ & 23 Oct--2 Nov 2022 & Cyclone Sitrang, landfall 24--25 October \\
+ & 26 May--5 Jun 2024 & Cyclone Remal, landfall 26--27 May \\
+\bottomrule
+\end{tabularx}
+\caption{Flood events mapped from Sentinel-1. Windows bracket the flood peak; the baseline for each is the February--March dry season of the same year (mid-January to March for the pre-monsoon haor event). Sources are ReliefWeb situation reports, cited in the configuration files.}
+\label{tab:events}
+\end{table*}
+
+\subsection{Features}
+
+For each asset the pipeline samples the five terrain rasters at its representative point, samples WorldPop density, and computes the distance in metres to the nearest hospital, school, flood shelter, road and irrigation channel. Asset type enters as a categorical code, all features are standardised to zero mean and unit variance, and the label is the flood-prone status of the ground under the asset. Sampling reprojects the query coordinates into each raster's coordinate system before reading it, and the pipeline stops if any feature comes out constant or if the labels contain a single class.
+
+\subsection{Asset model}
+\label{sec:gnn}
+
+The model that scores assets is a configuration setting, \texttt{asset\_model.type}, and the default is class-weighted gradient boosting over the asset features, at 300 boosting iterations with a learning rate of 0.1. That default follows from the comparison in Section~\ref{sec:benchmark}, which found ordinary tabular models matching or beating the graph network the system was built around. The graph network remains available, as a two-layer GraphSAGE with 64 hidden channels and dropout of 0.3, trained with a class-weighted loss and early stopping on the calibration blocks, and so do a random forest and logistic regression.
+
+Assets also form the nodes of a $k$-nearest-neighbour graph with $k=6$, where any pair further apart than 5\,km, measured in metres in the projected coordinate system, is left unconnected. Inverse-distance weights are stored with each edge, although the GraphSAGE mean aggregation does not use them, so every retained neighbour counts equally. Under the default model the edges carry nothing and the graph serves only to hold the features, labels and block assignment that every model shares.
+
+Validation holds out whole spatial blocks of 10\,km instead of random nodes, because neighbouring assets share terrain, so a random split leaves every validation node next to training nodes that carry almost the same features and label, and the resulting score measures memorisation rather than skill. Blocks are assigned at random with a fixed seed to three groups, with 80\,\% for training and the remainder split evenly between calibration and test. Early stopping and the isotonic calibration of the scores use the calibration blocks only, and every metric reported in this paper comes from the test blocks, which neither has seen. Isotonic regression returns the observed frequency of each level it fits, so a level holding a handful of calibration points that all flooded returns a probability of one. Each level is therefore shrunk by its Jeffreys estimate, $(k+0.5)/(n+1)$ for $k$ of $n$ points flooded, which leaves a level carrying many points almost unchanged and pulls a level carrying few back towards the middle. In Rangpur and Rajshahi the raw scores give a Brier score of \RRValBrier{} on the test blocks and the calibrated probabilities \RRValBrierCalibrated{}, against \RRValBrierBaseRate{} for always predicting the base rate, so the calibration corrects the inflated raw scores but adds little over the base rate. Flood prevalence differs from one set of blocks to another, which limits how far a calibration carries. In Rangpur and Rajshahi \RRCalibBlockRate{}\,\% of the assets in the calibration blocks sit on flood-prone ground against \RRTestBlockRate{}\,\% in the test blocks, and a calibration fitted on the first set therefore underestimates the second (Fig.~\ref{fig:calibration}). The calibrated value is best read as an approximate probability for the region as a whole, reliable in its ranking but not in its level for any one area.
+
+\subsection{Hazard surfaces}
+\label{sec:hazard}
+
+Two hazard surfaces are produced for every flood region, and the composite risk uses one of them according to the configuration setting \texttt{risk.hazard\_source}. The first is ordinary Kriging of the model scores at the asset locations, with a spherical variogram fitted on up to 3,000 points and a residual Kriging pass that adds back the score residuals at the nodes. How much it can say between assets depends on the spatial structure of the scores, which the fitted variogram reports. The nugget is the share of the variance that is unexplained at zero distance, and the mean Kriging variance over the full sill is the share the interpolation leaves unexplained on average. On the current runs the nugget is \RRNuggetSillRatio{} of the sill in Rangpur and Rajshahi and \SylhetNuggetSillRatio{} in Sylhet, and the mean Kriging variance is \RRKrigingSillRatio{} and \SylhetKrigingSillRatio{} of the sill respectively, so in both regions the interpolated surface smooths substantially towards the regional average. In Rangpur and Rajshahi its standard deviation across the grid is \RRKrigedGridSD{} against \RRTerrainGridSD{} for the terrain surface described next, and it varies smoothly over tens of kilometres where the terrain surface follows individual channels and levees (Fig.~\ref{fig:hazard}).
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.8\textwidth]{figures/fig_hazard_surfaces.pdf}
+\caption{The two flood hazard surfaces for Rangpur and Rajshahi, with district boundaries in white. The Kriged surface interpolates the asset model's scores between mapped assets and has a standard deviation of \RRKrigedGridSD{} across the grid. The terrain model scores each 30\,m cell from its own elevation, slope, TWI, HAND and flow accumulation, has a standard deviation of \RRTerrainGridSD{}, and reaches a cell-level AUC against observed flooding of \RRSurfaceTerrainObsAUC{}, against \RRSurfaceKrigedObsAUC{} for the Kriged surface.}
+\label{fig:hazard}
+\end{figure*}
+
+The second surface is a class-weighted logistic regression from each grid cell's own terrain, using elevation, slope, TWI, HAND and flow accumulation and nothing else, because distances to hospitals or roads describe exposure and vulnerability rather than the likelihood of flooding. It is trained at the asset locations on the same labels and the same spatial blocks as the asset model, and evaluated at every grid cell, so it varies at the resolution of the elevation model rather than at the spacing of mapped infrastructure. In Rangpur and Rajshahi it reaches an AUC of \RRHazardAUC{} on held-out blocks, and it is the default. The two surfaces can also be scored directly against observed flooding over every grid cell, not only at assets, and there the terrain surface reaches an AUC of \RRSurfaceTerrainObsAUC{} against \RRSurfaceKrigedObsAUC{} for the Kriged one. Both are written to the grid so the difference between them can be inspected. Because it is trained on the observed extents, it is a flood-probability surface fitted to what the radar saw. Were it trained on the proxy labels instead, the circularity described in Section~\ref{sec:labels} would apply with full force, and it would be no more than ground the ensemble calls flood-prone, smoothed into a probability.
+
+\subsection{Exposure}
+
+Exposure per cell is measured twice, because ``where is infrastructure at risk'' and ``where would people be affected'' are different questions with different answers. Infrastructure exposure is the type-weighted count of mapped assets in the cell, with hospitals and schools weighted at 0.20, bridges, roads and cropland at 0.15, shelters and embankments at 0.10 and other assets at 0.05, log-scaled to the unit interval. Population exposure is WorldPop density sampled at the cell centre, log-scaled the same way. Urban municipalities lead the first measure because that is where infrastructure is concentrated, while crowded floodplain settlements can lead the second.
+
+\subsection{Vulnerability}
+
+Vulnerability combines population density with the distance from the cell centre to the nearest hospital, flood shelter and primary road, each normalised so that a greater distance means greater vulnerability. The configuration lists further components, a night-light proxy and an elderly-and-child ratio, that have no data source yet. Components without data are excluded rather than filled with a constant, and the remaining weights renormalised, and the weights actually applied are written to the output directory alongside the results. For the current runs the four applied components are population density (0.40), distance to hospital (0.27), distance to shelter (0.20) and distance to road (0.13).
+
+\subsection{Composite risk}
+
+Composite risk is the geometric mean of hazard, exposure and vulnerability, which keeps the multiplicative logic, in which no exposure means no risk, while staying on the unit scale of its inputs. Two composites are written, one for each exposure measure, and both are carried through to the administrative summaries. Because the composite is bounded by its weakest factor it rarely approaches 1 even where risk is locally worst, so fixed cut-offs would place almost every cell in the lowest class. Cells are therefore also assigned relative classes 1 to 5 by quintile of the non-zero composite, the usual practice for susceptibility maps. Class 0 marks cells with no mapped exposure, which is an absence of data, not an absence of risk.
+
+\subsection{Aggregation}
+\label{sec:aggregation}
+
+Grid results are summarised for every union, upazila and district from geoBoundaries, and each summary carries the mean and maximum of both composites, counts of exposed assets by type, and a flag stating whether the unit holds any mapped assets at all, and units without mapped assets have their risk left undefined. In Rangpur and Rajshahi \RRNUnionsScored{} of the \RRNUnions{} unions hold mapped assets and carry a score. Unit names repeat across Bangladesh, so each unit also carries a label naming its parent, such as ``Abdullahpur (Gangachara)''. Hotspots are detected with the Getis--Ord $G_i^*$ statistic on $k=8$ nearest-neighbour weights, at 95\,\% confidence, over the cells that carry non-zero composite risk. Restricting the statistic to those cells keeps the weights matrix small enough to compute and avoids treating the empty majority of the grid as a sea of low values against which any occupied cell would look hot.
+
+\subsection{Validation design}
+\label{sec:design}
+
+Every model in the chain is scored on spatial blocks held out from training, and the same block assignment is shared by the asset model, the terrain hazard model and the landslide model within a region. Metrics are the area under the ROC curve, which measures ranking, average precision, which is more sensitive to the rare positive class, and the Brier score for calibration. Average precision is also reported as a lift over the base rate, because an average precision of 0.07 against a positive rate of 0.01 is a sevenfold improvement over chance while the same value against a rate of 0.10 is worse than chance.
+
+The validation step then answers three questions separately. Whether model scores rank assets that flooded above those that did not is measured on the held-out blocks. Whether the hazard surface agrees with observed flooding across the whole grid, and not only where assets happen to be, is measured by AUC and Spearman correlation over all cells. And how closely the proxy labels match observed flooding is measured with the categorical scores used in flood mapping, the probability of detection, false alarm ratio and critical success index, which quantifies what the proxy-trained models were learning.
+
+Held-out blocks separate training from testing in space but not in time, since the labels and the reference extents come from the same events. A temporal hold-out therefore tests the riverine and coastal models against a later flood. Each model is trained on labels from the events up to 2022, which are 2017, 2019 and 2020 in Rangpur and Rajshahi, 2017 and 2022 in Sylhet and the three cyclones from 2020 to 2022 on the coast, and it is scored against the extents of the 2024 events on the same held-out blocks, so that the test ground is new in both space and time. \pending{implement the temporal split in the pipeline, fix the event thresholds for the shorter training sets, and state them here.}
+
+Every metric that compares two models or two label sources is repeated over several block assignments drawn with different seeds, because a single assignment gives one number with no sense of its spread, and differences are tested by a paired comparison across assignments. \pending{raise the number of block assignments from \RRBenchSeeds{} to at least 20 and rerun, after which every figure in the text updates from the pipeline outputs.}
+
+\section{Landslide susceptibility}
+\label{sec:landslide}
+
+The Hill Tracts region fits a susceptibility model to an observed inventory rather than assuming one. Mapped landslide locations come from NASA's Cooperative Open Online Landslide Repository (COOLR), which over the region holds \CHTLandslides{} points, all from a manual inventory of the 6~August 2023 storm mapped from PlanetScope imagery \citep{juang2019}. A class-weighted logistic regression is fitted to the five terrain derivatives at those locations against \CHTBackground{} background points, twice the number of landslides, drawn at random from the area the inventory covers and at least 500\,m from any mapped landslide. Validation holds out the same 10\,km blocks as the flood models and gives an AUC of \CHTLSAUC{} and an average precision of \CHTLSAP{} against a validation positive rate of one in six. Two properties of the inventory bound what the map can claim, the first being that every point comes from one rainfall episode, so the surface describes which slopes failed in that storm, a guide to susceptibility but not a record of where landslides can occur, and the output metadata flags the inventory as single-event so that the dashboard can say so. The second is that the mapping covers only part of the region, so background points are drawn from the convex hull of the inventory, buffered by 5\,km, and not from the whole bounding box, because ground that was never mapped would otherwise enter the negative class and the model would learn the mapping footprint instead of the terrain.
+
+The standardised coefficients are written with the model for inspection, with TWI at \CHTCoefTwi{}, HAND at \CHTCoefHand{}, flow accumulation at \CHTCoefFlowAcc{}, elevation at \CHTCoefElevation{} and slope at \CHTCoefSlope{}. The five predictors are strongly collinear, since TWI is itself computed from flow accumulation and slope, so individual coefficients describe the fit and not physical causation, the near-zero coefficient on slope should not be read as slope being unimportant, and the validation score is the number that carries the result. Per-upazila statistics come from zonal statistics over the geoBoundaries upazilas reprojected into the raster's coordinate system, and a run in which no unit overlaps the raster stops with an error instead of writing a table of zeros.
+
+\section{Results}
+\label{sec:validation}
+
+\subsection{Held-out results}
+
+Table~\ref{tab:validation} reports the asset model and the terrain hazard model for each flood region, and the landslide model for the Hill Tracts. Scores are against the observed extents on which every flood region is trained (Section~\ref{sec:observed}). The two riverine regions differ in how common flood-prone ground is under mapped assets. In Sylhet \SylhetLabelRate{}\,\% of assets sit on ground the radar saw flood and the asset model reaches an AUC of \SylhetValAUC{}. In Rangpur and Rajshahi \RRLabelRate{}\,\% do, the model ranks well (AUC \RRValAUC{}) and its average precision of \RRValAP{} is a lift of \RRValAPLift{} over the base rate, and the terrain surface carries the spatial detail that the Kriged surface smooths away.
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{lrrrrrr}
+\toprule
+Region & Assets & Positive rate & Asset AUC & Asset AP & Brier & Terrain AUC \\
+\midrule
+Rangpur \& Rajshahi & \RRAssets{} & \RRLabelRate{}\,\% & \RRValAUC{} & \RRValAP{} & \RRValBrier{} & \RRHazardAUC{} \\
+Sylhet & \SylhetAssets{} & \SylhetLabelRate{}\,\% & \SylhetValAUC{} & \SylhetValAP{} & \SylhetValBrier{} & \SylhetHazardAUC{} \\
+South-west coast & \CoastalAssets{} & \CoastalLabelRate{}\,\% & \CoastalValAUC{} & \CoastalValAP{} & \CoastalValBrier{} & \CoastalHazardAUC{} \\
+\midrule
+Chittagong Hill Tracts & \CHTLandslides{} slides & 16.7\,\% & \multicolumn{2}{c}{landslide AUC \CHTLSAUC{}, AP \CHTLSAP{}} & -- & -- \\
+\bottomrule
+\end{tabular}
+\caption{Validation on held-out 10\,km test blocks, for the single block assignment behind the published outputs. Positive rate is the share of assets on ground the radar saw flood in the required number of events. The Brier score is that of the raw class-weighted scores, and the calibrated probabilities are reported in Section~\ref{sec:gnn}. Means over repeated assignments, which are lower, are in Table~\ref{tab:benchmark}.}
+\label{tab:validation}
+\end{table*}
+
+\subsection{Observed extents against terrain labels}
+\label{sec:labelresult}
+
+The comparison of the proxy labels with observed flooding shows what they do and do not capture. In Rangpur and Rajshahi the terrain ensemble captures \RRProxyPOD{} of the ground that flooded in at least \RRMinEvents{} of the five events (probability of detection), with a false alarm ratio of \RRProxyFAR{} and a critical success index of \RRProxyCSI{}, and it marks \RRProxyShare{}\,\% of the region as flood-prone where the radar saw \RRObservedShare{}\,\% flood that often, so as a map it is a much smaller set than the flooding that occurred. A model trained on it still ranks above chance, because terrain wetness orders ground by flood-proneness even where the thresholded labels miss the flood itself, but it pays for the labels it was given. Retrained on the proxy labels and scored on the same held-out blocks against the same observed definition, over \RRBenchSeeds{} block assignments, it reaches an AUC of \RRLabelProxyAUC{} in Rangpur and Rajshahi against \RRLabelObsAUC{} for observed labels, a gap of \RRLabelGap{} on every assignment ($p<0.001$). Sylhet gives \SylhetLabelProxyAUC{} against \SylhetLabelObsAUC{}, and the coast \CoastalLabelProxyAUC{} against \CoastalLabelObsAUC{}, where the difference of \CoastalLabelGap{} is the least certain at $p=\CoastalLabelGapP{}$ (Fig.~\ref{fig:roc}).
+
+The models are consequently trained on the observed extents, with a pixel labelled flood-prone where it flooded in at least two of the five mapped events in Rangpur and Rajshahi and Sylhet, and in at least one of the four cyclone windows on the coast, where surge flooding drains within days and the six-to-twelve-day Sentinel-1 revisit leaves too few pixels flooded twice to train on. Validation on held-out blocks against the same definition gives an AUC of \RRObsAUC{} and a precision lift of \RRObsAPLift{} in Rangpur and Rajshahi, \SylhetObsAUC{} and \SylhetObsAPLift{} in Sylhet, and \CoastalObsAUC{} and \CoastalObsAPLift{} on the coast. The same model trained on proxy labels instead trails it by between \CoastalLabelGap{} and \RRLabelGap{} in AUC, averaged over the \RRBenchSeeds{} block assignments (Fig.~\ref{fig:roc}).
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_roc.pdf}
+\caption{ROC curves on the held-out test blocks of each flood region, scored against the observed definition of flood-prone ground. Both curves come from the default gradient-boosted model on one block assignment, sharing features and blocks and differing only in their training labels. The dotted diagonal is a random ranking, and $n$ is the number of assets in the test blocks.}
+\label{fig:roc}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_calibration.pdf}
+\caption{Reliability of the flood model on the test blocks, with assets grouped into deciles of each prediction. The raw class-weighted score overstates the likelihood of flooding. The isotonic calibration corrects most of that overstatement but was fitted on other blocks, and where the test blocks hold more flood-prone ground than the calibration blocks, as in Rangpur and Rajshahi (\RRTestBlockRate{}\,\% against \RRCalibBlockRate{}\,\%), its top deciles lie above the diagonal and understate the flooding observed.}
+\label{fig:calibration}
+\end{figure*}
+
+\subsection{The south-west coast}
+
+The south-west coast behaves differently from the two riverine regions. The asset model still ranks the ground that flooded above the ground that did not, with an AUC of \CoastalObsAUC{} and a precision lift of \CoastalObsAPLift{}, but across the whole grid neither hazard surface does better than chance, the terrain surface scoring \CoastalSurfaceTerrainObsAUC{} and the Kriged one \CoastalSurfaceKrigedObsAUC{}. Surge flooding is governed by polder embankments, tidal channels and where a storm makes landfall, none of which the elevation-derived predictors describe, so the coastal hazard layer should not be read as a map of surge exposure, and a coastal model would need embankment and tide data that the pipeline does not yet ingest. Two caveats apply to the radar extents themselves. Inundated paddy is open water to a radar and is counted as flooding, which is one reason the two-event threshold is preferred where the data allow it. And the minimum-backscatter composite over a window of two weeks records the largest extent reached at any pass in the window, not the extent on any one day.
+
+\subsection{Transfer to the 2024 floods}
+\label{sec:temporal}
+
+\pending{results of the temporal hold-out of Section~\ref{sec:design}: AUC and precision lift of the models trained on events up to 2022, scored against the 2024 extents on held-out blocks, for each flood region, set beside the spatial-only scores of Table~\ref{tab:validation}.}
+
+\subsection{Model comparison}
+\label{sec:benchmark}
+
+A score means little without something to compare it against, so a graph neural network, the design this system began with, is set against ordinary models that see the same standardised features at the same assets and are trained and scored on the same blocks. The comparison covers class-weighted logistic regression, a random forest and gradient boosting, with the topographic wetness index alone as a model-free reference. Every model is refitted on \RRBenchSeeds{} block assignments drawn with different seeds, because one assignment gives a single number with no sense of how much of any gap is noise, and Table~\ref{tab:benchmark} reports the mean and standard deviation across those assignments (Fig.~\ref{fig:benchmark}).
+
+The graph structure does not pay for itself. In Rangpur and Rajshahi the graph network averages \RRBenchGraphAUC{} against \RRBenchBoostingAUC{} for gradient boosting, trailing the best baseline by \RRBenchGap{} in AUC ($p=\RRBenchDiffP{}$, paired across assignments) and losing on all \RRBenchSeeds{} of them. In Sylhet it averages \SylhetBenchGraphAUC{} against \SylhetBenchForestAUC{} for the random forest, behind by \SylhetBenchGap{} ($p=\SylhetBenchDiffP{}$) and ahead on \SylhetBenchAhead{} assignment of \SylhetBenchSeeds{}. Only on the south-west coast does it lead, by \CoastalBenchGap{} over logistic regression, which at $p=\CoastalBenchDiffP{}$ is indistinguishable from no difference. The wetness index alone ranks little better than chance everywhere, at \RRBenchTwiAUC{} in Rangpur and Rajshahi and \SylhetBenchTwiAUC{} in Sylhet, so the combination of features carries the signal and an ordinary tabular model extracts it at least as well as the graph does. Gradient boosting is consequently the default model, and the results reported elsewhere in this paper come from it, with the graph network kept as a configuration option rather than as the method. One region pays for that uniformity. On the south-west coast, where the two are statistically tied, the assignment behind the published outputs gives \CoastalValAUC{} for the tree where the graph network gave 0.839, a difference well inside the spread between assignments. Choosing a different model for each region would fit the model to the split as well as to the region, so a single default is kept and the coastal figure is reported as it falls.
+
+The spread across assignments also governs how the other numbers in this paper should be read. The default model's AUC varies by \RRBenchBoostingSD{} in Rangpur and Rajshahi, \SylhetBenchBoostingSD{} in Sylhet and \CoastalBenchBoostingSD{} on the coast from one assignment to the next. Several differences this paper reports are of that size, so each is quoted with the assignments behind it, and every figure that comes from the single assignment behind the published outputs, including those in Table~\ref{tab:validation}, should be read as one draw from a distribution of that width rather than as a fixed property of the system.
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+Model & Rangpur \& Rajshahi & Sylhet & South-west coast \\
+\midrule
+Graph model (GraphSAGE) & \RRBenchGraphAUC{} $\pm$ \RRBenchGraphSD{} & \SylhetBenchGraphAUC{} $\pm$ \SylhetBenchGraphSD{} & \CoastalBenchGraphAUC{} $\pm$ \CoastalBenchGraphSD{} \\
+Gradient boosting & \RRBenchBoostingAUC{} $\pm$ \RRBenchBoostingSD{} & \SylhetBenchBoostingAUC{} $\pm$ \SylhetBenchBoostingSD{} & \CoastalBenchBoostingAUC{} $\pm$ \CoastalBenchBoostingSD{} \\
+Random forest & \RRBenchForestAUC{} $\pm$ \RRBenchForestSD{} & \SylhetBenchForestAUC{} $\pm$ \SylhetBenchForestSD{} & \CoastalBenchForestAUC{} $\pm$ \CoastalBenchForestSD{} \\
+Logistic regression & \RRBenchLogisticAUC{} $\pm$ \RRBenchLogisticSD{} & \SylhetBenchLogisticAUC{} $\pm$ \SylhetBenchLogisticSD{} & \CoastalBenchLogisticAUC{} $\pm$ \CoastalBenchLogisticSD{} \\
+Wetness index alone & \RRBenchTwiAUC{} $\pm$ \RRBenchTwiSD{} & \SylhetBenchTwiAUC{} $\pm$ \SylhetBenchTwiSD{} & \CoastalBenchTwiAUC{} $\pm$ \CoastalBenchTwiSD{} \\
+\midrule
+Graph minus best baseline & \RRBenchDiff{} & \SylhetBenchDiff{} & \CoastalBenchDiff{} \\
+\bottomrule
+\end{tabular}
+\caption{AUC on held-out test blocks, as mean $\pm$ standard deviation over \RRBenchSeeds{} block assignments. Every model sees the same features at the same assets and the same blocks, so the only difference is the model. The last row is the paired difference between the graph network and whichever other model scores best in that region. Gradient boosting is the system's default.}
+\label{tab:benchmark}
+\end{table*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_benchmark.pdf}
+\caption{AUC of each model on the held-out test blocks, one circle per block assignment and a vertical bar at the mean. The graph network is in blue, the other models in orange, and the dotted line marks a random ranking. The graph network sits inside the range of the ordinary models in every region.}
+\label{fig:benchmark}
+\end{figure*}
+
+\subsection{Weight sensitivity}
+\label{sec:sensitivity}
+
+The composite risk rests on weights that were chosen rather than measured, so the ranking it produces is recomputed under other defensible choices and compared with the published one by Spearman correlation and by the share of the top decile of cells that stays in the top decile. Weighting every asset type equally leaves the ordering almost unchanged, at $\rho=\RRSensEqualTypesRho{}$ in Rangpur and Rajshahi and $\rho=\CoastalSensEqualTypesRho{}$ on the coast, and so does weighting the vulnerability components equally. Doubling the exposure exponent in the geometric mean gives $\rho=\RRSensExposureDoubleRho{}$ while moving a quarter of the top decile, and multiplying every chosen weight by a random factor between 0.5 and 1.5, over \RRSensDraws{} draws, gives a mean $\rho$ of \RRSensRandomRho{} in Rangpur and Rajshahi, \SylhetSensRandomRho{} in Sylhet and \CoastalSensRandomRho{} on the coast, with \RRSensRandomTop{} of the top decile retained.
+
+One choice does matter. Reducing vulnerability to population density alone, which discards the distances to hospitals, shelters and roads, drops the correlation to \RRSensPopOnlyRho{} in Rangpur and Rajshahi and \CoastalSensPopOnlyRho{} on the coast, so the access distances rather than population drive the vulnerability term. The ordering of cells is therefore not an artefact of the particular weights, while the boundary of the top class is soft enough that a cell just inside it and a cell just outside should be treated alike.
+
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Labels and validation decide the accuracy figure}
+
+The label source is the result that bears most directly on published flood maps. A model trained on terrain-threshold labels and scored against observed flooding on the same held-out blocks lost \RRLabelGap{} in AUC in Rangpur and Rajshahi and \SylhetLabelGap{} in Sylhet, on every block assignment, while on the coast the difference of \CoastalLabelGap{} could not be distinguished from noise ($p=\CoastalLabelGapP{}$). The wetness index on its own, a common predictor in the studies of Table~\ref{tab:litflood}, ranked flood-prone assets at \RRBenchTwiAUC{} in Rangpur and Rajshahi and \SylhetBenchTwiAUC{} in Sylhet, close to chance, which means the signal lies in the combination of features rather than in any single terrain threshold. A model scored against labels derived from the same terrain it takes as input can succeed by relearning the labelling rule, and its score then measures recovery of that rule rather than skill at locating floods.
+
+The AUCs reported here, between \RRObsAUC{} and \SylhetObsAUC{} for the riverine regions, sit below the 0.88 to 0.96 reported by the studies in Table~\ref{tab:litflood}. The comparison is only indicative, since those studies differ in extent, inventory and model, and their splits are mostly not stated. The gap need not mean a weaker model, because every figure here comes from 10\,km blocks the model never saw, scored against flooding the radar recorded, and is averaged over several block assignments whose spread, between \SylhetBenchBoostingSD{} and \RRBenchBoostingSD{} in AUC, is as large as several of the differences reported here. Holding out whole areas has its own critics, who argue that it can force a model to extrapolate and so overstate error \citep{roberts2017}, and that it is no substitute for a probability sample of the finished map \citep{wadoux2021}. The blocked scores therefore estimate performance on unseen areas of similar terrain, and they are not design-based measures of map accuracy. \pending{extend this paragraph once the literature has been checked against full texts.}
+
+\subsection{What the graph did not add}
+
+A graph neural network was the starting design of this system, on the reasoning that neighbouring assets flood together and a model that shares information between them should rank them better. On identical features, assets and blocks it trailed gradient boosting by \RRBenchGap{} in AUC in Rangpur and Rajshahi ($p=\RRBenchDiffP{}$) and the random forest by \SylhetBenchGap{} in Sylhet, and it tied on the coast. A likely reason, not tested here, is that the features already carry the spatial information the graph was meant to supply, since assets that are close together share terrain, wetness and distances to the same roads and shelters, and a tree can split on those values directly. Interpolating the model's scores by Kriging failed for a related reason, with the terrain surface scored cell by cell outperforming the Kriged surface against observed flooding in all three regions (\RRSurfaceTerrainObsAUC{} against \RRSurfaceKrigedObsAUC{} in Rangpur and Rajshahi), because Kriging smooths the scores over tens of kilometres while flooding follows individual channels and levees. At this scale and with these features, neither linking assets into a graph nor interpolating between them improved spatial prediction, and studies proposing either should report the tabular baseline on the same blocks.
+
+\subsection{Where the maps should not be trusted}
+
+The coast is the clearest limit. There the asset model still ranks flooded ground above dry ground, but neither hazard surface does better than chance across the grid, because surge flooding is governed by polder embankments, tidal channels and landfall position, none of which the elevation-derived predictors describe. A coastal model would need embankment and tide data that the pipeline does not yet ingest, and until then the coastal composite should not be read as a map of surge exposure.
+
+Exposure depends on OpenStreetMap, whose completeness across rural Bangladesh has not been measured, and composite risk is defined only where assets are mapped, which in Rangpur and Rajshahi is 7\,\% of grid cells. Units without mapped assets are therefore left undefined, since sparse mapping would otherwise read as low risk. The infrastructure composite rises with asset density and is led by urban municipalities, so it measures infrastructure at risk, and risk to people is carried by the population composite. Vulnerability rests on population density and three access distances, so income, housing quality and age structure are not represented, and WorldPop's constrained product misses settlement outside detected buildings.
+
+Two caveats concern the flood labels themselves. Inundated paddy is open water to radar and is counted as flooding, which is one reason the riverine labels require flooding in at least two events, and the minimum-backscatter composite over a two-week window records the largest extent reached at any pass in the window. The calibrated probabilities approximate likelihoods for a region as a whole and understate them where flood-prone ground is concentrated, as the shift in prevalence between calibration and test blocks showed (Fig.~\ref{fig:calibration}). None of the surfaces is a forecast, the scores describe typical monsoon conditions and give no probability of flooding in a given year, and warnings remain the task of the Flood Forecasting and Warning Centre and the Bangladesh Meteorological Department. The landslide surface describes which slopes failed in one storm, and retraining on the multi-year inventory of \citet{rabby2019} is the most direct improvement available.
+
+\section{Conclusions}
+\label{sec:conclusions}
+
+Training on flood extents observed by Sentinel-1 raised the AUC over terrain-threshold labels by \RRLabelGap{} in Rangpur and Rajshahi and \SylhetLabelGap{} in Sylhet, on ground the models had never seen. This is the finding with the widest consequence, because it bears on how any susceptibility map trained and scored against terrain-derived labels should be read. A gradient-boosted tree matched or beat a graph neural network in every region, so the features rather than the architecture carried the signal. The terrain hazard surface followed observed flooding in the riverine regions and failed on the coast, where surge depends on structures that elevation does not record. \pending{one sentence on transfer to the 2024 floods.} Every figure in this paper is generated from the pipeline outputs, and the data, code and dashboard are released so that each can be checked and rebuilt.
+
+\section*{Data and code availability}
+
+The pipeline, region configurations, dashboard and test suite are available at \url{https://github.com/rakibhhridoy/rimes-mapathon} under the MIT licence. Input data and outputs for all four regions are packaged per region with a manifest of checksums and licences at \url{https://doi.org/10.5281/zenodo.19233968}. \pending{publish the new version of the Zenodo archive, which replaces GADM with geoBoundaries, and cite its version DOI here.} Every figure in this paper is written into the text by the analysis scripts in the code repository directly from the pipeline outputs, so a rerun of the pipeline updates text and results together. The results are published through an open dashboard at \url{https://fermium.systems/hazmapper}, which shows the risk maps, rankings and per-unit summaries without a sign-in and states the limitations of Section~\ref{sec:discussion} beside the maps. An earlier technical report on this system, prepared for the RIMES Mapathon in March 2026, contained errors that were found in a later review, the most serious being a coordinate-system error that left every training label at zero. Each error and its correction is listed in the technical documentation in the code repository, and no result of that report is used here.
+
+\section*{Declarations}
+
+\pending{author contributions (CRediT roles for each author), funding statement, and competing interests. Md Rakib Hasan is affiliated with Fermium Systems, which hosts the dashboard, and this should be declared.}
+
+\section*{Acknowledgements}
+
+Infrastructure data are \copyright{} OpenStreetMap contributors, under the Open Database Licence. Population data are from WorldPop, University of Southampton, CC BY 4.0. Administrative boundaries are from geoBoundaries, William \& Mary geoLab, CC BY 4.0. Neighbouring country outlines in Figure~\ref{fig:study} are from Natural Earth, in the public domain. Surface-water occurrence is from the Joint Research Centre of the European Commission \citep{pekel2016}. Elevation is from the NASA Shuttle Radar Topography Mission. Landslide locations are from NASA's Cooperative Open Online Landslide Repository \citep{juang2019}. Sentinel-1 data are from the Copernicus programme of the European Union. The original system was developed by Team Fermium, Shoumik Zubyer, Md Rakib Hasan and Fazla Zawadul Arabi, for the RIMES Mapathon, ResilienceAI track.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

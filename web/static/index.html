@@ -3,20 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Relative, so nginx can serve the app under any path. -->
+<base href="./">
 <title>Fermium Hazard Mapper</title>
 <meta name="description" content="Flood risk to mapped infrastructure and landslide susceptibility in Bangladesh, validated against observed floods.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
-<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
 
 <!-- Sidebar: identity, provenance, layers, filters -->
 <aside id="sidebar">
   <header class="brand">
-    <img src="/fermium_dark.png" alt="Fermium Systems" height="30">
+    <img src="fermium_dark.png" alt="Fermium Systems" height="30">
   </header>
 
   <section class="identity">
@@ -98,6 +100,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pmtiles@3.2.1/dist/pmtiles.js"></script>
-<script src="/app.js" type="module"></script>
+<script src="app.js" type="module"></script>
 </body>
 </html>

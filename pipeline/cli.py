@@ -536,11 +536,12 @@ def validate(ctx):
 # ---------------------------------------------------------------------------
 @cli.command()
 @click.option("--seeds", default=None,
-              help="Comma-separated block-split seeds (default: five seeds).")
+              help="Comma-separated block-split seeds (default: twenty seeds).")
 @click.pass_context
 def benchmark(ctx, seeds):
     """Compare the graph model with tabular baselines over repeated splits."""
-    from pipeline.benchmark import SEEDS, run_benchmark, run_label_comparison
+    from pipeline.benchmark import (SEEDS, run_benchmark, run_label_comparison,
+                                    run_temporal_holdout)
 
     cfg = ctx.obj["config"]
     chosen = tuple(int(s) for s in seeds.split(",")) if seeds else SEEDS
@@ -549,6 +550,14 @@ def benchmark(ctx, seeds):
                             _infra_path(cfg), seeds=chosen)
     labels = run_label_comparison(cfg, _dir(cfg, "processed"), _dir(cfg, "output"),
                                   _infra_path(cfg), seeds=chosen)
+    if (cfg.get("data", {}).get("labels", {}) or {}).get("source") == "observed":
+        temporal = run_temporal_holdout(cfg, _dir(cfg, "processed"), _dir(cfg, "raw"),
+                                        _dir(cfg, "output"), _infra_path(cfg),
+                                        seeds=chosen)
+        t = temporal["summary"].get("temporal") or {}
+        if t:
+            click.echo(f"trained to {temporal['cutoff_year']}, scored on "
+                       f"{', '.join(temporal['test_events'])}: AUC {t['auc_mean']:.3f}")
     gap = labels["summary"].get("observed_minus_proxy") or {}
     if gap:
         click.echo(f"observed minus proxy labels: {gap['mean']:+.3f} AUC "
