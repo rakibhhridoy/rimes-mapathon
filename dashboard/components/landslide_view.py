@@ -122,14 +122,13 @@ def _map(region: str, cfg: dict):
     dash = cfg.get("dashboard", {})
     m = folium.Map(location=dash.get("map_center", [22.5, 92.1]),
                    zoom_start=dash.get("map_zoom", 9), tiles=None,
-                   control_scale=True)
+                   control_scale=False)
     fill_frame(folium, m)
-    _add_base_layers(folium, m)
+    _add_base_layers(folium, m, st.session_state.get('basemap', 'Light'))
     folium.raster_layers.ImageOverlay(
         image=f"data:image/png;base64,{overlay['image_base64']}",
         bounds=overlay["bounds"], name="Landslide susceptibility", opacity=0.65,
     ).add_to(m)
-    folium.LayerControl(collapsed=True).add_to(m)
 
     m.get_root().html.add_child(folium.Element(
         '<div style="position:fixed;bottom:26px;right:10px;z-index:9999;'

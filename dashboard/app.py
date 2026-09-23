@@ -184,31 +184,31 @@ st.markdown(f"""
     /* Glassmorphism KPI strip */
     .kpi-strip {{
         display: flex;
-        gap: 12px;
-        margin-bottom: 16px;
-        overflow-x: auto;
-        padding: 4px 0;
+        flex-direction: column;
+        gap: 2px;
     }}
     .kpi-item {{
-        flex: 1;
-        min-width: 104px;
-        background: rgba(255,255,255,0.92);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(42,120,214,0.22);
-        border-radius: 12px;
-        padding: 14px 16px;
-        text-align: center;
-        box-shadow: 0 4px 20px rgba(15,23,42,0.06), inset 0 1px 0 rgba(15,23,42,0.03);
-        transition: all 0.25s ease;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        border: none;
+        border-bottom: 1px solid {BORDER};
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        padding: 5px 2px;
+        text-align: left;
+        transition: none;
     }}
+    .kpi-item:last-child {{ border-bottom: none; }}
     .kpi-item:hover {{
         border-color: rgba(42,120,214,0.45);
         box-shadow: 0 4px 24px rgba(42,120,214,0.14), inset 0 1px 0 rgba(15,23,42,0.04);
         transform: translateY(-1px);
     }}
     .kpi-item .kpi-val {{
-        font-size: 1.6rem;
+        font-size: 1.05rem;
         font-weight: 700;
         color: {ACCENT};
         line-height: 1;
@@ -219,7 +219,8 @@ st.markdown(f"""
         color: {TEXT2};
         text-transform: uppercase;
         letter-spacing: 0.6px;
-        margin-top: 5px;
+        margin-top: 0;
+        text-align: right;
         font-family: 'Inter', sans-serif;
         font-weight: 500;
     }}
@@ -388,45 +389,55 @@ st.markdown(f"""
         box-shadow: 0 6px 24px rgba(15,23,42,0.10);
     }}
     .st-key-fm_title, .st-key-fm_controls, .st-key-fm_pills,
-    .st-key-fm_kpis, .st-key-fm_detail, .st-key-fm_sheet {{
+    .st-key-fm_kpis, .st-key-fm_detail, .st-key-fm_sheet,
+    .st-key-fm_basemap, .st-key-fm_notice {{
         z-index: 600;
     }}
+    /* Identity sits at the foot of the map, centred. */
     .st-key-fm_title {{
-        position: absolute; top: 14px; left: 16px; width: 320px; right: auto;
+        position: absolute; bottom: 18px; left: 50%; right: auto;
+        transform: translateX(-50%); width: 400px; text-align: center;
     }}
+    /* Search and region, centred at the top. */
     .st-key-fm_controls {{
         position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
-        width: min(430px, 34vw);
+        width: min(460px, 38vw);
     }}
-    /* Panel switcher: a vertical stack centred on the right edge */
+    /* Basemap buttons, top left. */
+    .st-key-fm_basemap {{
+        position: absolute; top: 14px; left: 16px; width: 296px;
+    }}
+    .st-key-fm_basemap [data-testid="stButton"] button {{
+        font-size: 11.5px; padding: 3px 10px; min-height: 0;
+    }}
+    /* Panels open from the foot of the left edge. */
     .st-key-fm_pills {{
-        position: absolute; top: 50%; right: 16px; left: auto;
-        transform: translateY(-50%); width: auto; z-index: 800;
+        position: absolute; bottom: 18px; left: 16px; top: auto; right: auto;
+        transform: none; width: auto;
     }}
     .st-key-fm_pills [data-testid="stButton"] button {{
-        width: 168px; justify-content: flex-start;
+        width: 176px; justify-content: flex-start;
         font-size: 12px; padding: 6px 12px;
     }}
+    /* Counters run down the right edge. */
     .st-key-fm_kpis {{
-        position: absolute; bottom: 26px; left: 16px; right: 16px;
+        position: absolute; top: 50%; right: 16px; bottom: auto; left: auto;
+        transform: translateY(-50%); width: 176px; padding: 10px 12px;
     }}
     .st-key-fm_detail {{
-        position: absolute; bottom: 140px; left: 16px; width: 360px;
-        max-height: 56vh; overflow-y: auto; z-index: 650;
+        position: absolute; bottom: 150px; left: 16px; width: 360px;
+        max-height: 52vh; overflow-y: auto; z-index: 650;
     }}
-    /* An open panel takes the whole map area; the title and region picker
-       stay above it so you can still see and change where you are. */
-    .st-key-fm_sheet {{
-        position: absolute; inset: 0; width: 100%; height: 100vh;
-        overflow-y: auto; z-index: 700;
-        background: {BG2};
-        /* right padding clears the button stack floating over the panel */
-        padding: 112px 208px 40px 28px;
+    /* What the map is actually showing, above the identity card. */
+    .st-key-fm_notice {{
+        position: absolute; bottom: 146px; left: 50%;
+        transform: translateX(-50%); width: auto; max-width: 460px;
+        padding: 5px 12px;
     }}
-    .st-key-fm_title, .st-key-fm_controls {{ z-index: 800; }}
     /* Glass treatment for the floating containers themselves */
     .st-key-fm_title, .st-key-fm_controls, .st-key-fm_pills,
-    .st-key-fm_kpis, .st-key-fm_detail {{
+    .st-key-fm_kpis, .st-key-fm_detail, .st-key-fm_notice,
+    .st-key-fm_basemap {{
         background: rgba(255,255,255,0.93);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
@@ -550,10 +561,16 @@ def main():
     filtered, layers = render_sidebar(region, infra)
 
     sheet_slot = st.empty()
+    notice_slot = st.empty()
+    _floating_basemap()
     _floating_title(region, cfg)
+    st.session_state.map_capped = False
     _render_map_view(region, filtered, union_gdf, hotspot_gdf, cfg, layers)
     if not panel:
         _floating_kpis(filtered)
+        _floating_notice(notice_slot)
+    else:
+        notice_slot.empty()
 
     if st.session_state.get("selected_asset"):
         with st.container(key="fm_detail"):
@@ -646,7 +663,40 @@ def _floating_title(region: str, cfg: dict):
               or an official warning. For warnings use FFWC and BMD; in an
               emergency dial 999.</div>
             </div>
+            <div style="color:#6b7a91;font-size:9px;margin-top:7px;
+                        letter-spacing:0.02em;">
+              Map data &copy; OpenStreetMap contributors &middot; Tiles &copy; Esri
+            </div>
             """,
+            unsafe_allow_html=True,
+        )
+
+
+def _floating_basemap():
+    """Basemap buttons, top left, replacing Leaflet's own layer box."""
+    from dashboard.components.map_view import BASEMAPS
+
+    current = st.session_state.get("basemap", "Light")
+    with st.container(key="fm_basemap"):
+        columns = st.columns(len(BASEMAPS), gap="small")
+        for column, name in zip(columns, BASEMAPS):
+            with column:
+                if st.button(name, key=f"base_{name}", use_container_width=True,
+                             type="primary" if name == current else "secondary"):
+                    st.session_state.basemap = name
+                    st.rerun()
+
+
+def _floating_notice(slot):
+    """What the map is actually showing, above the identity card."""
+    if not st.session_state.get("map_capped"):
+        slot.empty()
+        return
+    with slot.container(key="fm_notice"):
+        st.markdown(
+            f'<div style="color:{TEXT2};font-size:10.5px;text-align:center;">'
+            "Showing the 2,000 highest-scoring assets of the current filter"
+            "</div>",
             unsafe_allow_html=True,
         )
 

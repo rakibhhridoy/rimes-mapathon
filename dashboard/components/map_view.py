@@ -261,7 +261,10 @@ def fill_frame(folium, m):
         "<style>html,body,#root{height:100%!important;margin:0;padding:0}"
         ".float-container,.float-child,#map_div,.folium-map,"
         ".leaflet-container{height:100%!important;width:100%!important}"
-        "</style>"
+        # Credits and scale are drawn by the page instead, so the map keeps
+        # its whole surface for data.
+        ".leaflet-control-attribution,.leaflet-control-scale{"
+        "display:none!important}</style>"
     ))
     m.get_root().html.add_child(folium.Element(
         "<script>(function(){function fit(){for(var k in window){"
@@ -273,22 +276,29 @@ def fill_frame(folium, m):
     ))
 
 
-def _add_base_layers(folium, m):
-    # Positron first: a light grey basemap lets the coloured markers carry
-    # the signal instead of competing with the tiles.
-    folium.TileLayer(
-        tiles=theme.TILE_URL, attr=theme.TILE_ATTR, name="Light",
-    ).add_to(m)
-    # The alternatives are added switched off. Leaflet draws base layers in
-    # the order they arrive, so without this the last one added covers the
-    # rest and the map always opened on satellite imagery.
-    folium.TileLayer("OpenStreetMap", name="OpenStreetMap", attr=OSM_ATTR,
-                     show=False).add_to(m)
-    folium.TileLayer(
-        tiles="https://server.arcgisonline.com/ArcGIS/rest/services/"
-              "World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        attr=ESRI_ATTR, name="Satellite", show=False,
-    ).add_to(m)
+BASEMAPS = ("Light", "Streets", "Satellite")
+
+
+def _add_base_layers(folium, m, basemap: str = "Light"):
+    """Add the one basemap the page asked for.
+
+    Only one is added, rather than three with a Leaflet switcher: the page has
+    its own basemap buttons, and Leaflet draws base layers in the order they
+    arrive, so extra ones simply covered the map.
+    """
+    if basemap == "Satellite":
+        folium.TileLayer(
+            tiles="https://server.arcgisonline.com/ArcGIS/rest/services/"
+                  "World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            attr=ESRI_ATTR, name="Satellite",
+        ).add_to(m)
+    elif basemap == "Streets":
+        folium.TileLayer("OpenStreetMap", name="OpenStreetMap",
+                         attr=OSM_ATTR).add_to(m)
+    else:
+        folium.TileLayer(
+            tiles=theme.TILE_URL, attr=theme.TILE_ATTR, name="Light",
+        ).add_to(m)
 
 
 def _risk_legend() -> str:
@@ -329,7 +339,7 @@ def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
     bbox = (cfg or {}).get("aoi", {}).get("bbox", [88.0, 24.0, 89.9, 26.7])
 
     m = folium.Map(location=center, zoom_start=zoom, tiles=None,
-                   control_scale=True, zoom_control=False)
+                   control_scale=False, zoom_control=False)
     m.get_root().html.add_child(folium.Element(_BROWSER_JS_GUARD))
 
     from folium import MacroElement
@@ -343,7 +353,7 @@ def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
     m.add_child(zoom_br)
 
     fill_frame(folium, m)
-    _add_base_layers(folium, m)
+    _add_base_layers(folium, m, st.session_state.get('basemap', 'Light'))
 
     # --- Raster overlays (pre-rendered in WGS84 by preprocess_cache.py) ---
     for layer_key, raster_key, label in [
@@ -426,13 +436,7 @@ def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
         marker_cluster.add_to(m)
 
         if capped:
-            m.get_root().html.add_child(folium.Element(
-                '<div style="position:fixed;top:10px;right:10px;z-index:9999;'
-                'background:rgba(255,255,255,0.96);border:1px solid #dbe3ec;'
-                'border-radius:6px;padding:6px 10px;font-size:10px;color:#475569;'
-                'font-family:Inter,sans-serif;">Showing the 2,000 highest-scoring '
-                'assets of the current filter</div>'
-            ))
+            st.session_state.map_capped = True
 
     # --- Composite risk heatmap ---
     if layers.get("show_heatmap", True):
@@ -487,5 +491,4 @@ def _build_main_map(region, infra, grid_gdf, union_gdf, hotspot_gdf, cfg,
             ).add_to(m)
 
     m.get_root().html.add_child(folium.Element(_risk_legend()))
-    folium.LayerControl(collapsed=True).add_to(m)
     return m
