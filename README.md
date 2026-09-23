@@ -300,7 +300,9 @@ observed flooding. Results land in `data/output/validation_metrics.json`.
   `data/output/gnn_metrics.json` and `validation_metrics.json`.
 - **Two numbers per asset.** `flood_risk` is the raw class-weighted score and
   ranks assets; `flood_probability` is that score passed through an isotonic
-  calibration fitted on the calibration blocks. It is an approximate
+  calibration fitted on the calibration blocks, with each fitted level shrunk
+  by its Jeffreys estimate so that a level holding three points that all
+  flooded reports about 0.88 rather than 1.00. It is an approximate
   probability that the ground floods in at least `min_events` mapped events.
   Flood prevalence differs severalfold between blocks (4 % in the Rangpur
   calibration blocks, 14 % in its test blocks), so the probability is only a

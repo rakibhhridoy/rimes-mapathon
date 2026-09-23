@@ -91,12 +91,17 @@ METHOD_STEPS = [
     ("Observed floods", "Map standing water from Sentinel-1 radar during past "
                         "floods (2017-2024), against a dry-season baseline, with "
                         "permanent water and steep ground removed. Ground that "
-                        "flooded in at least two events is the training label."),
-    ("Graph model", "Link each asset to its nearest neighbours and train a two-layer "
-                    "GraphSAGE network to predict whether an asset sits on "
-                    "flood-prone ground. Validation holds out whole 10 km blocks."),
-    ("Interpolation", "Krige the model scores into a continuous hazard surface "
-                      "with a variance map."),
+                        "flooded in at least the configured number of events "
+                        "is the training label: two in the riverine regions, "
+                        "one on the coast, where surge water drains between "
+                        "satellite passes."),
+    ("Asset model", "Score every asset for flood-prone ground with a "
+                    "class-weighted gradient-boosted tree, chosen over a graph "
+                    "neural network because it matched or beat it on the same "
+                    "features. Validation holds out whole 10 km blocks."),
+    ("Hazard surface", "Score each grid cell from its own terrain, and keep a "
+                       "Kriged surface of the asset scores, with its variance "
+                       "map, as the alternative."),
     ("Risk", "Combine hazard, exposure and vulnerability (population, distance "
              "to hospitals, shelters and roads) as a geometric mean on a ~500 m "
              "grid. Exposure is measured twice: by the infrastructure standing "
