@@ -96,3 +96,16 @@ class TestDocumentCitesDefinedMacros:
         text = (docs / "sgmdi_technical_document.tex").read_text()
         for path in re.findall(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}", text):
             assert (docs / path).exists(), f"missing figure: {path}"
+
+
+class TestPValues:
+    def test_small_p_values_read_as_a_bound(self):
+        from build_numbers import _p
+        assert _p(0.0) == "<0.001"
+        assert _p(0.0004) == "<0.001"
+
+    def test_other_p_values_carry_their_equals_sign(self):
+        from build_numbers import _p
+        assert _p(0.215) == "=0.215"
+        assert _p(0.08) == "=0.08"
+        assert _p(None) is None
