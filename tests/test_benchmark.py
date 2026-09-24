@@ -119,3 +119,36 @@ class TestTemporalHoldout:
         with pytest.raises(ValueError, match="two events"):
             run_past_flooding_feature(cfg, tmp_path, tmp_path, tmp_path,
                                       tmp_path / "x.gpkg")
+
+
+class TestPastFloodingModel:
+    def _graph(self, n=2000, seed=0):
+        from types import SimpleNamespace
+
+        import torch
+        rng = np.random.default_rng(seed)
+        X = rng.normal(size=(n, 3)).astype(np.float32)
+        split = rng.random(n)
+        return SimpleNamespace(
+            x=torch.tensor(X),
+            train_mask=torch.tensor(split < 0.7),
+            calib_mask=torch.tensor((split >= 0.7) & (split < 0.85)),
+            test_mask=torch.tensor(split >= 0.85)), rng
+
+    def test_the_record_lifts_a_model_that_cannot_see_it_otherwise(self):
+        from pipeline.asset_model import fit_past_flooding_model
+        graph, rng = self._graph()
+        history = (rng.random(2000) < 0.1).astype(float)   # ground that flooded before
+        target = ((history > 0) & (rng.random(2000) < 0.8)).astype(int)
+        cfg = {"asset_model": {"type": "gradient_boosting"}}
+        scores, prob, metrics, _ = fit_past_flooding_model(graph, cfg, history, history, target)
+        assert metrics["val_auc_roc"] > 0.85
+        assert metrics["model_type"] == "gradient_boosting+past_flooding"
+        assert len(scores) == len(prob) == 2000
+
+    def test_needs_a_tabular_model(self):
+        from pipeline.asset_model import fit_past_flooding_model
+        graph, rng = self._graph(n=50)
+        z = np.zeros(50)
+        with pytest.raises(ValueError, match="tabular"):
+            fit_past_flooding_model(graph, {"asset_model": {"type": "graph_sage"}}, z, z, z.astype(int))
