@@ -49,3 +49,6 @@ docs/archive_v1/legacy_figures/
 
 # Built artefacts of the web application: rebuild with scripts/build_web.py
 web/data/
+
+# Full texts for the literature check; most may not be redistributed.
+docs/litreview/pdfs/
