@@ -69,6 +69,19 @@ def _nugget_fraction(variogram: dict):
     return variogram["nugget"] / total if total > 0 else None
 
 
+def _p(value):
+    """A p-value with its relation, for use as $p\\Macro{}$: "=0.04" or "<0.001"."""
+    if value is None:
+        return None
+    value = float(value)
+    return "<0.001" if value < 0.001 else "=" + f"{value:.3f}".rstrip("0").rstrip(".")
+
+
+def _gap(value):
+    """The size of a signed difference, for sentences that name its direction."""
+    return None if value is None else abs(float(value))
+
+
 def _pct(value):
     return None if value is None else round(100 * float(value), 1)
 
@@ -238,7 +251,7 @@ def region_numbers(region_id: str) -> list[str]:
         _macro(f"{prefix}BenchDiff", paired.get("auc_difference_mean")),
         _macro(f"{prefix}BenchGap",
                abs(paired["auc_difference_mean"]) if paired.get("auc_difference_mean") else None),
-        _macro(f"{prefix}BenchDiffP", paired.get("p_value")),
+        _macro(f"{prefix}BenchDiffP", _p(paired.get("p_value"))),
         _macro(f"{prefix}BenchAhead", paired.get("seeds_graph_ahead")),
         _macro(f"{prefix}BenchSeeds", paired.get("n_seeds")),
     ]
@@ -254,7 +267,7 @@ def region_numbers(region_id: str) -> list[str]:
         _macro(f"{prefix}LabelProxyAUC", (lsum.get("proxy") or {}).get("auc_mean")),
         _macro(f"{prefix}LabelProxySD", (lsum.get("proxy") or {}).get("auc_sd")),
         _macro(f"{prefix}LabelGap", gap.get("mean")),
-        _macro(f"{prefix}LabelGapP", gap.get("p_value")),
+        _macro(f"{prefix}LabelGapP", _p(gap.get("p_value"))),
         _macro(f"{prefix}LabelAhead", gap.get("seeds_observed_ahead")),
     ]
 
@@ -273,12 +286,34 @@ def region_numbers(region_id: str) -> list[str]:
         _macro(f"{prefix}TempPastSD", (tsum.get("past_flooding") or {}).get("auc_sd")),
         _macro(f"{prefix}TempPastLift", (tsum.get("past_flooding") or {}).get("ap_lift_mean")),
         _macro(f"{prefix}TempMinusPast", tpast.get("mean")),
-        _macro(f"{prefix}TempMinusPastP", tpast.get("p_value")),
+        _macro(f"{prefix}TempMinusPastP", _p(tpast.get("p_value"))),
         _macro(f"{prefix}TempAheadPast", tpast.get("seeds_temporal_ahead")),
         _macro(f"{prefix}TempMinusAll", tall.get("mean")),
-        _macro(f"{prefix}TempMinusAllP", tall.get("p_value")),
+        _macro(f"{prefix}TempMinusAllP", _p(tall.get("p_value"))),
+        _macro(f"{prefix}TempPastGap", _gap(tpast.get("mean"))),
+        _macro(f"{prefix}TempAllGap", _gap(tall.get("mean"))),
         _macro(f"{prefix}TempSeeds", (tsum.get("temporal") or {}).get("n_seeds")),
         _macro(f"{prefix}TempTestRate", _pct(temporal.get("test_positive_rate"))),
+    ]
+
+    # Past flooding as a feature, trained on the latest pre-cutoff event.
+    pastf = _read_json(paths["output"] / "past_flooding_feature.json") or {}
+    psum = pastf.get("summary") or {}
+    pvp = psum.get("with_past_minus_past_only") or {}
+    pvw = psum.get("with_past_minus_without_past") or {}
+    lines += [
+        _macro(f"{prefix}PastFeatAUC", (psum.get("with_past") or {}).get("auc_mean")),
+        _macro(f"{prefix}PastFeatSD", (psum.get("with_past") or {}).get("auc_sd")),
+        _macro(f"{prefix}PastFeatWithoutAUC", (psum.get("without_past") or {}).get("auc_mean")),
+        _macro(f"{prefix}PastFeatOnlyAUC", (psum.get("past_only") or {}).get("auc_mean")),
+        _macro(f"{prefix}PastFeatOverPast", pvp.get("mean")),
+        _macro(f"{prefix}PastFeatOverPastP", _p(pvp.get("p_value"))),
+        _macro(f"{prefix}PastFeatOverPastAhead", pvp.get("seeds_ahead")),
+        _macro(f"{prefix}PastFeatOverWithout", pvw.get("mean")),
+        _macro(f"{prefix}PastFeatOverWithoutP", _p(pvw.get("p_value"))),
+        _macro(f"{prefix}PastFeatUnseenAUC", (psum.get("with_past_on_unseen_ground") or {}).get("auc_roc")),
+        _macro(f"{prefix}PastFeatUnseenShare", _pct((psum.get("with_past_on_unseen_ground") or {}).get("share_of_assets"))),
+        _macro(f"{prefix}PastFeatUnseenPos", _pct((psum.get("with_past_on_unseen_ground") or {}).get("share_of_positives"))),
     ]
 
     # Weight sensitivity of the composite risk.
