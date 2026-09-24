@@ -93,7 +93,12 @@ def validate_assets(cfg: dict, output_dir: Path, raw_dir: Path) -> dict:
             f"{freq_path} missing. Run `python -m pipeline.cli sentinel1` first."
         )
 
-    scores = np.load(output_dir / "gnn_risk_scores.npy")
+    # The map's scores may carry the flood record itself (asset_model.
+    # past_flooding), which would make this comparison circular.
+    scores_path = output_dir / "susceptibility_scores.npy"
+    if not scores_path.exists():
+        scores_path = output_dir / "gnn_risk_scores.npy"
+    scores = np.load(scores_path)
     infra = compute_centroids(gpd.read_file(str(raw_dir / "infrastructure_raw.gpkg")))
     coords = list(zip(infra["lon"], infra["lat"]))
     if len(scores) != len(infra):
@@ -130,7 +135,9 @@ def validate_assets(cfg: dict, output_dir: Path, raw_dir: Path) -> dict:
 
             # Calibrated probabilities, when the training step produced them:
             # the Brier score is the meaningful number for those.
-            prob_path = output_dir / "gnn_flood_probability.npy"
+            prob_path = output_dir / "susceptibility_probability.npy"
+            if not prob_path.exists():
+                prob_path = output_dir / "gnn_flood_probability.npy"
             if prob_path.exists():
                 probability = np.load(prob_path)
                 if len(probability) == len(scores):

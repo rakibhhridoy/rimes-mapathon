@@ -75,6 +75,12 @@ def _infra_path(cfg: dict) -> Path:
     return _dir(cfg, "raw") / "infrastructure_raw.gpkg"
 
 
+def _susceptibility_path(output_dir: Path) -> Path:
+    """Scores without the flood record, for anything scored against it."""
+    path = output_dir / "susceptibility_scores.npy"
+    return path if path.exists() else output_dir / "gnn_risk_scores.npy"
+
+
 def cfg_has_landslide(cfg: dict) -> bool:
     """True when the region config asks for the landslide model."""
     return bool((cfg.get("landslide") or {}).get("enabled", False))
@@ -257,8 +263,36 @@ def train(ctx):
 
         joblib.dump(fitted, str(output_dir / "asset_model.joblib"))
 
-    # The file names are historical: every downstream step reads them, and
-    # they now hold the scores of whichever model was configured.
+    # Validation and Kriging read these, since they carry no flood record and
+    # so can be scored against the observed extents without circularity.
+    np.save(str(output_dir / "susceptibility_scores.npy"), risk_scores)
+    if probability is not None:
+        np.save(str(output_dir / "susceptibility_probability.npy"), probability)
+
+    # With asset_model.past_flooding the map shows a model that also knows
+    # where earlier floods reached (see past_flooding_inputs). Its own metrics
+    # come from the held-out blocks of a setup that predicts the latest event
+    # year from the ones before it.
+    labels_cfg = (cfg.get("data", {}).get("labels", {}) or {})
+    if ((cfg.get("asset_model") or {}).get("past_flooding")
+            and labels_cfg.get("source") == "observed"):
+        import joblib
+
+        from pipeline.asset_model import fit_past_flooding_model, past_flooding_inputs
+
+        history, full, target, info = past_flooding_inputs(
+            cfg, _dir(cfg, "raw"), _infra_path(cfg))
+        risk_scores, probability, past_metrics, past_model = fit_past_flooding_model(
+            graph_data, cfg, history, full, target)
+        past_metrics.update(info)
+        with open(output_dir / "past_model_metrics.json", "w") as f:
+            json.dump(past_metrics, f, indent=2)
+        joblib.dump(past_model, str(output_dir / "past_model.joblib"))
+    else:
+        (output_dir / "past_model_metrics.json").unlink(missing_ok=True)
+
+    # The file names are historical: the map, rankings and popups read them,
+    # and they hold the scores of whichever model the map shows.
     np.save(str(output_dir / "gnn_risk_scores.npy"), risk_scores)
     if probability is not None:
         np.save(str(output_dir / "gnn_flood_probability.npy"), probability)
@@ -288,7 +322,7 @@ def krige(ctx):
     cfg = ctx.obj["config"]
     output_dir = _dir(cfg, "output")
 
-    risk_scores = np.load(str(output_dir / "gnn_risk_scores.npy"))
+    risk_scores = np.load(str(_susceptibility_path(output_dir)))
     infra = gpd.read_file(str(_infra_path(cfg)))
     infra = compute_centroids(infra)
     coords = np.column_stack([infra["lon"].values, infra["lat"].values])

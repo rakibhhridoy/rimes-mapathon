@@ -176,6 +176,12 @@ kriging:
 # graph_sage.
 asset_model:
   type: gradient_boosting
+  # Give the model the share of earlier Sentinel-1 events in which the ground
+  # flooded. Trained to predict the latest event year from the years before
+  # it, this beat both the record alone and the model alone on the 2024
+  # riverine floods (benchmark: past_flooding_feature.json). The map shows it;
+  # validation and Kriging keep the model without it, which is not circular.
+  past_flooding: true
 
 gnn:
   # Features withheld from the model. With proxy labels, twi/hand are the

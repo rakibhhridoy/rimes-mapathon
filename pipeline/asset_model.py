@@ -172,3 +172,85 @@ def fit_asset_model(graph_data, cfg: dict):
     logger.info(f"{kind}: test AUC {metrics['val_auc_roc']:.3f}, "
                 f"AP {metrics['val_average_precision']:.3f}")
     return scores, probability, metrics, fitted
+
+
+def past_flooding_inputs(cfg: dict, raw_dir, infra_path):
+    """The flood record as a feature, split so the model cannot copy its labels.
+
+    Events are grouped by year. The last year is the training target, the
+    years before it the history the feature is computed from, and the map is
+    scored with the feature taken over every event, so it anticipates the
+    next flood from the whole record. Returns (history, full, target, info),
+    the first three aligned with the assets in `infra_path`.
+    """
+    from pathlib import Path
+
+    import geopandas as gpd
+
+    from pipeline.feature_extract import compute_centroids, sample_raster_at_points
+
+    events = sorted((cfg.get("sentinel1") or {}).get("events", []),
+                    key=lambda e: e["start"])
+    target_year = int(events[-1]["start"][:4]) if events else None
+    target = [e for e in events if int(e["start"][:4]) == target_year]
+    history = [e for e in events if int(e["start"][:4]) != target_year]
+    if not history:
+        raise ValueError("The past-flooding feature needs events from at least "
+                         "two different years.")
+
+    centroids = compute_centroids(gpd.read_file(str(infra_path)))
+    points = list(zip(centroids["lon"], centroids["lat"]))
+
+    def flooded(event):
+        values = sample_raster_at_points(
+            str(Path(raw_dir) / f"s1_flood_{event['name']}.tif"), points)
+        return (np.nan_to_num(values) > 0.5).astype(int)
+
+    masks = {e["name"]: flooded(e) for e in events}
+    history_share = np.mean([masks[e["name"]] for e in history], axis=0)
+    full_share = np.mean([masks[e["name"]] for e in events], axis=0)
+    y_target = (np.sum([masks[e["name"]] for e in target], axis=0) >= 1).astype(int)
+    info = {"history_events": [e["name"] for e in history],
+            "target_events": [e["name"] for e in target]}
+    return history_share, full_share, y_target, info
+
+
+def fit_past_flooding_model(graph_data, cfg: dict, history, full, y_target):
+    """The configured tabular model with the flood record as one more feature.
+
+    It learns to predict the target-year flooding from the usual features and
+    the share of earlier events in which the ground flooded, is scored and
+    calibrated on the held-out blocks of that setup, and is then applied with
+    the share over every event to score each asset for the next flood.
+    Returns (scores, probability, metrics, fitted) like fit_asset_model.
+    """
+    kind = model_type(cfg)
+    if kind == "graph_sage":
+        raise ValueError("The past-flooding feature needs a tabular model.")
+    seed = int((cfg.get("gnn") or {}).get("seed", 42))
+    train = graph_data.train_mask.numpy().astype(bool)
+    calib = graph_data.calib_mask.numpy().astype(bool)
+    test = graph_data.test_mask.numpy().astype(bool)
+
+    X = graph_data.x.numpy()
+    mu, sd = float(history.mean()), float(history.std()) or 1.0
+    X_fit = np.column_stack([X, (history - mu) / sd]).astype(np.float32)
+    X_map = np.column_stack([X, (full - mu) / sd]).astype(np.float32)
+
+    fitted = _fit_tabular(kind, X_fit, y_target, train, seed)
+    held = fitted.predict_proba(X_fit)[:, 1]
+    calibrator = fit_calibration(held[calib], y_target[calib]) if calib.sum() else None
+    metrics = _metrics(y_target[test], held[test],
+                       calibrator(held[test]) if calibrator is not None else None)
+
+    scores = fitted.predict_proba(X_map)[:, 1]
+    probability = calibrator(scores) if calibrator is not None else None
+    metrics.update({
+        "model_type": f"{kind}+past_flooding",
+        "n_train": int(train.sum()),
+        "n_calibration": int(calib.sum()),
+        "n_val": int(test.sum()),
+        "seed": seed,
+    })
+    logger.info(f"{kind} with past flooding: test AUC {metrics['val_auc_roc']:.3f}")
+    return scores, probability, metrics, fitted

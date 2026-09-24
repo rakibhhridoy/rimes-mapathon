@@ -4,6 +4,10 @@
 # observed inventory (NASA COOLR), so its results can be validated.
 extends: ../config.yaml
 
+# No Sentinel-1 flood events are mapped here, so no flood record to use.
+asset_model:
+  past_flooding: false
+
 paths:
   raw_dir: "data/cht/raw"
   processed_dir: "data/cht/processed"

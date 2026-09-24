@@ -14,6 +14,12 @@ aoi:
   crs: "EPSG:32646"
   grid_resolution_m: 500
 
+# The flood record does not predict the next cyclone: most of the ground
+# Remal flooded in 2024 was dry in the three cyclones before it, and the model
+# trained on those three beat the record (benchmark: temporal_holdout.json).
+asset_model:
+  past_flooding: false
+
 data:
   # Storm-surge flooding drains within days and the 6-12 day Sentinel-1
   # revisit misses much of it: the four cyclones map to 0.9-3.4 % of the area
