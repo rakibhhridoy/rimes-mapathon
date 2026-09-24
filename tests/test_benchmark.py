@@ -110,3 +110,12 @@ class TestTemporalHoldout:
                                         {"name": "b", "start": "2020-07-11"}]}}
         with pytest.raises(ValueError, match="both sides"):
             run_temporal_holdout(cfg, tmp_path, tmp_path, tmp_path, tmp_path / "x.gpkg")
+
+    def test_past_feature_needs_a_history_before_its_training_target(self, tmp_path):
+        from pipeline.benchmark import run_past_flooding_feature
+        cfg = {"asset_model": {"type": "gradient_boosting"},
+               "sentinel1": {"events": [{"name": "a", "start": "2020-07-11"},
+                                        {"name": "b", "start": "2024-07-01"}]}}
+        with pytest.raises(ValueError, match="two events"):
+            run_past_flooding_feature(cfg, tmp_path, tmp_path, tmp_path,
+                                      tmp_path / "x.gpkg")

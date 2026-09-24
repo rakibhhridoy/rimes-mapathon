@@ -386,3 +386,150 @@ def run_temporal_holdout(cfg: dict, processed_dir: Path, raw_dir: Path,
     (output_dir / "temporal_holdout.json").write_text(json.dumps(result, indent=2))
     logger.info(f"Wrote {output_dir / 'temporal_holdout.json'}")
     return result
+
+
+def run_past_flooding_feature(cfg: dict, processed_dir: Path, raw_dir: Path,
+                              output_dir: Path, infra_path: Path, seeds=SEEDS,
+                              cutoff_year: int = 2022) -> dict:
+    """Does the record of earlier flooding improve the model as a feature?
+
+    The feature has to come from floods before the ones the model learns to
+    predict, or the model simply copies it. Training therefore predicts the
+    last event up to `cutoff_year` from the events before it, and the test
+    predicts the later events from all the events up to `cutoff_year`, on
+    held-out blocks. The feature is the share of those earlier events in which
+    the ground flooded, so it means the same thing in training and test.
+
+    Three rankings are scored against the later floods: the model with the
+    feature, the same model without it trained on the same target, and the
+    past-flooding share on its own.
+    """
+    import geopandas as gpd
+    from scipy import stats
+
+    from pipeline.asset_model import _fit_tabular, model_type
+    from pipeline.feature_extract import (compute_centroids, extract_features,
+                                          project_coords, sample_raster_at_points)
+    from pipeline.graph_build import spatial_block_split_three
+
+    kind = model_type(cfg)
+    if kind == "graph_sage":
+        raise ValueError("Past-flooding feature test expects a tabular model.")
+
+    events = sorted((cfg.get("sentinel1") or {}).get("events", []),
+                    key=lambda e: e["start"])
+    early = [e for e in events if int(e["start"][:4]) <= cutoff_year]
+    late = [e for e in events if int(e["start"][:4]) > cutoff_year]
+    if len(early) < 2 or not late:
+        raise ValueError(f"Need two events up to {cutoff_year} and one after; "
+                         f"got {len(early)} and {len(late)}.")
+    # The last pre-cutoff year is the training target, every event before it
+    # the training history. A year can hold more than one event.
+    target_year = int(early[-1]["start"][:4])
+    train_target = [e for e in early if int(e["start"][:4]) == target_year]
+    train_history = [e for e in early if int(e["start"][:4]) < target_year]
+    if not train_history:
+        raise ValueError("No events before the training target year.")
+
+    infra = gpd.read_file(str(infra_path))
+    X, coords, _, _ = extract_features(cfg, infra, processed_dir)
+    X = np.ascontiguousarray(X, dtype=np.float32)
+    centroids = compute_centroids(gpd.read_file(str(infra_path)))
+    points = list(zip(centroids["lon"], centroids["lat"]))
+    cache = {}
+
+    def flooded(event):
+        if event["name"] not in cache:
+            m = sample_raster_at_points(
+                str(raw_dir / f"s1_flood_{event['name']}.tif"), points)
+            cache[event["name"]] = (np.nan_to_num(m) > 0.5).astype(int)
+        return cache[event["name"]]
+
+    def share(evts):
+        return np.mean([flooded(e) for e in evts], axis=0)
+
+    def any_of(evts):
+        return (np.sum([flooded(e) for e in evts], axis=0) >= 1).astype(int)
+
+    y_train, y_test = any_of(train_target), any_of(late)
+    past_train, past_test = share(train_history), share(early)
+    # Standardise the feature on the training history, as the others are.
+    mu, sd = past_train.mean(), past_train.std() or 1.0
+    X_train = np.column_stack([X, (past_train - mu) / sd]).astype(np.float32)
+    X_test = np.column_stack([X, (past_test - mu) / sd]).astype(np.float32)
+
+    coords_m = project_coords(np.asarray(coords), cfg["aoi"]["crs"])
+    block_m = cfg["graph"].get("block_size_m", 10_000)
+    train_ratio = cfg["graph"].get("train_split", 0.8)
+
+    per_seed = []
+    for seed in seeds:
+        train_mask, _, test_mask = spatial_block_split_three(
+            coords_m, train_ratio=train_ratio, block_size_m=block_m, seed=seed)
+        train = train_mask.numpy().astype(bool)
+        test = test_mask.numpy().astype(bool)
+        if len(np.unique(y_test[test])) < 2 or len(np.unique(y_train[train])) < 2:
+            continue
+        with_past = _fit_tabular(kind, X_train, y_train, train, seed)
+        without = _fit_tabular(kind, X, y_train, train, seed)
+        scores = {
+            "with_past": with_past.predict_proba(X_test[test])[:, 1],
+            "without_past": without.predict_proba(X[test])[:, 1],
+            "past_only": past_test[test],
+        }
+        row = {"seed": seed, "n_test": int(test.sum()),
+               "scores": {k: _metrics(y_test[test], v) for k, v in scores.items()}}
+        # Ground no earlier flood reached, where past flooding cannot rank at
+        # all: how well the model with the feature ranks it there.
+        unseen = past_test[test] == 0
+        if len(np.unique(y_test[test][unseen])) == 2:
+            from sklearn.metrics import roc_auc_score
+            row["unseen"] = {
+                "auc_roc": float(roc_auc_score(y_test[test][unseen],
+                                               scores["with_past"][unseen])),
+                "share_of_assets": float(unseen.mean()),
+                "share_of_positives": float(y_test[test][unseen].sum()
+                                            / max(y_test[test].sum(), 1)),
+            }
+        per_seed.append(row)
+
+    summary = {}
+    unseen = [r["unseen"] for r in per_seed if "unseen" in r]
+    if unseen:
+        summary["with_past_on_unseen_ground"] = {
+            k: float(np.mean([u[k] for u in unseen])) for k in unseen[0]}
+        summary["with_past_on_unseen_ground"]["n_seeds"] = len(unseen)
+    for name in ("with_past", "without_past", "past_only"):
+        aucs = np.array([r["scores"][name]["auc_roc"] for r in per_seed])
+        lifts = np.array([r["scores"][name]["ap_lift"] for r in per_seed])
+        if len(aucs):
+            summary[name] = {
+                "auc_mean": float(aucs.mean()),
+                "auc_sd": float(aucs.std(ddof=1)) if len(aucs) > 1 else None,
+                "ap_lift_mean": float(lifts.mean()),
+                "n_seeds": int(len(aucs)),
+            }
+    for ref in ("past_only", "without_past"):
+        diff = np.array([r["scores"]["with_past"]["auc_roc"]
+                         - r["scores"][ref]["auc_roc"] for r in per_seed])
+        if len(diff) > 1:
+            summary[f"with_past_minus_{ref}"] = {
+                "mean": float(diff.mean()), "sd": float(diff.std(ddof=1)),
+                "seeds_ahead": int((diff > 0).sum()), "n_seeds": int(len(diff)),
+                "p_value": float(stats.ttest_1samp(diff, 0.0).pvalue),
+            }
+
+    result = {
+        "model": kind, "cutoff_year": cutoff_year, "seeds": list(seeds),
+        "train_history": [e["name"] for e in train_history],
+        "train_target": [e["name"] for e in train_target],
+        "test_history": [e["name"] for e in early],
+        "test_target": [e["name"] for e in late],
+        "train_positive_rate": float(y_train.mean()),
+        "test_positive_rate": float(y_test.mean()),
+        "per_seed": per_seed, "summary": summary,
+    }
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "past_flooding_feature.json").write_text(json.dumps(result, indent=2))
+    logger.info(f"Wrote {output_dir / 'past_flooding_feature.json'}")
+    return result
