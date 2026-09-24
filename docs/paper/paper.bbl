@@ -1,4 +1,4 @@
-\begin{thebibliography}{39}
+\begin{thebibliography}{37}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -64,13 +64,6 @@ William~L. Hamilton, Rex Ying, and Jure Leskovec.
 \newblock Advances in Neural Information Processing Systems 30;
   arXiv:1706.02216, 2017.
 
-\bibitem[Hasan et~al.(2023)Hasan, Ahmed, Nafee, and Hossen]{hasan2023}
-Md.~Hasibul Hasan, Asib Ahmed, K.M. Nafee, and Md.~Amzed Hossen.
-\newblock {Use of machine learning algorithms to assess flood susceptibility in
-  the coastal area of Bangladesh}.
-\newblock \emph{Ocean \& Coastal Management}, 236:\penalty0 106503, 2023.
-\newblock \doi{10.1016/j.ocecoaman.2023.106503}.
-
 \bibitem[Hasan et~al.(2024)Hasan, Roy, Talha, Ferdous, and Nasher]{hasanm2024}
 Md.~Mahmudul Hasan, Sujit~Kumar Roy, MD~Talha, Md~Tasim Ferdous, and
   N.~M.~Refat Nasher.
@@ -109,25 +102,14 @@ Abu Reza Md.~Towfiqul Islam, Swapan Talukdar, Susanta Mahato, Sonali Kundu,
 \newblock \emph{Geoscience Frontiers}, 12\penalty0 (3):\penalty0 101075, 2021.
 \newblock \doi{10.1016/j.gsf.2020.09.006}.
 
-\bibitem[Islam et~al.(2025{\natexlab{a}})Islam, Jibon, Siddik, Mallick,
-  Alqadhi, Pal, Purohit, and Senapathi]{islam2025review}
-Abu Reza Md~Towfiqul Islam, Md. Jannatul~Naeem Jibon, Md~Abubakkor Siddik,
-  Javed Mallick, Saeed Alqadhi, Subodh~Chandra Pal, Sanju Purohit, and
-  Venkatramanan Senapathi.
-\newblock {Predicting flood risks using advanced machine learning algorithms
-  with a focus on Bangladesh: influencing factors, gaps and future challenges}.
-\newblock \emph{Earth Science Informatics}, 18\penalty0 (3):\penalty0 300,
-  2025{\natexlab{a}}.
-\newblock \doi{10.1007/s12145-025-01816-x}.
-
-\bibitem[Islam et~al.(2025{\natexlab{b}})Islam, Arrafi, Peas, Hossain, Hasan,
-  Murshed, and Tania]{islama2025}
+\bibitem[Islam et~al.(2025)Islam, Arrafi, Peas, Hossain, Hasan, Murshed, and
+  Tania]{islama2025}
 Md.~Ashraful Islam, Musabbir~Ahmed Arrafi, Mehedi~Hasan Peas, Tanvir Hossain,
   Md~Mehedi Hasan, Sanzida Murshed, and Monira~Jahan Tania.
 \newblock {Predicting urban landslides in the hilly regions of Bangladesh
   leveraging a hybrid machine learning model and CMIP6 climate projections}.
 \newblock \emph{Geosystems and Geoenvironment}, 4\penalty0 (2):\penalty0
-  100354, 2025{\natexlab{b}}.
+  100354, 2025.
 \newblock \doi{10.1016/j.geogeo.2025.100354}.
 
 \bibitem[Islam and Chowdhury(2024)]{islamr2024}
@@ -218,16 +200,6 @@ Yasin~Wahid Rabby and Yingkui Li.
 \newblock \emph{Data}, 5\penalty0 (1):\penalty0 4, 2019.
 \newblock \doi{10.3390/data5010004}.
 
-\bibitem[Rahman et~al.(2019)Rahman, Ningsheng, Islam, Dewan, Iqbal, Washakh,
-  and Shufeng]{rahman2019}
-Mahfuzur Rahman, Chen Ningsheng, Md~Monirul Islam, Ashraf Dewan, Javed Iqbal,
-  Rana Muhammad~Ali Washakh, and Tian Shufeng.
-\newblock {Flood Susceptibility Assessment in Bangladesh Using Machine Learning
-  and Multi-criteria Decision Analysis}.
-\newblock \emph{Earth Systems and Environment}, 3\penalty0 (3):\penalty0
-  585--601, 2019.
-\newblock \doi{10.1007/s41748-019-00123-y}.
-
 \bibitem[Reichenbach et~al.(2018)Reichenbach, Rossi, Malamud, Mihir, and
   Guzzetti]{reichenbach2018}
 Paola Reichenbach, Mauro Rossi, Bruce~D. Malamud, Monika Mihir, and Fausto
@@ -255,6 +227,13 @@ Sujit~Kumar Roy, Md. Zidanur~Rahman Zidan, Md.~Shafayat Ullah, and Muhammad
   remote sensing, GIS, and machine learning}.
 \newblock \emph{Discover Geoscience}, 3\penalty0 (1):\penalty0 221, 2025.
 \newblock \doi{10.1007/s44288-025-00337-w}.
+
+\bibitem[Rudra and Sarkar(2023)]{rudra2023}
+Rhyme~Rubayet Rudra and Showmitra~Kumar Sarkar.
+\newblock {Artificial neural network for flood susceptibility mapping in
+  Bangladesh}.
+\newblock \emph{Heliyon}, 9\penalty0 (6):\penalty0 e16459, 2023.
+\newblock \doi{10.1016/j.heliyon.2023.e16459}.
 
 \bibitem[Steger et~al.(2016)Steger, Brenning, Bell, and Glade]{steger2016}
 Stefan Steger, Alexander Brenning, Rainer Bell, and Thomas Glade.

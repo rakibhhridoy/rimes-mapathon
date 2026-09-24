@@ -6,11 +6,25 @@ SRC = (DOCS / "sgmdi_technical_document.tex").read_text().split("\n")
 NEW = Path(__file__).resolve().parent / "sections"
 
 
-def L(a, b, starts=None):
-    """Source lines a..b inclusive (1-based); optionally assert how line a begins."""
-    if starts:
-        assert SRC[a - 1].startswith(starts), (a, SRC[a - 1][:60])
-    return "\n".join(SRC[a - 1:b])
+def _find(prefix, after=0):
+    """Index of the first line at or after `after` that starts with `prefix`."""
+    hits = [i for i in range(after, len(SRC)) if SRC[i].startswith(prefix)]
+    assert hits, f"no line starts with {prefix!r}"
+    return hits[0]
+
+
+def R(start, stop=None, include_start=True):
+    """Lines from the one starting with `start` up to, not including, the one
+    starting with `stop` (or to the end). Passages are found by their text, so
+    editing the technical document cannot shift what is copied."""
+    i = _find(start)
+    j = _find(stop, i + 1) if stop else len(SRC)
+    return "\n".join(SRC[i if include_start else i + 1:j])
+
+
+def P(start):
+    """The single paragraph line that starts with `start`."""
+    return SRC[_find(start)]
 
 
 def N(name):
@@ -18,52 +32,52 @@ def N(name):
 
 
 parts = [
-    L(1, 45, r"\documentclass"),
+    R(r"\documentclass", "% ── Running header"),
     N("preamble"),
-    L(65, 78, "% ── Code listings"),
+    R("% ── Code listings", r"\input{numbers.tex}"),
     r"\input{../numbers.tex}",
     "",
     r"\begin{document}",
     "",
     N("title"),
     N("introduction"),
-    L(126, 184, r"\section{Related work}"),
-    L(189, 241, r"\section{Data}"),
-    L(243, 253, r"\section{Methods}"),
-    L(255, 267, r"\subsection{Infrastructure}"),
+    R(r"\section{Related work}", r"\subsection{Contribution}"),
+    R(r"\section{Data}", r"\section{Methods}"),
+    R(r"\section{Methods}", r"\subsection{Infrastructure}"),
+    R(r"\subsection{Infrastructure}", r"\subsection{Features}"),
     r"\subsection{Flood extents from Sentinel-1}",
-    L(349, 388, r"\label{sec:observed}"),
+    R(r"\label{sec:observed}", "The validation step then"),
     "",
-    L(268, 311, r"\subsection{Features}"),
+    R(r"\subsection{Features}", r"\section{Landslide susceptibility}"),
     r"\subsection{Validation design}",
     r"\label{sec:design}",
     "",
-    L(324, 324, "Every model in the chain"),
+    P("Every model in the chain"),
     "",
-    L(390, 390, "The validation step then"),
+    P("The validation step then"),
     "",
     N("design_extra"),
-    L(312, 318, r"\section{Landslide susceptibility}"),
+    R(r"\section{Landslide susceptibility}", r"\section{Validation}"),
     r"\section{Results}",
     r"\label{sec:validation}",
     "",
     r"\subsection{Held-out results}",
-    L(327, 346),
+    R(r"\subsection{Held-out results}", r"\subsection{Observed floods}", include_start=False),
     "",
     r"\subsection{Observed extents against terrain labels}",
     r"\label{sec:labelresult}",
     "",
-    L(392, 408, "The comparison of the proxy labels"),
+    R("The comparison of the proxy labels", "The south-west coast behaves"),
     "",
     r"\subsection{The south-west coast}",
     "",
-    L(410, 410, "The south-west coast"),
+    P("The south-west coast behaves"),
     "",
     N("temporal_result"),
-    L(414, 456, r"\subsection{Model comparison}"),
+    R(r"\subsection{Model comparison}", r"\section{Dashboard}"),
     N("discussion"),
     N("backmatter"),
-    L(516, 523, r"\section*{Acknowledgements}"),
+    R(r"\section*{Acknowledgements}"),
 ]
 tex = "\n".join(parts) + "\n"
 
@@ -93,8 +107,6 @@ EDITS = [
     (" The model of version 1 is not among these, since its labels were all zero (Section~\\ref{sec:corrections}) and it had nothing to learn from.", ""),
     ("The independent test of the flood models is agreement with flooding that was actually observed. The pipeline maps",
      "Flood extents observed by radar supply both the training labels and the reference against which the flood models are scored. The pipeline maps"),
-    ("The claims below were checked against each study's full text, except where Table~\\ref{tab:litflood} marks otherwise.",
-     "The claims below were checked against each study's full text, except where Table~\\ref{tab:litflood} marks otherwise. \\pending{read rahman2019, hasan2023 and islam2025review in full, which need library access.}"),
     ("the graph network the system was built around is set against",
      "a graph neural network, the design this system began with, is set against"),
     ("Gradient boosting is consequently the default model of the system,",
