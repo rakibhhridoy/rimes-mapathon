@@ -89,9 +89,10 @@ EDITS = [
      "Table~\\ref{tab:data} lists every dataset the pipeline ingests, all under open licences. Administrative"),
     (" Tile providers require visible attribution, which the dashboard shows on every map, where version 1 had suppressed it.", ""),
     ("Version 1 queried by place name (``Rangpur Division, Bangladesh''), which returned everything in the division whether or not it lay inside the study area, and which for the hill-tracts configuration would have pulled in Chattogram city and Cox's Bazar. The tiled query also avoids the timeouts that a whole division produced,",
-     "Tiling avoids the timeouts that a query for a whole division produces,"),
+     "Tiling avoids the timeouts that a query for a whole division produces."),
+    (" and a query refused by the Overpass server, which allows two connections per address, is retried with a growing pause, since the public mirrors tested either hung or refused connections.", ""),
     ("Flow accumulation and HAND were the slowest steps of the chain in version 1, because each was written as a per-cell Python loop, which for the Rangpur and Rajshahi elevation model meant 80 million iterations. Both are now vectorised, with the sequential part of flow accumulation compiled with numba, and produce output identical to the original implementation. The Hill Tracts elevation model now preprocesses in about two minutes, where the earlier implementation had not finished after forty minutes.",
-     "Both are vectorised, with the sequential part of flow accumulation compiled with numba."),
+     ""),
     ("This was the only source in version 1, and it is kept so the two can be compared. ", ""),
     ("Sampling reprojects the query coordinates into each raster's coordinate system before reading it, and the absence of that step was the central error of version 1. Longitude and latitude pairs were passed to rasters stored in UTM, every query fell outside the raster's extent, and every sampled value came back as the nodata fill of zero, which left the five terrain features constant across all assets and every label at zero. The pipeline now stops",
      "Sampling reprojects the query coordinates into each raster's coordinate system before reading it, and the pipeline stops"),
@@ -112,6 +113,10 @@ EDITS = [
     ("Gradient boosting is consequently the default model of the system,",
      "Gradient boosting is consequently the default model,"),
     ("\\section{Data}\n", "\\section{Study area and data}\n"),
+    # The radar caveats are in the discussion; the paper states them once.
+    (" Two caveats apply to the radar extents themselves. Inundated paddy is open water to a radar and is counted as flooding, which is one reason the two-event threshold is preferred where the data allow it. And the minimum-backscatter composite over a window of two weeks records the largest extent reached at any pass in the window, not the extent on any one day.", ""),
+    ("The original system was developed by Team Fermium, Shoumik Zubyer, Md Rakib Hasan and Fazla Zawadul Arabi, for the RIMES Mapathon, ResilienceAI track.",
+     "The system was first developed for the RIMES Mapathon, ResilienceAI track."),
 ]
 for old, new in EDITS:
     n = tex.count(old)
