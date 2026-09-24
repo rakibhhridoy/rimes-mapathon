@@ -19,9 +19,8 @@ Checked 2026-09-24. **verified** = the paper's claims match the full text, **cor
 | islama2025 | **corrected** | the six base classifiers each exceed 90 % accuracy and the LR–bNB hybrid is best; the climate scenarios project susceptibility, not accuracy. 193 landslide + 165 non-landslide points, random 70:30 |
 | hasanm2024 | **extended** | Khagrachari; 71 landslide + 56 non-landslide points, random 70:30; AUC BRT 0.95, RF 0.91, KNN 0.86 |
 | rabby2019 | **verified** | 730 landslides, January 2001 to March 2017, Google Earth, field mapping, literature |
-| rahman2019 | paywalled | [10.1007/s41748-019-00123-y](https://doi.org/10.1007/s41748-019-00123-y): 475 locations from remote sensing and a MIKE-11 model; random 70:30; AUROC 0.881 (from abstract) |
-| hasan2023 | paywalled | [10.1016/j.ocecoaman.2023.106503](https://doi.org/10.1016/j.ocecoaman.2023.106503): coastal; RF, XGBoost, KNN; accuracy 86.7 % (from abstract) |
-| islam2025review | paywalled | [10.1007/s12145-025-01816-x](https://doi.org/10.1007/s12145-025-01816-x): 42 conditioning factors, led by precipitation, distance from rivers, elevation, land cover, soil type (from abstract) |
+| rudra2023 | **verified**, replaces rahman2019 | [PMC10220377](https://pmc.ncbi.nlm.nih.gov/articles/PMC10220377/): Sylhet division; ANN; 1,280 flood and non-flood points from a Bangladesh Water Board survey; random 75:25; gives the overall prediction rate as both 89 % and 92 %, success rate 98 %, and no AUC beyond "more than 70 %" |
+| rahman2019, hasan2023, islam2025review | **removed** 2026-09-24 | paywalled and not read in full, so replaced: rahman2019 by rudra2023, hasan2023 by adnan2023 (already cited, same coast), and the review's single sentence rewritten without it |
 
 None of the flood studies read in full holds out areas, reports calibrated
 probabilities or a Brier score, or compares against the record of earlier
