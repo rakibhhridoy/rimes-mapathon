@@ -196,7 +196,7 @@ def fig_hazard_surfaces():
     cfg = _cfg("rangpur_rajshahi")
     _, _, out = _paths(cfg)
     districts = _districts()
-    panels = [("Kriged GNN scores", out / "flood_risk_kriged.tif"),
+    panels = [("Kriged asset scores", out / "flood_risk_kriged.tif"),
               ("Terrain model", out / "flood_hazard_terrain.tif")]
     fig, axes = plt.subplots(1, 2, figsize=(FULL_W * 0.78, 3.0),
                              gridspec_kw={"wspace": 0.08})
@@ -236,8 +236,13 @@ def _calibration_data(region):
     graph = torch.load(out / "spatial_graph.pt", weights_only=False)
     test = (graph.test_mask if "test_mask" in graph else graph.val_mask).numpy().astype(bool)
     y = graph.y.numpy().astype(int)[test]
-    scores = np.load(out / "gnn_risk_scores.npy")[test]
-    probability = np.load(out / "gnn_flood_probability.npy")[test]
+    # The model without the flood record: the map's scores may carry it, and
+    # this figure scores them against observed flooding.
+    def _first(*names):
+        return next(out / n for n in names if (out / n).exists())
+    scores = np.load(_first("susceptibility_scores.npy", "gnn_risk_scores.npy"))[test]
+    probability = np.load(_first("susceptibility_probability.npy",
+                                 "gnn_flood_probability.npy"))[test]
     return y, scores, probability
 
 
