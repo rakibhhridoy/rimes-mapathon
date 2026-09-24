@@ -28,4 +28,6 @@ over from an earlier run.
 | `numbers.tex` | generated macros, one per reported figure (do not edit) |
 | `build_numbers.py` | generator for `numbers.tex` |
 | `architecture_diagram.tex` / `.png` / `.svg` | pipeline diagram (predates version 2 and shows the March 2026 chain) |
+| `paper/` | journal version of the document: `build_paper.py` assembles `paper.tex` from the technical document plus the new sections in `paper/sections/`; rerun it after editing either, then compile in `docs/paper/`. Red `[PENDING: …]` notes mark what remains before submission |
+| `temporal_holdout.tex` | the temporal hold-out section, shared by both documents |
 | `archive_v1/` | the March 2026 markdown docs and LaTeX source, kept for the record; they describe a system that no longer exists and contain figures that were later found to be wrong |
