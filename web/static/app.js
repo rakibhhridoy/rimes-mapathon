@@ -447,6 +447,8 @@ async function aboutPanel() {
   const benchmark = (summary.metrics.benchmark || {}).summary || {};
   const labels = (summary.metrics.label_comparison || {}).summary || {};
   const gap = labels.observed_minus_proxy || {};
+  const past = summary.metrics.past_model || {};
+  const pastTest = ((summary.metrics.past_flooding_feature || {}).summary || {});
 
   return `
     <p>Fermium Hazard Mapper estimates where flooding would hurt most. For every
@@ -459,6 +461,19 @@ async function aboutPanel() {
       ${fixed(validation.val_auc_roc)}</b>, where 0.5 would be chance. Against flood
       extents observed by Sentinel-1 radar it reaches <b>${fixed(observed.auc_roc)}</b>
       and ranks flooded places ${fixed(observed.ap_lift, 1)} times better than chance.</p>
+    ${past.val_auc_roc ? `<h3>What the map shows</h3>
+      <p>In this region the asset scores also use where Sentinel-1 saw earlier
+      floods reach, because flooding here tends to return to the same ground.
+      Trained to predict the ${(past.target_events || []).length > 1 ? "floods" : "flood"}
+      of the latest year from the years before it, that model reaches an
+      <b>AUC of ${fixed(past.val_auc_roc)}</b> on held-out blocks.
+      ${pastTest.with_past ? `Tested on the 2024 floods after training on earlier
+      years it reached ${fixed(pastTest.with_past.auc_mean)}, against
+      ${fixed(pastTest.past_only.auc_mean)} for the flood record alone and
+      ${fixed(pastTest.without_past.auc_mean)} for the model without it.` : ""}
+      The scores therefore anticipate the next flood from the whole record, and
+      the figures above, which leave the record out, are the ones to compare
+      with other studies.</p>` : ""}
     ${benchmark.graph_vs_best_baseline ? `<h3>Why this model</h3>
       <p>Over ${benchmark.graph_vs_best_baseline.n_seeds} block assignments the graph
       neural network the project began with trailed the gradient-boosted tree by

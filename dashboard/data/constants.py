@@ -98,7 +98,10 @@ METHOD_STEPS = [
     ("Asset model", "Score every asset for flood-prone ground with a "
                     "class-weighted gradient-boosted tree, chosen over a graph "
                     "neural network because it matched or beat it on the same "
-                    "features. Validation holds out whole 10 km blocks."),
+                    "features. Validation holds out whole 10 km blocks. In the "
+                    "riverine regions the map's scores also use the share of "
+                    "earlier floods that reached the ground, which predicted "
+                    "the 2024 floods better than either source alone."),
     ("Hazard surface", "Score each grid cell from its own terrain, and keep a "
                        "Kriged surface of the asset scores, with its variance "
                        "map, as the alternative."),
