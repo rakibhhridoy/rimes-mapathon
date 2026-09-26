@@ -1,0 +1,81 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage[round]{natbib}
+\usepackage{xr}
+\externaldocument{paper}
+\usepackage{hyperref}
+\providecommand{\todo}[1]{\textbf{[TODO: #1]}}
+\newcommand{\fileref}[1]{\texttt{#1}}
+\input{../numbers.tex}
+\renewcommand{\thesection}{S\arabic{section}}
+
+\title{Supporting Information for ``Radar flood records as labels, baseline and feature: testing flood susceptibility models for mapped infrastructure in Bangladesh''}
+\author{Md Rakib Hasan, Shoumik Zubyer and Fazla Zawadul Arabi}
+\date{}
+
+\begin{document}
+\maketitle
+
+This file gives the pipeline settings, the construction of the composite risk and the sensitivity of its weights, which the main text summarises. Section, figure and table numbers without the prefix S refer to the main text. The code that produces every number here is at \url{https://github.com/rakibhhridoy/rimes-mapathon}, and the data at \url{https://doi.org/10.5281/zenodo.22978729}.
+
+\section{Pipeline and model settings}
+\label{si:settings}
+
+\subsection*{Infrastructure, terrain and features}
+
+Assets are fetched from the Overpass API by bounding box, in tiles of 0.75$^\circ$, and clipped to the region afterwards. Tiling avoids the timeouts that a query for a whole division produces. Three tag groups are requested, with lifeline assets covering hospitals, clinics, schools, colleges, shelters, bridges, embankments and dams, transport assets covering primary to trunk roads, railways and tagged bridges, and agricultural assets covering farmland, aquaculture, canals, ditches and marketplaces. Each feature is classified into one asset type from its tags and labelled with the district it falls in.
+
+The SRTM tiles covering the bounding box are merged, reprojected to UTM zone 46N and clipped. From the projected elevation model the pipeline derives slope, the topographic wetness index (TWI), height above nearest drainage (HAND) and D8 flow accumulation. Drainage cells for HAND are those above the 90th percentile of flow accumulation, and HAND is the elevation difference between each cell and the nearest drainage cell found by a distance transform.
+
+For each asset the pipeline samples the five terrain rasters at its representative point, samples WorldPop density, and computes the distance in metres to the nearest hospital, school, flood shelter, road and irrigation channel. Asset type enters as a categorical code, all features are standardised to zero mean and unit variance, and the label is the flood-prone status of the ground under the asset. Sampling reprojects the query coordinates into each raster's coordinate system before reading it, and the pipeline stops if any feature comes out constant or if the labels contain a single class.
+
+\subsection*{Asset model, graph and calibration}
+
+The model that scores assets is a configuration setting, \texttt{asset\_model.type}, and the default is class-weighted gradient boosting over the asset features, at 300 boosting iterations with a learning rate of 0.1. That default follows from the comparison in Section~\ref{sec:benchmark}, which found ordinary tabular models matching or beating the graph network the system began with. The graph network remains available, as a two-layer GraphSAGE with 64 hidden channels and dropout of 0.3, trained with a class-weighted loss and early stopping on the calibration blocks, and so do a random forest and logistic regression. In the two riverine regions the scores shown on the map come from the same model given one more feature, the share of earlier Sentinel-1 events in which the ground flooded, trained to predict the flooding of the latest event year from the years before it and applied with the share over every event (Section~\ref{sec:temporal}). Every validation figure in this paper comes from the model without that feature, because the feature is built from the same events the models are scored against.
+
+Assets also form the nodes of a $k$-nearest-neighbour graph with $k=6$, where any pair further apart than 5\,km, measured in metres in the projected coordinate system, is left unconnected. Inverse-distance weights are stored with each edge, although the GraphSAGE mean aggregation does not use them, so every retained neighbour counts equally. Under the default model the edges carry nothing and the graph serves only to hold the features, labels and block assignment that every model shares.
+
+Validation holds out whole spatial blocks of 10\,km instead of random nodes, because neighbouring assets share terrain, so a random split leaves every validation node next to training nodes that carry almost the same features and label, and the resulting score measures memorisation rather than skill. Blocks are assigned at random with a fixed seed to three groups, with 80\,\% for training and the remainder split evenly between calibration and test. Early stopping and the isotonic calibration of the scores use the calibration blocks only, and every metric reported in this paper comes from the test blocks, which neither has seen. Isotonic regression returns the observed frequency of each level it fits, so a level holding a handful of calibration points that all flooded returns a probability of one. Each level is therefore shrunk by its Jeffreys estimate, $(k+0.5)/(n+1)$ for $k$ of $n$ points flooded, which leaves a level carrying many points almost unchanged and pulls a level carrying few back towards the middle. In Rangpur and Rajshahi the raw scores give a Brier score of \RRValBrier{} on the test blocks and the calibrated probabilities \RRValBrierCalibrated{}, against \RRValBrierBaseRate{} for always predicting the base rate, so the calibration corrects the inflated raw scores but adds little over the base rate. Flood prevalence differs from one set of blocks to another, which limits how far a calibration carries. In Rangpur and Rajshahi \RRCalibBlockRate{}\,\% of the assets in the calibration blocks sit on flood-prone ground against \RRTestBlockRate{}\,\% in the test blocks, and a calibration fitted on the first set therefore underestimates the second (Fig.~\ref{fig:calibration}). The calibrated value is best read as an approximate probability for the region as a whole, reliable in its ranking but not in its level for any one area.
+
+\subsection*{Hazard surfaces}
+
+Two hazard surfaces are produced for every flood region, and the composite risk uses one of them according to the configuration setting \texttt{risk.hazard\_source}. The first is ordinary Kriging of the model scores at the asset locations, with a spherical variogram fitted on up to 3,000 points and a residual Kriging pass that adds back the score residuals at the nodes. How much it can say between assets depends on the spatial structure of the scores, which the fitted variogram reports. The nugget is the share of the variance that is unexplained at zero distance, and the mean Kriging variance over the full sill is the share the interpolation leaves unexplained on average. On the current runs the nugget is \RRNuggetSillRatio{} of the sill in Rangpur and Rajshahi and \SylhetNuggetSillRatio{} in Sylhet, and the mean Kriging variance is \RRKrigingSillRatio{} and \SylhetKrigingSillRatio{} of the sill respectively, so in both regions the interpolated surface smooths substantially towards the regional average. In Rangpur and Rajshahi its standard deviation across the grid is \RRKrigedGridSD{} against \RRTerrainGridSD{} for the terrain surface described next, and it varies smoothly over tens of kilometres where the terrain surface follows individual channels and levees (Fig.~\ref{fig:hazard}).
+
+The second surface is a class-weighted logistic regression from each grid cell's own terrain, using elevation, slope, TWI, HAND and flow accumulation and nothing else, because distances to hospitals or roads describe exposure and vulnerability rather than the likelihood of flooding. It is trained at the asset locations on the same labels and the same spatial blocks as the asset model, and evaluated at every grid cell, so it varies at the resolution of the elevation model rather than at the spacing of mapped infrastructure. In Rangpur and Rajshahi it reaches an AUC of \RRHazardAUC{} on held-out blocks, and it is the default. The two surfaces can also be scored directly against observed flooding over every grid cell, not only at assets, and there the terrain surface reaches an AUC of \RRSurfaceTerrainObsAUC{} against \RRSurfaceKrigedObsAUC{} for the Kriged one. Both are written to the grid so the difference between them can be inspected. Because the terrain model is trained on the observed extents, it is a flood-probability surface fitted to what the radar saw. Were it trained on the proxy labels instead, the circularity described in Section~\ref{sec:labels} would apply with full force, and it would be no more than ground the ensemble calls flood-prone, smoothed into a probability.
+
+\section{Exposure, vulnerability, composite risk and aggregation}
+\label{si:risk}
+
+Exposure per cell is measured twice, because ``where is infrastructure at risk'' and ``where would people be affected'' are different questions with different answers. Infrastructure exposure is the type-weighted count of mapped assets in the cell, with hospitals and schools weighted at 0.20, bridges, roads and cropland at 0.15, shelters and embankments at 0.10 and other assets at 0.05, log-scaled to the unit interval. Population exposure is WorldPop density sampled at the cell centre, log-scaled the same way. Urban municipalities lead the first measure because that is where infrastructure is concentrated, while crowded floodplain settlements can lead the second.
+
+Vulnerability combines population density with the distance from the cell centre to the nearest hospital, flood shelter and primary road, each normalised so that a greater distance means greater vulnerability. The configuration lists further components, a night-light proxy and an elderly-and-child ratio, that have no data source yet. Components without data are excluded rather than filled with a constant, and the remaining weights renormalised, and the weights actually applied are written to the output directory alongside the results. For the current runs the four applied components are population density (0.40), distance to hospital (0.27), distance to shelter (0.20) and distance to road (0.13).
+
+Composite risk is the geometric mean of hazard, exposure and vulnerability, which keeps the multiplicative logic, in which no exposure means no risk, while staying on the unit scale of its inputs. Two composites are written, one for each exposure measure, and both are carried through to the administrative summaries. Because the composite is bounded by its weakest factor it rarely approaches 1 even where risk is locally worst, so fixed cut-offs would place almost every cell in the lowest class. Cells are therefore also assigned relative classes 1 to 5 by quintile of the non-zero composite, the usual practice for susceptibility maps. Class 0 marks cells with no mapped exposure, which is an absence of data, not an absence of risk.
+
+Grid results are summarised for every union, upazila and district from geoBoundaries, and each summary carries the mean and maximum of both composites, counts of exposed assets by type, and a flag stating whether the unit holds any mapped assets at all, and units without mapped assets have their risk left undefined. In Rangpur and Rajshahi \RRNUnionsScored{} of the \RRNUnions{} unions hold mapped assets and carry a score. Unit names repeat across Bangladesh, so each unit also carries a label naming its parent, such as ``Abdullahpur (Gangachara)''. Hotspots are detected with the Getis--Ord $G_i^*$ statistic on $k=8$ nearest-neighbour weights, at 95\,\% confidence, over the cells that carry non-zero composite risk. Restricting the statistic to those cells keeps the weights matrix small enough to compute and avoids treating the empty majority of the grid as a sea of low values against which any occupied cell would look hot. Figure~\ref{fig:unionrisk} maps the mean composite risk of every union in the three flood regions.
+
+\section{Sensitivity of the composite to its weights}
+\label{si:sensitivity}
+
+The composite risk rests on weights that were chosen rather than measured, so the ranking it produces is recomputed under other defensible choices and compared with the published one by Spearman correlation and by the share of the top decile of cells that stays in the top decile. Weighting every asset type equally leaves the ordering almost unchanged, at $\rho=\RRSensEqualTypesRho{}$ in Rangpur and Rajshahi and $\rho=\CoastalSensEqualTypesRho{}$ on the coast, and so does weighting the vulnerability components equally. Doubling the exposure exponent in the geometric mean gives $\rho=\RRSensExposureDoubleRho{}$ while retaining \RRSensExposureDoubleTop{} of the top decile. Multiplying every chosen weight by a random factor between 0.5 and 1.5, over \RRSensDraws{} draws, gives a mean $\rho$ of \RRSensRandomRho{} in Rangpur and Rajshahi, \SylhetSensRandomRho{} in Sylhet and \CoastalSensRandomRho{} on the coast, with \RRSensRandomTop{} of the top decile retained.
+
+Only one choice matters, reducing vulnerability to population density alone, which discards the distances to hospitals, shelters and roads and drops the correlation to \RRSensPopOnlyRho{} in Rangpur and Rajshahi and \CoastalSensPopOnlyRho{} on the coast, so the access distances rather than population drive the vulnerability term. The ordering of cells is therefore not an artefact of the particular weights, while the boundary of the top class is soft enough that a cell just inside it and a cell just outside should be treated alike.
+
+\section{Validation metrics}
+\label{si:metrics}
+
+Every model in the chain is scored on spatial blocks held out from training, and the same block assignment is shared by the asset model and the terrain hazard model within a region. Metrics are the area under the ROC curve, which measures ranking, average precision, which is more sensitive to the rare positive class, and the Brier score for calibration. Average precision is also reported as a lift over the base rate, because an average precision of 0.07 against a positive rate of 0.01 is a sevenfold improvement over chance while the same value against a rate of 0.10 is worse than chance.
+
+The validation step then answers three questions separately. Whether model scores rank assets that flooded above those that did not is measured on the held-out blocks. Whether the hazard surface agrees with observed flooding across the whole grid, and not only where assets happen to be, is measured by AUC and Spearman correlation over all cells. And how closely the proxy labels match observed flooding is measured with the categorical scores used in flood mapping, the probability of detection, false alarm ratio and critical success index, which quantifies what the proxy-trained models were learning.
+
+Every metric that compares two models or two label sources is repeated over several block assignments drawn with different seeds, because a single assignment gives one number with no sense of its spread, and differences are tested by a paired comparison across assignments. Each such comparison uses \RRBenchSeeds{} assignments.
+
+
+\bibliographystyle{apalike}
+\bibliography{references}
+
+\end{document}

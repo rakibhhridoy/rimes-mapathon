@@ -1,4 +1,14 @@
-"""Assemble docs/paper/paper.tex from the technical document plus new framing text."""
+"""Assemble docs/paper/paper.tex from the technical document plus new framing text.
+
+RETIRED 2026-09-26. The paper is now edited directly in paper.tex, cut to the
+6,000-word limit of the Journal of Flood Risk Management, and no longer tracks
+the technical document. Running this would overwrite that work, so it refuses
+unless --force is given. Numbers still come from docs/numbers.tex.
+"""
+import sys
+if "--force" not in sys.argv:
+    sys.exit("build_paper.py is retired: edit docs/paper/paper.tex directly "
+             "(or pass --force to regenerate and lose those edits).")
 from pathlib import Path
 
 DOCS = Path(__file__).resolve().parent.parent
