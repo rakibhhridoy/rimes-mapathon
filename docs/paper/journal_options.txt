@@ -1,0 +1,270 @@
+JOURNAL OPTIONS FOR THE FLOOD PAPER
+"Do flood susceptibility models know more than the flood record? Evidence
+from radar-observed floods in Bangladesh"
+
+Compiled 2026-09-26 from web searches.
+
+REQUIREMENTS (from the authors, 2026-09-26)
+  - Q1 or Q2, with a Web of Science Journal Impact Factor
+  - normal timeline (3-6 months) is fine
+  - an open-access fee of USD 1,500-3,000 can be paid if no waiver comes through
+  - readership: flood risk
+  - priority: acceptance with few resubmissions, not prestige
+
+CAUTION ON THE NUMBERS
+  Official Clarivate impact factors could not be reached (Springer and Wiley
+  block automated access; NHESS does not publish its impact factor). Most
+  figures below come from secondary metric sites, which often disagree with
+  each other. Marked [publisher] where the figure came from the publisher's
+  own page or announcement. CONFIRM EVERY IMPACT FACTOR AND QUARTILE IN
+  JOURNAL CITATION REPORTS (via the university) BEFORE SUBMITTING, and check
+  indexing on the Clarivate Master Journal List: https://mjl.clarivate.com
+  No acceptance rates were found for any journal; the ease ranking is a
+  judgement of fit and editorial culture, not a statistic.
+
+
+RECOMMENDATION
+  Two strategies:
+    Ease first:  Scientific Reports. The easiest route to a Q1 journal with an
+                 impact factor, because it reviews for soundness only, not
+                 novelty or significance.
+    Fit first:   Journal of Flood Risk Management. Flood-risk reviewers are
+                 the ones most likely to value the validation argument.
+  Fallback chain either way:
+    Stochastic Environmental Research and Risk Assessment
+    -> Natural Hazards (both free by the subscription route)
+    -> Remote Sensing (MDPI)
+  Reach higher:  NHESS, accepting a harder, public review.
+
+
+------------------------------------------------------------------------------
+TIER 1: EASIEST ACCEPTANCE
+------------------------------------------------------------------------------
+
+Scientific Reports  (Springer Nature)
+  Impact factor : ~4.9, Q1 (Multidisciplinary Sciences)
+  Fee           : USD 2,850 (open access)
+  Review        : soundness only, not novelty
+  Notes         : publishes many flood susceptibility studies; broad readership
+  Links         : https://www.nature.com/srep/
+                  https://manusights.com/blog/scientific-reports-impact-factor
+                  https://impactfactorforjournal.com/scientific-reports-impact-factor/
+
+PLOS ONE  (PLOS)
+  Impact factor : ~2.8, Q2 (Multidisciplinary Sciences)
+  Fee           : ~USD 2,477 (open access)
+  Review        : soundness only
+  Notes         : only Q2
+  Links         : https://manusights.com/blog/plos-one-impact-factor
+
+Remote Sensing  (MDPI)
+  Impact factor : 4.3, Q1 in Geosciences, Multidisciplinary [publisher announcement]
+  Fee           : CHF 2,700 [publisher]
+  Notes         : fast; fits the Sentinel-1 angle; some institutions rate MDPI lower
+  Links         : https://www.mdpi.com/about/announcements/17207
+                  https://www.mdpi.com/journal/remotesensing/apc
+
+Water  (MDPI)
+  Impact factor : ~3.0-3.5, Q2 (Water Resources); sources disagree
+  Fee           : open access, fee applies
+  Notes         : fast
+  Links         : https://www.mdpi.com/about/announcements/12271
+                  https://en.wikipedia.org/wiki/Water_(journal)
+
+
+------------------------------------------------------------------------------
+TIER 2: BEST FIT, MODERATE DIFFICULTY
+------------------------------------------------------------------------------
+
+Journal of Flood Risk Management  (Wiley / CIWEM)
+  Impact factor : not found; CiteScore 8.2
+  Fee           : USD 3,610 / GBP 2,740 / EUR 2,280 [publisher]; 20 % off for
+                  CIWEM members; fully open access
+  Notes         : exact flood-risk readership; author guidelines page blocks
+                  automated access, so paste them in by hand to check format
+  Links         : https://onlinelibrary.wiley.com/page/journal/1753318x/homepage/article-publication-charges
+                  https://onlinelibrary.wiley.com/page/journal/1753318x/homepage/forauthors.html
+                  https://researcher.life/journal/journal-of-flood-risk-management/5120
+                  https://www.ciwem.org/publications/the-journal-of-flood-risk-management
+
+Stochastic Environmental Research and Risk Assessment  (Springer)
+  Impact factor : ~3.8, Q1/Q2 (sources disagree); CiteScore 6.4
+  Fee           : free by the subscription route (hybrid)
+  Notes         : readers value statistical validation (repeated block
+                  assignments, paired tests, calibration); publishes flood
+                  susceptibility work
+  Links         : https://www.journalmetrics.org/journal/stochastic-environmental-research-and-risk-assessment
+                  https://researcher.life/journal/stochastic-environmental-research-and-risk-assessment/6194
+
+Natural Hazards  (Springer)
+  Impact factor : ~4.5 (unverified; one secondary site); CiteScore 4.9
+  Fee           : free by the subscription route (hybrid)
+  Notes         : broad; crowded with Bangladesh susceptibility papers, so an
+                  editor may see "another one" at first glance
+  Links         : https://link.springer.com/journal/11069
+                  https://www.journalmetrics.org/journal/natural-hazards
+                  https://www.letpub.com/journal-selector/journal/6046
+
+Earth Science Informatics  (Springer)
+  Impact factor : ~4.2 (5-year 3.8); quartile not confirmed
+  Fee           : free by the subscription route (hybrid)
+  Notes         : machine-learning and informatics angle
+  Links         : https://link.springer.com/journal/12145
+
+Frontiers in Environmental Science  (Frontiers)
+  Impact factor : ~4.2-4.4, Q2 (sources disagree)
+  Fee           : open access fee, waivers for developing countries
+  Notes         : fast
+  Links         : https://impactfactorforjournal.com/frontiers-in-environmental-science-impact-factor/
+
+Earth and Space Science  (AGU / Wiley)
+  Impact factor : ~3.3
+  Fee           : USD 2,420 / GBP 1,510 / EUR 1,800
+  Notes         : broad geoscience
+  Links         : https://journalsearches.com/journal.php?title=earth+and+space+science
+
+Geocarto International  (Taylor & Francis)
+  Impact factor : ~3.9, Q2
+  Fee           : USD 2,390
+  Notes         : remote sensing and GIS readership
+  Links         : https://www.journalmetrics.org/journal/geocarto-international
+                  https://www.tandfonline.com/journals/tgei20/about-this-journal
+
+Geomatics, Natural Hazards and Risk  (Taylor & Francis)
+  Impact factor : Q1 per secondary sites; CiteScore 5.8
+  Fee           : USD 1,790
+  Notes         : publishes many susceptibility papers; geoinformatics readership
+  Links         : https://researcher.life/journal/geomatics-natural-hazards-and-risk/124
+                  https://www.journalmetrics.org/journal/geomatics-natural-hazards-and-risk
+
+
+------------------------------------------------------------------------------
+TIER 3: HARDER
+------------------------------------------------------------------------------
+
+Natural Hazards and Earth System Sciences (NHESS)  (Copernicus)
+  Impact factor : ~5.4, Q1; CiteScore 8.2 [publisher]
+  Fee           : ~EUR 1,800; waivers for developing countries
+  Notes         : the strongest fit for a validation paper and requires open
+                  code and data (already in place), but harder; the manuscript
+                  and reviews are posted publicly during review
+  Links         : https://www.natural-hazards-and-earth-system-sciences.net/about/journal_metrics.html
+                  https://journalsearches.com/journal.php?title=natural+hazards+and+earth+system+sciences
+
+Water Resources Management  (Springer)
+  Impact factor : ~5.7, Q1
+  Fee           : free by the subscription route (hybrid)
+  Notes         : selective; water-management focus
+  Links         : https://www.journalmetrics.org/journal/water-resources-management
+                  https://link.springer.com/journal/11269
+
+International Journal of Disaster Risk Reduction  (Elsevier)
+  Impact factor : ~5.6, Q1
+  Fee           : hybrid
+  Notes         : leans towards social science and policy
+  Links         : https://www.resurchify.com/impact/details/21100228018
+                  https://www.sciencedirect.com/journal/international-journal-of-disaster-risk-reduction
+
+International Journal of Disaster Risk Science  (Springer)
+  Impact factor : ~5.3, Q1
+  Fee           : open access, fee not found
+  Notes         : selective; risk and policy emphasis
+  Links         : https://www.journalmetrics.org/journal/international-journal-of-disaster-risk-science
+                  https://link.springer.com/journal/13753
+
+Journal of Hydrology: Regional Studies  (Elsevier)
+  Impact factor : Q1; CiteScore 5.9, SNIP 1.82
+  Fee           : USD 2,820 [publisher]
+  Notes         : good home for regional flood studies; requires a structured
+                  abstract; leans towards hydrology rather than risk
+  Links         : https://researcher.life/journal/journal-of-hydrology-regional-studies/16099
+                  https://www.sciencedirect.com/journal/journal-of-hydrology-regional-studies
+
+Environmental Modelling & Software  (Elsevier)
+  Impact factor : ~4.6, Q1 (a Scopus-based site says 5.95)
+  Fee           : USD 3,400
+  Notes         : software-heavy; high bar
+  Links         : https://www.journalmetrics.org/journal/environmental-modelling-and-software-2
+
+International Journal of Applied Earth Observation and Geoinformation  (Elsevier)
+  Impact factor : ~8.2, Q1; CiteScore 10.5
+  Fee           : USD 3,610
+  Notes         : high bar
+  Links         : https://www.journalmetrics.org/journal/international-journal-of-applied-earth-observation-and-geoinformation
+
+Remote Sensing Applications: Society and Environment  (Elsevier)
+  Impact factor : ~4.5 (sources conflict; one says 6.0)
+  Fee           : not checked
+  Notes         : moderate
+  Links         : https://researcher.life/journal/remote-sensing-applications-society-and-environment/34125
+
+Progress in Disaster Science  (Elsevier)
+  Impact factor : not found; check indexing
+  Fee           : USD 1,680 [publisher]
+  Links         : https://www.elsevier.com/journals/progress-in-disaster-science/2590-0617/open-access-journal
+
+
+------------------------------------------------------------------------------
+LOWER IMPACT (likely below the Q1/Q2 requirement, or hydrology-heavy)
+------------------------------------------------------------------------------
+
+Hydrological Processes  (Wiley)               ~2.9
+  https://researcher.life/journal/hydrological-processes/10220
+Hydrological Sciences Journal  (T&F / IAHS)   ~2.9 (5-year 3.5)
+  https://iahs.info/Publications-News/Hydrological-Sciences-Journal/
+Environmental Earth Sciences  (Springer)      ~2.8, Q2 per one site; check the quartile
+  https://www.journalmetrics.org/journal/environmental-earth-sciences-3
+International Journal of River Basin Management  (T&F)  ~2.5 (2023)
+  https://exaly.com/journal/24654/international-journal-of-river-basin-management/impact-factor
+Natural Hazards Review  (ASCE)                ~2.2
+  https://journalsearches.com/journal.php?title=natural+hazards+review
+Journal of Hydroinformatics  (IWA)            Q2 (Scopus SJR); fee USD 2,750, waivers [publisher]
+  https://iwaponline.com/jh/pages/apc
+Journal of Water and Climate Change  (IWA)    impact factor not found; fee USD 2,940 [publisher]
+  https://iwaponline.com/jwcc/pages/apc
+
+
+------------------------------------------------------------------------------
+RULED OUT
+------------------------------------------------------------------------------
+
+Natural Hazards Research  (KeAi / Elsevier)
+  Free to publish (diamond open access), Scopus CiteScore 9.7, but no Web of
+  Science impact factor could be confirmed; the "4.90" some sites quote is
+  Scopus-based. Recheck on the Master Journal List; if it now has a JIF it
+  becomes a strong free option.
+  https://www.keaipublishing.com/en/journals/natural-hazards-research/
+  https://www.resurchify.com/impact/details/21101186481
+
+Heliyon  (Cell Press / Elsevier)
+  Placed on hold by Clarivate in September 2024; no 2025 impact factor (one
+  expected in October 2026).
+  https://casrai.org/dictionary/term/heliyon-impact-factor
+
+Frontiers in Water  (Frontiers)
+  Scopus only, no impact factor. Fee CHF 1,175.
+  https://journalsearches.com/journal.php?title=frontiers+in+water
+
+Frontiers in Earth Science  (Frontiers)
+  ~2.3 (Geohazards section ~2.0); may fall below Q2. Fee ~CHF 3,150.
+  https://journalsearches.com/journal.php?title=frontiers+in+earth+science
+
+Environmental Research Communications  (IOP)
+  ~2.7, Q3.
+  https://www.journalmetrics.org/journal/environmental-research-communications
+
+npj Natural Hazards  (Springer Nature)
+  Too new for an impact factor; highly selective. Fee USD 2,190.
+  https://www.nature.com/npjnathazards/open-access
+
+Ecological Informatics  (Elsevier)
+  Impact factor not found; CiteScore 5.4, SJR Q2; off-topic readership.
+  https://researcher.life/journal/ecological-informatics/7349
+
+
+------------------------------------------------------------------------------
+NEXT STEP
+------------------------------------------------------------------------------
+Choose the target journal, then get its author guidelines (word limit,
+article type, abstract format, reference style, LaTeX template) and apply the
+template to docs/paper/.
