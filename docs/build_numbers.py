@@ -293,6 +293,7 @@ def region_numbers(region_id: str) -> list[str]:
     tsum = temporal.get("summary") or {}
     tpast = tsum.get("temporal_minus_past_flooding") or {}
     tall = tsum.get("temporal_minus_all_events") or {}
+    tproxy = tsum.get("temporal_minus_proxy_trained") or {}
     lines += [
         _macro(f"{prefix}TempAUC", (tsum.get("temporal") or {}).get("auc_mean")),
         _macro(f"{prefix}TempSD", (tsum.get("temporal") or {}).get("auc_sd")),
@@ -310,6 +311,12 @@ def region_numbers(region_id: str) -> list[str]:
         _macro(f"{prefix}TempAllGap", _gap(tall.get("mean"))),
         _macro(f"{prefix}TempSeeds", (tsum.get("temporal") or {}).get("n_seeds")),
         _macro(f"{prefix}TempTestRate", _pct(temporal.get("test_positive_rate"))),
+        # The label comparison on floods neither label source was trained on.
+        _macro(f"{prefix}TempProxyAUC", (tsum.get("proxy_trained") or {}).get("auc_mean")),
+        _macro(f"{prefix}TempProxySD", (tsum.get("proxy_trained") or {}).get("auc_sd")),
+        _macro(f"{prefix}TempProxyGap", tproxy.get("mean")),
+        _macro(f"{prefix}TempProxyGapP", _p(tproxy.get("p_value"))),
+        _macro(f"{prefix}TempProxyAhead", tproxy.get("seeds_temporal_ahead")),
     ]
 
     # Past flooding as a feature, trained on the latest pre-cutoff event.
