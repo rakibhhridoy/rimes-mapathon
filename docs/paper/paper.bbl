@@ -7,6 +7,13 @@ Adnan, M. S.~G., Siam, Z.~S., Kabir, I., Kabir, Z., Ahmed, M.~R., Hassan,
   learning-based geospatial approaches for flood prediction}.
 \newblock {\em Journal of Environmental Management}, 326:116813.
 
+\bibitem[Ali et~al., 2019]{ali2019}
+Ali, M., Bhattacharya, B., Islam, A., Islam, G., Hossain, M., and Khan, A.
+  (2019).
+\newblock {Challenges for flood risk management in flood-prone Sirajganj region
+  of Bangladesh}.
+\newblock {\em Journal of Flood Risk Management}, 12(1):e12450.
+
 \bibitem[Amitrano et~al., 2024]{amitrano2024}
 Amitrano, D., Di~Martino, G., Di~Simone, A., and Imperatore, P. (2024).
 \newblock {Flood Detection with SAR: A Review of Techniques and Datasets}.
@@ -24,6 +31,13 @@ Beven, K.~J. and Kirkby, M.~J. (1979).
   hydrology / Un modèle à base physique de zone d'appel variable de
   l'hydrologie du bassin versant}.
 \newblock {\em Hydrological Sciences Bulletin}, 24(1):43--69.
+
+\bibitem[Dadhich et~al., 2026]{dadhich2026}
+Dadhich, G., Babel, M., Miyazaki, H., Pal, I., Tripathi, N.~K., and Virdis, S.
+  G.~P. (2026).
+\newblock {Performance Evaluation of Automated Flood Inundation Mapping
+  Techniques Using Multi-Temporal Sentinel-1 SAR Data}.
+\newblock {\em Journal of Flood Risk Management}, 19(2):e70201.
 
 \bibitem[{European Commission Joint Research Centre}, 2017]{inform2017}
 {European Commission Joint Research Centre} (2017).
@@ -97,6 +111,13 @@ Ploton, P., Mortier, F., Réjou-Méchain, M., Barbier, N., Picard, N., Rossi,
   large-scale ecological mapping models}.
 \newblock {\em Nature Communications}, 11(1):4540.
 
+\bibitem[Rahman et~al., 2025]{rahmanm2025}
+Rahman, M.~M., Tanni, K.~N., Shobuj, I.~A., Hossain, M.~T., Alam, E.,
+  Al~Hattaw, K.~S., and Islam, M.~K. (2025).
+\newblock {Multidimensional Vulnerability Assessment for Floods: Evidence From
+  Flood-Prone Areas of Bangladesh}.
+\newblock {\em Journal of Flood Risk Management}, 18(3):e70089.
+
 \bibitem[Roberts et~al., 2017]{roberts2017}
 Roberts, D.~R., Bahn, V., Ciuti, S., Boyce, M.~S., Elith, J., Guillera-Arroita,
   G., Hauenstein, S., Lahoz-Monfort, J.~J., Schröder, B., Thuiller, W.,
@@ -110,6 +131,18 @@ Rudra, R.~R. and Sarkar, S.~K. (2023).
 \newblock {Artificial neural network for flood susceptibility mapping in
   Bangladesh}.
 \newblock {\em Heliyon}, 9(6):e16459.
+
+\bibitem[Schotten and Bachmann, 2023]{schotten2023}
+Schotten, R. and Bachmann, D. (2023).
+\newblock {Critical infrastructure network modelling for flood risk analyses:
+  Approach and proof of concept in Accra, Ghana}.
+\newblock {\em Journal of Flood Risk Management}, 16(3):e12913.
+
+\bibitem[Sherpa and Shirzaei, 2022]{sherpa2022}
+Sherpa, S.~F. and Shirzaei, M. (2022).
+\newblock {Country-wide flood exposure analysis using Sentinel-1 synthetic
+  aperture radar data: Case study of 2019 Iran flood}.
+\newblock {\em Journal of Flood Risk Management}, 15(1):e12770.
 
 \bibitem[Talukdar et~al., 2020]{talukdar2020}
 Talukdar, S., Ghose, B., Shahfahad, Salam, R., Mahato, S., Pham, Q.~B., Linh,
@@ -150,11 +183,24 @@ Wadoux, A. M.-C., Heuvelink, G.~B., de~Bruin, S., and Brus, D.~J. (2021).
   accuracy}.
 \newblock {\em Ecological Modelling}, 457:109692.
 
+\bibitem[Waleed and Sajjad, 2025]{waleed2025}
+Waleed, M. and Sajjad, M. (2025).
+\newblock {Advancing flood susceptibility prediction: A comparative assessment
+  and scalability analysis of machine learning algorithms via artificial
+  intelligence in high-risk regions of Pakistan}.
+\newblock {\em Journal of Flood Risk Management}, 18(1):e13047.
+
 \bibitem[Wang et~al., 2023]{wang2023}
 Wang, X., Du, A., Hu, F., Liu, Z., Zhang, X., Wang, L., and Guo, H. (2023).
 \newblock {Landslide susceptibility evaluation based on active deformation and
   graph convolutional network algorithm}.
 \newblock {\em Frontiers in Earth Science}, 11:1132722.
+
+\bibitem[Williams et~al., 2025]{williams2025}
+Williams, J.~H., Vu, H.~N., Paulik, R., Zorn, C., and Wotherspoon, L. (2025).
+\newblock {Expert-Derived Flood Damage Curves for Critical Infrastructure
+  Network Components}.
+\newblock {\em Journal of Flood Risk Management}, 18(2):e70045.
 
 \bibitem[Zadrozny and Elkan, 2002]{zadrozny2002}
 Zadrozny, B. and Elkan, C. (2002).
@@ -162,5 +208,11 @@ Zadrozny, B. and Elkan, C. (2002).
   estimates}.
 \newblock In {\em Proceedings of the eighth ACM SIGKDD international conference
   on Knowledge discovery and data mining}, pages 694--699.
+
+\bibitem[Zzaman et~al., 2021]{zzaman2021}
+Zzaman, R.~U., Nowreen, S., Billah, M., and Islam, A.~S. (2021).
+\newblock {Flood hazard mapping of Sangu River basin in Bangladesh using
+  multi-criteria analysis of hydro-geomorphological factors}.
+\newblock {\em Journal of Flood Risk Management}, 14(3):e12715.
 
 \end{thebibliography}

@@ -33,3 +33,22 @@ argument rests on it.
 Automated retrieval failed for every publisher on 2026-09-24. Springer
 requires cookies, while ScienceDirect and MDPI return 403 to scripts. A
 browser download works for all the open-access ones.
+
+## Journal of Flood Risk Management papers added 2026-09-26
+
+Added so the paper engages the target journal's own literature. Wiley blocks
+automated access to the full texts, so each claim below rests on the
+**abstract only** (retrieved via OpenAlex/Crossref) and is worded no more
+strongly than the abstract. **Check each against its full text before
+submission.**
+
+| Key | DOI | Claim in the paper | Status |
+|---|---|---|---|
+| zzaman2021 | 10.1111/jfr3.12715 | Sangu basin; multi-criteria (AHP/ANP) hazard maps from terrain factors incl. TWI and HAND; validation scores 0.77--0.79; 39 % of roads and 25 % of education buildings in the highest hazard class | abstract only |
+| sherpa2022 | 10.1111/jfr3.12770 | Sentinel-1 flood maps used to estimate flood exposure across a whole country (Iran, 2019) | abstract only |
+| waleed2025 | 10.1111/jfr3.13047 | 14 ML models for flood-prone areas of Pakistan; boosted trees (LGBM, XGBoost) ranked first | abstract only |
+| dadhich2026 | 10.1111/jfr3.70201 | change detection outperforms single-image thresholding for Sentinel-1 flood mapping (the authors' framing) | abstract only |
+| rahmanm2025 | 10.1111/jfr3.70089 | household survey (487 households) in flood-prone Sunamganj: economic, physical (housing) and social (age, vulnerable members) dimensions of vulnerability | abstract only |
+| williams2025 | 10.1111/jfr3.70045 | expert-elicited depth-damage curves for 34 infrastructure network components | abstract only |
+| schotten2023 | 10.1111/jfr3.12913 | topology-based modelling of cascading critical-infrastructure disruption, proof of concept in Accra | abstract only |
+| ali2019 | 10.1111/jfr3.12450 | Sirajganj: structural and non-structural flood measures proposed | abstract only |
