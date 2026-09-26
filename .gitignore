@@ -33,6 +33,7 @@ data.zip
 
 # Local environment
 .env
+.zenodo_token
 .venv/
 venv/
 
