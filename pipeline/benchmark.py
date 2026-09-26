@@ -547,3 +547,104 @@ def run_past_flooding_feature(cfg: dict, processed_dir: Path, raw_dir: Path,
     (output_dir / "past_flooding_feature.json").write_text(json.dumps(result, indent=2))
     logger.info(f"Wrote {output_dir / 'past_flooding_feature.json'}")
     return result
+
+
+# Features that describe the same thing, permuted together so that one cannot
+# stand in for another while it is shuffled.
+FEATURE_GROUPS = {
+    "terrain": ("elevation", "slope", "twi", "hand", "flow_acc"),
+    "access": ("dist_hospital", "dist_school", "dist_shelter", "dist_road",
+               "dist_water"),
+    "population": ("pop_density",),
+    "asset_type": ("asset_type_code",),
+}
+
+
+def run_feature_importance(cfg: dict, processed_dir: Path, output_dir: Path,
+                           infra_path: Path, seeds=SEEDS, repeats: int = 5) -> dict:
+    """What the default model relies on, measured on the held-out blocks.
+
+    For each block assignment the configured model is fitted on the training
+    blocks, and each feature, then each group of related features, is shuffled
+    across the test assets; the loss in AUC is its importance. Shuffling a
+    feature on its own understates it when a correlated feature carries the
+    same information, which is why the groups are also shuffled together.
+    """
+    import geopandas as gpd
+    import pandas as pd
+    from sklearn.metrics import roc_auc_score
+
+    from pipeline.asset_model import _fit_tabular, model_type
+    from pipeline.feature_extract import extract_features, project_coords
+    from pipeline.graph_build import spatial_block_split_three
+
+    kind = model_type(cfg)
+    if kind == "graph_sage":
+        raise ValueError("Feature importance expects a tabular asset model.")
+
+    infra = gpd.read_file(str(infra_path))
+    X, coords, y, _ = extract_features(cfg, infra, processed_dir)
+    X = np.ascontiguousarray(X, dtype=np.float32)
+    y = np.ascontiguousarray(y).astype(int)
+    columns = pd.read_parquet(processed_dir / "node_features.parquet").columns
+    skip = {"asset_type", "name", "priority", "lon", "lat", "flood_label"}
+    names = [c for c in columns if c not in skip]
+    coords_m = project_coords(np.asarray(coords), cfg["aoi"]["crs"])
+    block_m = cfg["graph"].get("block_size_m", 10_000)
+    train_ratio = cfg["graph"].get("train_split", 0.8)
+
+    sets = {f: [names.index(f)] for f in names}
+    groups = {g: [names.index(f) for f in fs if f in names]
+              for g, fs in FEATURE_GROUPS.items()}
+    groups = {g: idx for g, idx in groups.items() if idx}
+
+    per_seed = []
+    for seed in seeds:
+        train_mask, _, test_mask = spatial_block_split_three(
+            coords_m, train_ratio=train_ratio, block_size_m=block_m, seed=seed)
+        train = train_mask.numpy().astype(bool)
+        test = test_mask.numpy().astype(bool)
+        if len(np.unique(y[test])) < 2:
+            continue
+        model = _fit_tabular(kind, X, y, train, seed)
+        X_test, y_test = X[test], y[test]
+        base = roc_auc_score(y_test, model.predict_proba(X_test)[:, 1])
+        rng = np.random.default_rng(seed)
+
+        def loss(idx):
+            drops = []
+            for _ in range(repeats):
+                shuffled = X_test.copy()
+                order = rng.permutation(len(shuffled))
+                shuffled[:, idx] = X_test[order][:, idx]   # one order for the set
+                drops.append(base - roc_auc_score(
+                    y_test, model.predict_proba(shuffled)[:, 1]))
+            return float(np.mean(drops))
+
+        per_seed.append({"seed": seed, "auc": float(base),
+                         "features": {f: loss(i) for f, i in sets.items()},
+                         "groups": {g: loss(i) for g, i in groups.items()}})
+        logger.info(f"seed {seed}: AUC {base:.3f}")
+
+    def summarise(kind_key, keys):
+        out = {}
+        for k in keys:
+            drops = np.array([r[kind_key][k] for r in per_seed])
+            out[k] = {"auc_loss_mean": float(drops.mean()),
+                      "auc_loss_sd": float(drops.std(ddof=1)) if len(drops) > 1 else None}
+        return dict(sorted(out.items(), key=lambda kv: -kv[1]["auc_loss_mean"]))
+
+    result = {
+        "model": kind, "seeds": list(seeds), "repeats": repeats,
+        "groups": {g: list(fs) for g, fs in FEATURE_GROUPS.items()},
+        "per_seed": per_seed,
+        "summary": {"features": summarise("features", sets),
+                    "groups": summarise("groups", groups),
+                    "auc_mean": float(np.mean([r["auc"] for r in per_seed]))
+                    if per_seed else None,
+                    "n_seeds": len(per_seed)},
+    }
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "feature_importance.json").write_text(json.dumps(result, indent=2))
+    logger.info(f"Wrote {output_dir / 'feature_importance.json'}")
+    return result

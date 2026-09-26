@@ -307,7 +307,14 @@ Composite risk is the geometric mean of hazard, exposure and vulnerability, whic
 \subsection{Aggregation}
 \label{sec:aggregation}
 
-Grid results are summarised for every union, upazila and district from geoBoundaries, and each summary carries the mean and maximum of both composites, counts of exposed assets by type, and a flag stating whether the unit holds any mapped assets at all, and units without mapped assets have their risk left undefined. Version 1 filled them with zero, which the dashboard rendered as a green low-risk badge, and in Rangpur and Rajshahi that applied to \RRNUnions{} minus \RRNUnionsScored{} of the \RRNUnions{} unions. Unit names repeat across Bangladesh, so each unit also carries a label naming its parent, such as ``Abdullahpur (Gangachara)''. Hotspots are detected with the Getis--Ord $G_i^*$ statistic on $k=8$ nearest-neighbour weights, at 95\,\% confidence, over the cells that carry non-zero composite risk. Restricting the statistic to those cells keeps the weights matrix small enough to compute and avoids treating the empty majority of the grid as a sea of low values against which any occupied cell would look hot.
+Grid results are summarised for every union, upazila and district from geoBoundaries, and each summary carries the mean and maximum of both composites, counts of exposed assets by type, and a flag stating whether the unit holds any mapped assets at all, and units without mapped assets have their risk left undefined. Version 1 filled them with zero, which the dashboard rendered as a green low-risk badge, and in Rangpur and Rajshahi that applied to \RRNUnions{} minus \RRNUnionsScored{} of the \RRNUnions{} unions. Unit names repeat across Bangladesh, so each unit also carries a label naming its parent, such as ``Abdullahpur (Gangachara)''. Hotspots are detected with the Getis--Ord $G_i^*$ statistic on $k=8$ nearest-neighbour weights, at 95\,\% confidence, over the cells that carry non-zero composite risk. Restricting the statistic to those cells keeps the weights matrix small enough to compute and avoids treating the empty majority of the grid as a sea of low values against which any occupied cell would look hot. Figure~\ref{fig:unionrisk} maps the mean composite risk of every union in the three flood regions.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/fig_union_risk.pdf}
+\caption{Mean infrastructure composite risk of each union in the three flood regions, in five relative classes by quintile of the unions scored in each region. Unions without mapped assets carry no score and are shaded as missing data, not as low risk. On the south-west coast the hazard term is close to chance against observed flooding (Section~\ref{sec:validation}), so that panel reflects mapped exposure and vulnerability more than flood hazard.}
+\label{fig:unionrisk}
+\end{figure*}
 
 \section{Landslide susceptibility}
 \label{sec:landslide}
@@ -448,6 +455,18 @@ Graph minus best baseline & \RRBenchDiff{} & \SylhetBenchDiff{} & \CoastalBenchD
 \includegraphics[width=\textwidth]{figures/fig_benchmark.pdf}
 \caption{AUC of each model on the held-out test blocks, one circle per block assignment and a vertical bar at the mean. The graph network is in blue, the other models in orange, and the dotted line marks a random ranking. The graph network sits inside the range of the ordinary models in every region.}
 \label{fig:benchmark}
+\end{figure*}
+
+\subsection{What the model relies on}
+\label{sec:importance}
+
+Shuffling each feature across the test assets and recording the loss in AUC, over the same \RRBenchSeeds{} block assignments, shows what the default model uses (Fig.~\ref{fig:importance}). Elevation carries almost all of the terrain signal, costing \RRImpElevation{} in AUC when shuffled in Rangpur and Rajshahi, \SylhetImpElevation{} in Sylhet and \CoastalImpElevation{} on the coast, while the wetness index, height above drainage, slope and flow accumulation cost no more than \RRImpOtherTerrainMax{}, \SylhetImpOtherTerrainMax{} and \CoastalImpOtherTerrainMax{} each. Because shuffling one of several correlated features understates each of them, the five terrain features were also shuffled together, and they cost \RRImpTerrain{}, \SylhetImpTerrain{} and \CoastalImpTerrain{}, little more than elevation alone, so the derived terrain indices add almost nothing once elevation is known. The five access distances, shuffled together, are the second group at \RRImpAccess{}, \SylhetImpAccess{} and \CoastalImpAccess{}, ahead of population density and asset type. These distances describe how far an asset lies from services rather than any property of flooding, and they most likely stand in for where roads and settlements sit on the floodplain, which would give the tabular model much of the spatial information the graph was meant to supply, although that reading was not tested directly. The terrain hazard surface of Section~\ref{sec:hazard} leaves them out, since it scores ground rather than assets.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_importance.pdf}
+\caption{Loss in AUC on the held-out test blocks when each feature is shuffled across the test assets, as mean and standard deviation over \RRBenchSeeds{} block assignments, for the default gradient-boosted model. The AUC in each title is the mean before shuffling.}
+\label{fig:importance}
 \end{figure*}
 
 \subsection{Weight sensitivity}

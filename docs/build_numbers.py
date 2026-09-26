@@ -334,6 +334,24 @@ def region_numbers(region_id: str) -> list[str]:
         _macro(f"{prefix}XcAUC", xc.get("auc_roc")),
     ]
 
+    # Permutation importance of the default model on the held-out blocks.
+    imp = (_read_json(paths["output"] / "feature_importance.json") or {}).get("summary") or {}
+    ifeat, igroup = imp.get("features") or {}, imp.get("groups") or {}
+
+    def _loss(table, key):
+        return (table.get(key) or {}).get("auc_loss_mean")
+
+    other_terrain = [_loss(ifeat, k) for k in ("slope", "twi", "hand", "flow_acc")]
+    other_terrain = [v for v in other_terrain if v is not None]
+    lines += [
+        _macro(f"{prefix}ImpElevation", _loss(ifeat, "elevation")),
+        _macro(f"{prefix}ImpOtherTerrainMax", max(other_terrain) if other_terrain else None),
+        _macro(f"{prefix}ImpTerrain", _loss(igroup, "terrain")),
+        _macro(f"{prefix}ImpAccess", _loss(igroup, "access")),
+        _macro(f"{prefix}ImpPopulation", _loss(igroup, "population")),
+        _macro(f"{prefix}ImpAssetType", _loss(igroup, "asset_type")),
+    ]
+
     # Past flooding as a feature, trained on the latest pre-cutoff event.
     pastf = _read_json(paths["output"] / "past_flooding_feature.json") or {}
     psum = pastf.get("summary") or {}
