@@ -412,7 +412,7 @@ See the `docs/` folder for detailed documentation:
 If you use this code or its outputs, please cite the software (MIT licence, see
 `LICENSE`) and the input data archive:
 
-> Hasan, M. R., Zubyer, S., & Arabi, F. Z. (2026). *Fermium Hazard Mapper:
+> Hasan, M. R. (2026). *Fermium Hazard Mapper:
 > input data and outputs for flood and landslide susceptibility in Bangladesh*
 > (version 2.0).
 > Zenodo. https://doi.org/10.5281/zenodo.22978729
@@ -421,8 +421,8 @@ If you use this code or its outputs, please cite the software (MIT licence, see
 
 Source code: MIT (see `LICENSE`). Input datasets keep their own licences —
 OpenStreetMap (ODbL), WorldPop (CC BY 4.0), JRC Global Surface Water, SRTM
-(public domain) and GADM (non-commercial, no redistribution). Attribution for
+(public domain) and geoBoundaries (CC BY 4.0). Attribution for
 map tiles and data is shown in the dashboard.
 
-Originally developed for the RIMES Mapathon (ResilienceAI track) by Team
-Fermium — Shoumik Zubyer, Md Rakib Hasan and Fazla Zawadul Arabi.
+Originally developed by Md Rakib Hasan (Fermium Systems) for the RIMES
+Mapathon (ResilienceAI track).

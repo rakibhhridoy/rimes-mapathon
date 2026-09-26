@@ -58,8 +58,6 @@ and should not be used. All outputs here are from the corrected pipeline, run on
 
 **Authors**
 Md Rakib Hasan (ORCID 0009-0002-4007-7590), University of Dhaka and Fermium Systems
-Shoumik Zubyer (ORCID 0009-0006-4085-1493), University of Dhaka
-Fazla Zawadul Arabi (ORCID 0009-0001-4632-9579), University of Dhaka
 
 **Keywords**
 flood susceptibility; Sentinel-1; landslide susceptibility; spatial cross-validation; Bangladesh; OpenStreetMap
