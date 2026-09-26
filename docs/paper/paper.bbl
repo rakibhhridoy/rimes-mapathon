@@ -1,227 +1,166 @@
-\begin{thebibliography}{26}
-\providecommand{\natexlab}[1]{#1}
-\providecommand{\url}[1]{\texttt{#1}}
-\expandafter\ifx\csname urlstyle\endcsname\relax
-  \providecommand{\doi}[1]{doi: #1}\else
-  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+\begin{thebibliography}{}
 
-\bibitem[Adnan et~al.(2023)Adnan, Siam, Kabir, Kabir, Ahmed, Hassan, Rahman,
-  and Dewan]{adnan2023}
-Mohammed Sarfaraz~Gani Adnan, Zakaria~Shams Siam, Irfat Kabir, Zobaidul Kabir,
-  M.~Razu Ahmed, Quazi~K. Hassan, Rashedur~M. Rahman, and Ashraf Dewan.
+\bibitem[Adnan et~al., 2023]{adnan2023}
+Adnan, M. S.~G., Siam, Z.~S., Kabir, I., Kabir, Z., Ahmed, M.~R., Hassan,
+  Q.~K., Rahman, R.~M., and Dewan, A. (2023).
 \newblock {A novel framework for addressing uncertainties in machine
   learning-based geospatial approaches for flood prediction}.
-\newblock \emph{Journal of Environmental Management}, 326:\penalty0 116813,
-  2023.
-\newblock \doi{10.1016/j.jenvman.2022.116813}.
+\newblock {\em Journal of Environmental Management}, 326:116813.
 
-\bibitem[Amitrano et~al.(2024)Amitrano, Di~Martino, Di~Simone, and
-  Imperatore]{amitrano2024}
-Donato Amitrano, Gerardo Di~Martino, Alessio Di~Simone, and Pasquale
-  Imperatore.
+\bibitem[Amitrano et~al., 2024]{amitrano2024}
+Amitrano, D., Di~Martino, G., Di~Simone, A., and Imperatore, P. (2024).
 \newblock {Flood Detection with SAR: A Review of Techniques and Datasets}.
-\newblock \emph{Remote Sensing}, 16\penalty0 (4):\penalty0 656, 2024.
-\newblock \doi{10.3390/rs16040656}.
+\newblock {\em Remote Sensing}, 16(4):656.
 
-\bibitem[Bentivoglio et~al.(2022)Bentivoglio, Isufi, Jonkman, and
-  Taormina]{bentivoglio2022}
-Roberto Bentivoglio, Elvin Isufi, Sebastian~Nicolaas Jonkman, and Riccardo
-  Taormina.
+\bibitem[Bentivoglio et~al., 2022]{bentivoglio2022}
+Bentivoglio, R., Isufi, E., Jonkman, S.~N., and Taormina, R. (2022).
 \newblock {Deep learning methods for flood mapping: a review of existing
   applications and future research directions}.
-\newblock \emph{Hydrology and Earth System Sciences}, 26\penalty0
-  (16):\penalty0 4345--4378, 2022.
-\newblock \doi{10.5194/hess-26-4345-2022}.
+\newblock {\em Hydrology and Earth System Sciences}, 26(16):4345--4378.
 
-\bibitem[Beven and Kirkby(1979)]{beven1979}
-K.~J. Beven and M.~J. Kirkby.
+\bibitem[Beven and Kirkby, 1979]{beven1979}
+Beven, K.~J. and Kirkby, M.~J. (1979).
 \newblock {A physically based, variable contributing area model of basin
   hydrology / Un modèle à base physique de zone d'appel variable de
   l'hydrologie du bassin versant}.
-\newblock \emph{Hydrological Sciences Bulletin}, 24\penalty0 (1):\penalty0
-  43--69, 1979.
-\newblock \doi{10.1080/02626667909491834}.
+\newblock {\em Hydrological Sciences Bulletin}, 24(1):43--69.
 
-\bibitem[{European Commission Joint Research Centre}(2017)]{inform2017}
-{European Commission Joint Research Centre}.
+\bibitem[{European Commission Joint Research Centre}, 2017]{inform2017}
+{European Commission Joint Research Centre} (2017).
 \newblock {Index for Risk Management -- INFORM: Concept and Methodology,
   Version 2017}.
-\newblock Technical report, Publications Office of the European Union, 2017.
+\newblock Technical report, Publications Office of the European Union.
 
-\bibitem[Hamilton et~al.(2017)Hamilton, Ying, and Leskovec]{hamilton2017}
-William~L. Hamilton, Rex Ying, and Jure Leskovec.
+\bibitem[Hamilton et~al., 2017]{hamilton2017}
+Hamilton, W.~L., Ying, R., and Leskovec, J. (2017).
 \newblock {Inductive Representation Learning on Large Graphs}.
 \newblock Advances in Neural Information Processing Systems 30;
-  arXiv:1706.02216, 2017.
+  arXiv:1706.02216.
 
-\bibitem[Herfort et~al.(2023)Herfort, Lautenbach, Porto~de Albuquerque,
-  Anderson, and Zipf]{herfort2023}
-Benjamin Herfort, Sven Lautenbach, João Porto~de Albuquerque, Jennings
-  Anderson, and Alexander Zipf.
+\bibitem[Herfort et~al., 2023]{herfort2023}
+Herfort, B., Lautenbach, S., Porto~de Albuquerque, J., Anderson, J., and Zipf,
+  A. (2023).
 \newblock {A spatio-temporal analysis investigating completeness and
   inequalities of global urban building data in OpenStreetMap}.
-\newblock \emph{Nature Communications}, 14\penalty0 (1):\penalty0 3985, 2023.
-\newblock \doi{10.1038/s41467-023-39698-6}.
+\newblock {\em Nature Communications}, 14(1):3985.
 
-\bibitem[Islam et~al.(2021)Islam, Talukdar, Mahato, Kundu, Eibek, Pham, Kuriqi,
-  and Linh]{islam2021}
-Abu Reza Md.~Towfiqul Islam, Swapan Talukdar, Susanta Mahato, Sonali Kundu,
-  Kutub~Uddin Eibek, Quoc~Bao Pham, Alban Kuriqi, and Nguyen Thi~Thuy Linh.
+\bibitem[Islam et~al., 2021]{islam2021}
+Islam, A. R. M.~T., Talukdar, S., Mahato, S., Kundu, S., Eibek, K.~U., Pham,
+  Q.~B., Kuriqi, A., and Linh, N. T.~T. (2021).
 \newblock {Flood susceptibility modelling using advanced ensemble machine
   learning models}.
-\newblock \emph{Geoscience Frontiers}, 12\penalty0 (3):\penalty0 101075, 2021.
-\newblock \doi{10.1016/j.gsf.2020.09.006}.
+\newblock {\em Geoscience Frontiers}, 12(3):101075.
 
-\bibitem[Islam and Chowdhury(2024)]{islamr2024}
-Rakibul Islam and Padmanabha Chowdhury.
+\bibitem[Islam and Chowdhury, 2024]{islamr2024}
+Islam, R. and Chowdhury, P. (2024).
 \newblock {Local-scale flash flood susceptibility assessment in northeastern
   Bangladesh using machine learning algorithms}.
-\newblock \emph{Environmental Challenges}, 14:\penalty0 100833, 2024.
-\newblock \doi{10.1016/j.envc.2023.100833}.
+\newblock {\em Environmental Challenges}, 14:100833.
 
-\bibitem[Koks et~al.(2019)Koks, Rozenberg, Zorn, Tariverdi, Vousdoukas, Fraser,
-  Hall, and Hallegatte]{koks2019}
-E.~E. Koks, J.~Rozenberg, C.~Zorn, M.~Tariverdi, M.~Vousdoukas, S.~A. Fraser,
-  J.~W. Hall, and S.~Hallegatte.
+\bibitem[Koks et~al., 2019]{koks2019}
+Koks, E.~E., Rozenberg, J., Zorn, C., Tariverdi, M., Vousdoukas, M., Fraser,
+  S.~A., Hall, J.~W., and Hallegatte, S. (2019).
 \newblock {A global multi-hazard risk analysis of road and railway
   infrastructure assets}.
-\newblock \emph{Nature Communications}, 10\penalty0 (1):\penalty0 2677, 2019.
-\newblock \doi{10.1038/s41467-019-10442-3}.
+\newblock {\em Nature Communications}, 10(1):2677.
 
-\bibitem[Ma et~al.(2025)Ma, Han, Liu, Wang, Hu, and Zhang]{ma2025}
-Jingru Ma, Zhigang Han, Feng Liu, Xiaodong Wang, Jiyuan Hu, and Pan Zhang.
+\bibitem[Ma et~al., 2025]{ma2025}
+Ma, J., Han, Z., Liu, F., Wang, X., Hu, J., and Zhang, P. (2025).
 \newblock {ConToGCN: A landslide susceptibility assessment model considering
   contour topographic features in slope units using graph convolution network}.
-\newblock \emph{CATENA}, 255:\penalty0 109029, 2025.
-\newblock \doi{10.1016/j.catena.2025.109029}.
+\newblock {\em CATENA}, 255:109029.
 
-\bibitem[Meyer and Pebesma(2021)]{meyer2021}
-Hanna Meyer and Edzer Pebesma.
-\newblock {Predicting into unknown space? Estimating the area of applicability
-  of spatial prediction models}.
-\newblock \emph{Methods in Ecology and Evolution}, 12\penalty0 (9):\penalty0
-  1620--1633, 2021.
-\newblock \doi{10.1111/2041-210x.13650}.
-
-\bibitem[Niculescu-Mizil and Caruana(2005)]{niculescu2005}
-Alexandru Niculescu-Mizil and Rich Caruana.
+\bibitem[Niculescu-Mizil and Caruana, 2005]{niculescu2005}
+Niculescu-Mizil, A. and Caruana, R. (2005).
 \newblock {Predicting good probabilities with supervised learning}.
-\newblock In \emph{Proceedings of the 22nd international conference on Machine
-  learning - ICML '05}, pages 625--632, 2005.
-\newblock \doi{10.1145/1102351.1102430}.
+\newblock In {\em Proceedings of the 22nd international conference on Machine
+  learning - ICML '05}, pages 625--632.
 
-\bibitem[Nobre et~al.(2011)Nobre, Cuartas, Hodnett, Rennó, Rodrigues,
-  Silveira, Waterloo, and Saleska]{nobre2011}
-A.D. Nobre, L.A. Cuartas, M.~Hodnett, C.D. Rennó, G.~Rodrigues, A.~Silveira,
-  M.~Waterloo, and S.~Saleska.
+\bibitem[Nobre et~al., 2011]{nobre2011}
+Nobre, A., Cuartas, L., Hodnett, M., Rennó, C., Rodrigues, G., Silveira, A.,
+  Waterloo, M., and Saleska, S. (2011).
 \newblock {Height Above the Nearest Drainage -- a hydrologically relevant new
   terrain model}.
-\newblock \emph{Journal of Hydrology}, 404\penalty0 (1-2):\penalty0 13--29,
-  2011.
-\newblock \doi{10.1016/j.jhydrol.2011.03.051}.
+\newblock {\em Journal of Hydrology}, 404(1-2):13--29.
 
-\bibitem[Pekel et~al.(2016)Pekel, Cottam, Gorelick, and Belward]{pekel2016}
-Jean-François Pekel, Andrew Cottam, Noel Gorelick, and Alan~S. Belward.
+\bibitem[Pekel et~al., 2016]{pekel2016}
+Pekel, J.-F., Cottam, A., Gorelick, N., and Belward, A.~S. (2016).
 \newblock {High-resolution mapping of global surface water and its long-term
   changes}.
-\newblock \emph{Nature}, 540\penalty0 (7633):\penalty0 418--422, 2016.
-\newblock \doi{10.1038/nature20584}.
+\newblock {\em Nature}, 540(7633):418--422.
 
-\bibitem[Ploton et~al.(2020)Ploton, Mortier, Réjou-Méchain, Barbier, Picard,
-  Rossi, Dormann, Cornu, Viennois, Bayol, Lyapustin, Gourlet-Fleury, and
-  Pélissier]{ploton2020}
-Pierre Ploton, Frédéric Mortier, Maxime Réjou-Méchain, Nicolas Barbier,
-  Nicolas Picard, Vivien Rossi, Carsten Dormann, Guillaume Cornu, Gaëlle
-  Viennois, Nicolas Bayol, Alexei Lyapustin, Sylvie Gourlet-Fleury, and
-  Raphaël Pélissier.
+\bibitem[Ploton et~al., 2020]{ploton2020}
+Ploton, P., Mortier, F., Réjou-Méchain, M., Barbier, N., Picard, N., Rossi,
+  V., Dormann, C., Cornu, G., Viennois, G., Bayol, N., Lyapustin, A.,
+  Gourlet-Fleury, S., and Pélissier, R. (2020).
 \newblock {Spatial validation reveals poor predictive performance of
   large-scale ecological mapping models}.
-\newblock \emph{Nature Communications}, 11\penalty0 (1):\penalty0 4540, 2020.
-\newblock \doi{10.1038/s41467-020-18321-y}.
+\newblock {\em Nature Communications}, 11(1):4540.
 
-\bibitem[Roberts et~al.(2017)Roberts, Bahn, Ciuti, Boyce, Elith,
-  Guillera-Arroita, Hauenstein, Lahoz-Monfort, Schröder, Thuiller, Warton,
-  Wintle, Hartig, and Dormann]{roberts2017}
-David~R. Roberts, Volker Bahn, Simone Ciuti, Mark~S. Boyce, Jane Elith,
-  Gurutzeta Guillera-Arroita, Severin Hauenstein, José~J. Lahoz-Monfort, Boris
-  Schröder, Wilfried Thuiller, David~I. Warton, Brendan~A. Wintle, Florian
-  Hartig, and Carsten~F. Dormann.
+\bibitem[Roberts et~al., 2017]{roberts2017}
+Roberts, D.~R., Bahn, V., Ciuti, S., Boyce, M.~S., Elith, J., Guillera-Arroita,
+  G., Hauenstein, S., Lahoz-Monfort, J.~J., Schröder, B., Thuiller, W.,
+  Warton, D.~I., Wintle, B.~A., Hartig, F., and Dormann, C.~F. (2017).
 \newblock {Cross-validation strategies for data with temporal, spatial,
   hierarchical, or phylogenetic structure}.
-\newblock \emph{Ecography}, 40\penalty0 (8):\penalty0 913--929, 2017.
-\newblock \doi{10.1111/ecog.02881}.
+\newblock {\em Ecography}, 40(8):913--929.
 
-\bibitem[Rudra and Sarkar(2023)]{rudra2023}
-Rhyme~Rubayet Rudra and Showmitra~Kumar Sarkar.
+\bibitem[Rudra and Sarkar, 2023]{rudra2023}
+Rudra, R.~R. and Sarkar, S.~K. (2023).
 \newblock {Artificial neural network for flood susceptibility mapping in
   Bangladesh}.
-\newblock \emph{Heliyon}, 9\penalty0 (6):\penalty0 e16459, 2023.
-\newblock \doi{10.1016/j.heliyon.2023.e16459}.
+\newblock {\em Heliyon}, 9(6):e16459.
 
-\bibitem[Talukdar et~al.(2020)Talukdar, Ghose, Shahfahad, Salam, Mahato, Pham,
-  Linh, Costache, and Avand]{talukdar2020}
-Swapan Talukdar, Bonosri Ghose, Shahfahad, Roquia Salam, Susanta Mahato,
-  Quoc~Bao Pham, Nguyen Thi~Thuy Linh, Romulus Costache, and Mohammadtaghi
-  Avand.
+\bibitem[Talukdar et~al., 2020]{talukdar2020}
+Talukdar, S., Ghose, B., Shahfahad, Salam, R., Mahato, S., Pham, Q.~B., Linh,
+  N. T.~T., Costache, R., and Avand, M. (2020).
 \newblock {Flood susceptibility modeling in Teesta River basin, Bangladesh
   using novel ensembles of bagging algorithms}.
-\newblock \emph{Stochastic Environmental Research and Risk Assessment},
-  34\penalty0 (12):\penalty0 2277--2300, 2020.
-\newblock \doi{10.1007/s00477-020-01862-5}.
+\newblock {\em Stochastic Environmental Research and Risk Assessment},
+  34(12):2277--2300.
 
-\bibitem[Tellman et~al.(2021)Tellman, Sullivan, Kuhn, Kettner, Doyle,
-  Brakenridge, Erickson, and Slayback]{tellman2021}
-B.~Tellman, J.~A. Sullivan, C.~Kuhn, A.~J. Kettner, C.~S. Doyle, G.~R.
-  Brakenridge, T.~A. Erickson, and D.~A. Slayback.
+\bibitem[Tellman et~al., 2021]{tellman2021}
+Tellman, B., Sullivan, J.~A., Kuhn, C., Kettner, A.~J., Doyle, C.~S.,
+  Brakenridge, G.~R., Erickson, T.~A., and Slayback, D.~A. (2021).
 \newblock {Satellite imaging reveals increased proportion of population exposed
   to floods}.
-\newblock \emph{Nature}, 596\penalty0 (7870):\penalty0 80--86, 2021.
-\newblock \doi{10.1038/s41586-021-03695-w}.
+\newblock {\em Nature}, 596(7870):80--86.
 
-\bibitem[Twele et~al.(2016)Twele, Cao, Plank, and Martinis]{twele2016}
-André Twele, Wenxi Cao, Simon Plank, and Sandro Martinis.
+\bibitem[Twele et~al., 2016]{twele2016}
+Twele, A., Cao, W., Plank, S., and Martinis, S. (2016).
 \newblock {Sentinel-1-based flood mapping: a fully automated processing chain}.
-\newblock \emph{International Journal of Remote Sensing}, 37\penalty0
-  (13):\penalty0 2990--3004, 2016.
-\newblock \doi{10.1080/01431161.2016.1192304}.
+\newblock {\em International Journal of Remote Sensing}, 37(13):2990--3004.
 
-\bibitem[Uddin et~al.(2019)Uddin, Matin, and Meyer]{uddin2019}
-Kabir Uddin, Mir~A. Matin, and Franz~J. Meyer.
+\bibitem[Uddin et~al., 2019]{uddin2019}
+Uddin, K., Matin, M.~A., and Meyer, F.~J. (2019).
 \newblock {Operational Flood Mapping Using Multi-Temporal Sentinel-1 SAR
   Images: A Case Study from Bangladesh}.
-\newblock \emph{Remote Sensing}, 11\penalty0 (13):\penalty0 1581, 2019.
-\newblock \doi{10.3390/rs11131581}.
+\newblock {\em Remote Sensing}, 11(13):1581.
 
-\bibitem[{UN-SPIDER}(2019)]{unspider}
-{UN-SPIDER}.
+\bibitem[{UN-SPIDER}, 2019]{unspider}
+{UN-SPIDER} (2019).
 \newblock {Recommended Practice: Flood Mapping and Damage Assessment Using
   Sentinel-1 SAR Data in Google Earth Engine}.
 \newblock
-  \url{https://un-spider.org/advisory-support/recommended-practices/recommended-practice-google-earth-engine-flood-mapping},
-  2019.
+  \url{https://un-spider.org/advisory-support/recommended-practices/recommended-practice-google-earth-engine-flood-mapping}.
 
-\bibitem[Wadoux et~al.(2021)Wadoux, Heuvelink, de~Bruin, and Brus]{wadoux2021}
-Alexandre M.J.-C. Wadoux, Gerard~B.M. Heuvelink, Sytze de~Bruin, and Dick~J.
-  Brus.
+\bibitem[Wadoux et~al., 2021]{wadoux2021}
+Wadoux, A. M.-C., Heuvelink, G.~B., de~Bruin, S., and Brus, D.~J. (2021).
 \newblock {Spatial cross-validation is not the right way to evaluate map
   accuracy}.
-\newblock \emph{Ecological Modelling}, 457:\penalty0 109692, 2021.
-\newblock \doi{10.1016/j.ecolmodel.2021.109692}.
+\newblock {\em Ecological Modelling}, 457:109692.
 
-\bibitem[Wang et~al.(2023)Wang, Du, Hu, Liu, Zhang, Wang, and Guo]{wang2023}
-Xianmin Wang, Aiheng Du, Fengchang Hu, Zhiwei Liu, Xinlong Zhang, Lizhe Wang,
-  and Haixiang Guo.
+\bibitem[Wang et~al., 2023]{wang2023}
+Wang, X., Du, A., Hu, F., Liu, Z., Zhang, X., Wang, L., and Guo, H. (2023).
 \newblock {Landslide susceptibility evaluation based on active deformation and
   graph convolutional network algorithm}.
-\newblock \emph{Frontiers in Earth Science}, 11:\penalty0 1132722, 2023.
-\newblock \doi{10.3389/feart.2023.1132722}.
+\newblock {\em Frontiers in Earth Science}, 11:1132722.
 
-\bibitem[Zadrozny and Elkan(2002)]{zadrozny2002}
-Bianca Zadrozny and Charles Elkan.
+\bibitem[Zadrozny and Elkan, 2002]{zadrozny2002}
+Zadrozny, B. and Elkan, C. (2002).
 \newblock {Transforming classifier scores into accurate multiclass probability
   estimates}.
-\newblock In \emph{Proceedings of the eighth ACM SIGKDD international
-  conference on Knowledge discovery and data mining}, pages 694--699, 2002.
-\newblock \doi{10.1145/775047.775151}.
+\newblock In {\em Proceedings of the eighth ACM SIGKDD international conference
+  on Knowledge discovery and data mining}, pages 694--699.
 
 \end{thebibliography}

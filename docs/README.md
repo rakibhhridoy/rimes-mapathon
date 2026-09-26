@@ -28,6 +28,6 @@ over from an earlier run.
 | `numbers.tex` | generated macros, one per reported figure (do not edit) |
 | `build_numbers.py` | generator for `numbers.tex` |
 | `architecture_diagram.tex` / `.png` / `.svg` | pipeline diagram (predates version 2 and shows the March 2026 chain) |
-| `paper/` | journal version of the document: `build_paper.py` assembles `paper.tex` from the technical document plus the new sections in `paper/sections/`; rerun it after editing either, then compile in `docs/paper/`. Red `[PENDING: …]` notes mark what remains before submission |
+| `paper/` | the journal article, prepared for the *Journal of Flood Risk Management* (limit 6,000 words excluding references, figures and tables). Edit `paper.tex` directly; `build_paper.py` is retired, since the paper no longer tracks the technical document. `supporting_information.tex` holds the detail cut from the main text. `python docs/paper/wordcount.py` counts words the way the journal does. Compile `paper.tex` first, then `supporting_information.tex`, whose references point to it. Numbers still come from `numbers.tex` |
 | `temporal_holdout.tex` | the temporal hold-out section, shared by both documents |
 | `archive_v1/` | the March 2026 markdown docs and LaTeX source, kept for the record; they describe a system that no longer exists and contain figures that were later found to be wrong |
