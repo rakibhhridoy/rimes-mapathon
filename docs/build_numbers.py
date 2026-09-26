@@ -86,6 +86,20 @@ def _pct(value):
     return None if value is None else round(100 * float(value), 1)
 
 
+def _mapped_cell_share(output_dir: Path):
+    """Share of grid cells holding any mapped asset, where composite risk is defined."""
+    path = output_dir / "risk_grid.geojson"
+    if not path.exists():
+        return None
+    try:
+        import pyogrio
+        grid = pyogrio.read_dataframe(str(path), columns=["exposure"],
+                                      read_geometry=False)
+    except Exception:
+        return None
+    return float((grid["exposure"] > 0).mean()) if len(grid) else None
+
+
 def region_numbers(region_id: str) -> list[str]:
     """Macros for one region, named e.g. \\RRvalAUC."""
     prefix = REGION_MACRO[region_id]
@@ -100,6 +114,7 @@ def region_numbers(region_id: str) -> list[str]:
 
     lines += [
         _macro(f"{prefix}Assets", stats.get("n_assets")),
+        _macro(f"{prefix}MappedCellShare", _pct(_mapped_cell_share(paths["output"]))),
         _macro(f"{prefix}LabelRate", _pct(meta.get("label_positive_rate"))),
         _macro(f"{prefix}ValAUC", validation.get("val_auc_roc")),
         _macro(f"{prefix}ValAP", validation.get("val_average_precision")),
@@ -220,6 +235,7 @@ def region_numbers(region_id: str) -> list[str]:
             _macro(f"{prefix}Background", inventory.get("n_background")),
             _macro(f"{prefix}LSAUC", ls_val.get("val_auc_roc")),
             _macro(f"{prefix}LSAP", ls_val.get("val_average_precision")),
+            _macro(f"{prefix}LSPositiveRate", _pct(ls_val.get("val_positive_rate"))),
         ]
         for feature, coefficient in (
                 landslide.get("standardised_coefficients") or {}).items():
