@@ -430,6 +430,99 @@ def fig_benchmark():
     plt.close(fig)
 
 
+# ── Feature importance on the held-out blocks ───────────────────────────────
+FEATURE_LABELS = [
+    ("elevation", "Elevation", "terrain"), ("slope", "Slope", "terrain"),
+    ("twi", "Wetness index", "terrain"), ("hand", "Height above drainage", "terrain"),
+    ("flow_acc", "Flow accumulation", "terrain"),
+    ("dist_hospital", "Distance to hospital", "access"),
+    ("dist_school", "Distance to school", "access"),
+    ("dist_shelter", "Distance to shelter", "access"),
+    ("dist_road", "Distance to road", "access"),
+    ("dist_water", "Distance to channel", "access"),
+    ("pop_density", "Population density", "other"),
+    ("asset_type_code", "Asset type", "other"),
+]
+
+
+def fig_importance():
+    """AUC lost when each feature is shuffled across the test assets, mean and
+    standard deviation over the block assignments of the benchmark."""
+    colour = {"terrain": BLUE, "access": ORANGE, "other": "#9a988f"}
+    fig, axes = plt.subplots(1, 3, figsize=(FULL_W, 2.9), sharey=True, sharex=True,
+                             gridspec_kw={"wspace": 0.08})
+    rows = np.arange(len(FEATURE_LABELS))[::-1]
+    for ax, region in zip(axes, REGIONS):
+        _, _, out = _paths(_cfg(region))
+        summary = json.loads((out / "feature_importance.json").read_text())["summary"]
+        feats = summary["features"]
+        means = [feats[k]["auc_loss_mean"] for k, _, _ in FEATURE_LABELS]
+        sds = [feats[k]["auc_loss_sd"] for k, _, _ in FEATURE_LABELS]
+        ax.barh(rows, means, height=0.62, color=[colour[g] for _, _, g in FEATURE_LABELS],
+                xerr=sds, error_kw={"elinewidth": 0.6, "capsize": 1.5, "ecolor": INK2},
+                zorder=3)
+        ax.axvline(0, color=INK2, linewidth=0.6, zorder=2)
+        ax.set_title(f"{REGIONS[region][0]} (AUC {summary['auc_mean']:.3f})", color=INK)
+        ax.set_xlabel("Loss in AUC when shuffled")
+        ax.grid(True, axis="x", zorder=0)
+        ax.tick_params(length=2)
+    axes[0].set_yticks(rows)
+    axes[0].set_yticklabels([label for _, label, _ in FEATURE_LABELS])
+    handles = [Rectangle((0, 0), 1, 1, color=colour[g]) for g in ("terrain", "access", "other")]
+    fig.legend(handles, ["Terrain", "Access distances", "Population and asset type"],
+               loc="upper center", ncol=3, frameon=False, bbox_to_anchor=(0.55, 1.06))
+    fig.savefig(OUT / "fig_importance.pdf", bbox_inches="tight", pad_inches=0.02)
+    plt.close(fig)
+
+
+# ── Union-level composite risk, the system's final output ───────────────────
+def fig_union_risk():
+    """Mean composite risk per union in five relative classes, by quintile of
+    the unions scored in each region. Unions without mapped assets carry no
+    score and are drawn as missing data, not as low risk."""
+    districts = _districts()
+    boxes = {r: _cfg(r)["aoi"]["bbox"] for r in REGIONS}
+    aspect = {r: (b[2] - b[0]) / (b[3] - b[1]) for r, b in boxes.items()}
+    right_h = [1 / aspect["sylhet"], 1 / aspect["sw_coastal"]]
+    height = sum(right_h)
+    left_w = aspect["rangpur_rajshahi"] * height
+    fig = plt.figure(figsize=(FULL_W * 0.86, FULL_W * 0.86 * height / (left_w + 1) * 1.02))
+    gs = fig.add_gridspec(2, 2, width_ratios=[left_w, 1], height_ratios=right_h,
+                          wspace=0.16, hspace=0.3, left=0.07, right=0.99,
+                          top=0.95, bottom=0.16)
+    axes = {"rangpur_rajshahi": fig.add_subplot(gs[:, 0]),
+            "sylhet": fig.add_subplot(gs[0, 1]),
+            "sw_coastal": fig.add_subplot(gs[1, 1])}
+    classes = [BLUE_RAMP[i] for i in (0, 2, 3, 4, 6)]
+    missing = "#e4e2dc"
+    for region, ax in axes.items():
+        _, _, out = _paths(_cfg(region))
+        unions = gpd.read_file(out / "union_risk_summary.geojson")
+        scored = unions[unions["has_data"].astype(bool) & unions["mean_risk"].notna()].copy()
+        edges = np.quantile(scored["mean_risk"], [0.2, 0.4, 0.6, 0.8])
+        scored["cls"] = np.searchsorted(edges, scored["mean_risk"], side="right")
+        unions[~unions.index.isin(scored.index)].plot(
+            ax=ax, facecolor=missing, edgecolor="none", zorder=1)
+        for k, c in enumerate(classes):
+            part = scored[scored["cls"] == k]
+            if len(part):
+                part.plot(ax=ax, facecolor=c, edgecolor="none", zorder=2)
+        districts.boundary.plot(ax=ax, color="#6f6d66", linewidth=0.3, zorder=3)
+        w, s_, e, n = boxes[region]
+        ax.set_xlim(w, e); ax.set_ylim(s_, n); ax.set_aspect("equal")
+        ax.set_title(f"{REGIONS[region][0]} ({len(scored):,} of {len(unions):,} unions scored)",
+                     color=INK)
+        ax.tick_params(length=2)
+    handles = [Rectangle((0, 0), 1, 1, color=c) for c in classes] + \
+              [Rectangle((0, 0), 1, 1, color=missing)]
+    fig.legend(handles, ["1 lowest", "2", "3", "4", "5 highest", "no mapped assets"],
+               loc="lower center", ncol=6, frameon=False, bbox_to_anchor=(0.53, 0.02),
+               title="Mean composite risk of the union, relative class within the region",
+               title_fontsize=7.5)
+    fig.savefig(OUT / "fig_union_risk.pdf", bbox_inches="tight", pad_inches=0.03)
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     fig_chain(); print("fig_chain.pdf")
     fig_study_area(); print("fig_study_area.pdf")
@@ -440,3 +533,5 @@ if __name__ == "__main__":
          for k, v in summary.items()}))
     fig_calibration(); print("fig_calibration.pdf")
     fig_benchmark(); print("fig_benchmark.pdf")
+    fig_importance(); print("fig_importance.pdf")
+    fig_union_risk(); print("fig_union_risk.pdf")
