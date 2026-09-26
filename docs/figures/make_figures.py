@@ -194,6 +194,80 @@ def fig_flood_frequency():
     plt.close(fig)
 
 
+# ── Paper figure: study regions with their observed flood frequency ─────────
+def fig_study_frequency():
+    """The paper's first figure: (a) the three flood regions on a map of
+    Bangladesh, and (b-d) the share of mapped Sentinel-1 events in which each
+    cell flooded. The location map, Sylhet and the coast are stacked on the
+    left and Rangpur runs full height on the right, each at its true aspect."""
+    from shapely.geometry import box
+
+    districts = _districts()
+    countries = gpd.read_file(ROOT / "data/shared/naturalearth/ne_10m_admin_0_countries.geojson")
+    neighbours = gpd.clip(countries[countries["ADM0_A3"] != "BGD"],
+                          box(87.5, 20.0, 93.5, 27.2)).simplify(0.005)
+    country = gpd.GeoSeries([districts.buffer(0).union_all()], crs=districts.crs)
+    boxes = {r: _cfg(r)["aoi"]["bbox"] for r in REGIONS}
+    letters = {"rangpur_rajshahi": "b", "sylhet": "c", "sw_coastal": "d"}
+
+    overview = (87.9, 93.0, 20.5, 26.8)
+    h_over = (overview[3] - overview[2]) / (overview[1] - overview[0])
+    h = {r: (b[3] - b[1]) / (b[2] - b[0]) for r, b in boxes.items()}
+    right_h = [h_over, h["sylhet"], h["sw_coastal"]]
+    left_w = sum(right_h) / h["rangpur_rajshahi"]
+    width = FULL_W * 0.92
+    fig = plt.figure(figsize=(width, width * sum(right_h) / (left_w + 1) * 1.02))
+    gs = fig.add_gridspec(3, 2, width_ratios=[1, left_w], height_ratios=right_h,
+                          wspace=0.16, hspace=0.28, left=0.07, right=0.99,
+                          top=0.96, bottom=0.12)
+    ax_over = fig.add_subplot(gs[0, 0])
+    axes = {"rangpur_rajshahi": fig.add_subplot(gs[:, 1]),
+            "sylhet": fig.add_subplot(gs[1, 0]),
+            "sw_coastal": fig.add_subplot(gs[2, 0])}
+
+    # (a) location map
+    ax_over.set_facecolor("#EEF4FA")
+    neighbours.plot(ax=ax_over, facecolor="#F8F7F4", edgecolor="#c9c7c0", linewidth=0.3, zorder=1)
+    districts.plot(ax=ax_over, facecolor="#ECEBE7", edgecolor="none", zorder=2)
+    for region, (w, s_, e, n) in boxes.items():
+        gpd.clip(country, box(w, s_, e, n)).plot(ax=ax_over, facecolor="#A6CEE3",
+                                                edgecolor="none", zorder=3)
+        ax_over.add_patch(Rectangle((w, s_), e - w, n - s_, fill=False,
+                                    edgecolor=INK, linewidth=0.8, zorder=5))
+        ax_over.text(w + 0.08, n - 0.1, letters[region], ha="left", va="top",
+                     fontsize=7.5, fontweight="bold", color=INK, zorder=6)
+    country.boundary.plot(ax=ax_over, color="#6f6d66", linewidth=0.4, zorder=4)
+    ax_over.text(90.4, 21.0, "Bay of Bengal", ha="center", fontsize=5.5,
+                 color="#4F7FB5", style="italic", zorder=6)
+    ax_over.set_xlim(overview[0], overview[1]); ax_over.set_ylim(overview[2], overview[3])
+    ax_over.set_aspect("equal")
+    ax_over.set_title("(a) Study regions", color=INK)
+    ax_over.tick_params(length=2)
+
+    # (b-d) observed flood frequency
+    image = None
+    for region, ax in axes.items():
+        cfg = _cfg(region)
+        raw, _, _ = _paths(cfg)
+        data, extent = _read_wgs84(raw / "s1_flood_frequency.tif")
+        data = np.where(data > 0, data, np.nan)
+        districts.plot(ax=ax, facecolor="#f7f6f3", edgecolor="none")
+        image = ax.imshow(data, extent=extent, cmap=SEQ, vmin=0, vmax=100,
+                          interpolation="nearest", zorder=2)
+        districts.boundary.plot(ax=ax, color="#8f8d86", linewidth=0.3, zorder=3)
+        w, s_, e, n = boxes[region]
+        ax.set_xlim(w, e); ax.set_ylim(s_, n); ax.set_aspect("equal")
+        n_events = len(cfg["sentinel1"]["events"])
+        ax.set_title(f"({letters[region]}) {REGIONS[region][0]} ({n_events} events)", color=INK)
+        ax.tick_params(length=2)
+    cax = fig.add_axes([0.25, 0.05, 0.5, 0.017])
+    cbar = fig.colorbar(image, cax=cax, orientation="horizontal")
+    cbar.set_label("Share of mapped events in which the ground flooded (%)")
+    cbar.outline.set_linewidth(0.4)
+    fig.savefig(OUT / "fig_study_frequency.pdf", bbox_inches="tight", pad_inches=0.03)
+    plt.close(fig)
+
+
 # ── Figure 4: hazard surfaces ───────────────────────────────────────────────
 def fig_hazard_surfaces():
     cfg = _cfg("rangpur_rajshahi")
@@ -535,6 +609,7 @@ if __name__ == "__main__":
     fig_study_area(); print("fig_study_area.pdf")
     fig_study_area(landslide=False); print("fig_study_area_flood.pdf")
     fig_flood_frequency(); print("fig_flood_frequency.pdf")
+    fig_study_frequency(); print("fig_study_frequency.pdf")
     fig_hazard_surfaces(); print("fig_hazard_surfaces.pdf")
     summary = fig_roc(); print("fig_roc.pdf", json.dumps(
         {k: {kk: (round(vv, 3) if isinstance(vv, float) else vv) for kk, vv in v.items()}

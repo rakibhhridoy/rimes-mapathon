@@ -149,14 +149,14 @@ Comparisons of many learning models are common in susceptibility mapping, and am
 
 \section{Study area and data}
 
-Three regions with contrasting flood regimes are studied, riverine flooding in Rangpur and Rajshahi, flash flooding in the Sylhet haor basin and cyclone surge on the south-west coast (Fig.~\ref{fig:study}, Table~\ref{tab:regions}), and they share one set of model settings so that results stay comparable. Every dataset the pipeline ingests is openly licensed (Table~\ref{tab:data}). Administrative boundaries come from geoBoundaries, which unlike GADM may be redistributed and carries the union level for Bangladesh. OpenStreetMap coverage is uneven, so an area with few mapped assets shows low exposure whether or not much stands there, and WorldPop's constrained product carries population only where buildings were detected in imagery.
+Three regions with contrasting flood regimes are studied, riverine flooding in Rangpur and Rajshahi, flash flooding in the Sylhet haor basin and cyclone surge on the south-west coast (Fig.~\ref{fig:study}a, Table~\ref{tab:regions}), and they share one set of model settings so that results stay comparable. Every dataset the pipeline ingests is openly licensed (Table~\ref{tab:data}). Administrative boundaries come from geoBoundaries, which unlike GADM may be redistributed and carries the union level for Bangladesh. OpenStreetMap coverage is uneven, so an area with few mapped assets shows low exposure whether or not much stands there, and WorldPop's constrained product carries population only where buildings were detected in imagery.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/fig_study_area_flood.pdf}
-\caption{The three study regions, drawn as their configured bounding boxes over the district boundaries of geoBoundaries and tinted inside Bangladesh. Neighbouring countries are from Natural Earth.}
+\includegraphics[width=0.92\textwidth]{figures/fig_study_frequency.pdf}
+\caption{(a) The three study regions, drawn as their configured bounding boxes over the district boundaries of geoBoundaries, with neighbouring countries from Natural Earth. (b--d) Share of the mapped Sentinel-1 events in which each 100\,m cell was flooded. Cells never seen flooded are left blank, and the removal of permanent water leaves the main river channels empty. Straight-edged bands follow the edges of radar swaths.}
 \label{fig:study}
-\end{figure}
+\end{figure*}
 
 \begin{table*}[t]
 \centering
@@ -212,16 +212,9 @@ Assets are fetched from OpenStreetMap in three tag groups, lifelines (hospitals,
 \subsection{Flood extents from Sentinel-1}
 \label{sec:observed}
 
-Flood extents mapped from Sentinel-1 radar supply both the training labels and the reference against which the models are scored. Following the change-detection method recommended by UN-SPIDER \citep{unspider}, an approach that outperforms single-image thresholding for Sentinel-1 \citep{dadhich2026}, the minimum VV backscatter in each flood window is compared in Google Earth Engine with the median of a dry-season baseline from the same year. A pixel is flagged as flooded where it is below $-16$\,dB and at least 3\,dB darker than its baseline. Permanent water from the JRC record \citep{pekel2016}, slopes above 5$^\circ$ and specks under eight pixels are removed, and the event masks are averaged into a flood-frequency layer (Fig.~\ref{fig:frequency}). Five events are mapped in Rangpur and Rajshahi, four in Sylhet and four cyclone landfalls on the coast, each window set from ReliefWeb situation reports (Table~\ref{tab:events}).
+Flood extents mapped from Sentinel-1 radar supply both the training labels and the reference against which the models are scored. Following the change-detection method recommended by UN-SPIDER \citep{unspider}, an approach that outperforms single-image thresholding for Sentinel-1 \citep{dadhich2026}, the minimum VV backscatter in each flood window is compared in Google Earth Engine with the median of a dry-season baseline from the same year. A pixel is flagged as flooded where it is below $-16$\,dB and at least 3\,dB darker than its baseline. Permanent water from the JRC record \citep{pekel2016}, slopes above 5$^\circ$ and specks under eight pixels are removed, and the event masks are averaged into a flood-frequency layer (Fig.~\ref{fig:study}b--d). Five events are mapped in Rangpur and Rajshahi, four in Sylhet and four cyclone landfalls on the coast, each window set from ReliefWeb situation reports (Table~\ref{tab:events}).
 
 The masks were checked against an independent map of two of the same floods, the August 2017 flood in Rangpur and Rajshahi and the April 2017 haor flood in Sylhet, which the Global Flood Database maps from MODIS at 250\,m \citep{tellman2021}. On that grid, over cells that MODIS saw clear and that are not permanent water, the maps agree on \RRXcAgree{}\,\% and \SylhetXcAgree{}\,\% of cells, a figure dominated by dry ground. On flooded ground the agreement is only moderate, with a critical success index of \RRXcCSI{} and \SylhetXcCSI{} and a kappa of \RRXcKappa{} and \SylhetXcKappa{}. The radar marks more ground as flooded than MODIS in Rangpur and Rajshahi (\RRXcSOneShare{}\,\% against \RRXcGfdShare{}\,\%), consistent with flooded patches smaller than a MODIS pixel and with flooding hidden by cloud. It marks less in the Sylhet haor (\SylhetXcSOneShare{}\,\% against \SylhetXcGfdShare{}\,\%), consistent with the difficulty radar has where water stands under vegetation \citep{amitrano2024}, as it did under unharvested rice in April 2017. Neither explanation was tested, and neither map is ground truth.
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=0.86\textwidth]{figures/fig_flood_frequency.pdf}
-\caption{Share of the mapped Sentinel-1 events in which each 100\,m cell was flooded, for the three flood regions. Cells never seen flooded are left blank, and the removal of permanent water leaves the main river channels empty. Straight-edged bands follow the edges of radar swaths.}
-\label{fig:frequency}
-\end{figure*}
 
 \begin{table*}[t]
 \centering
