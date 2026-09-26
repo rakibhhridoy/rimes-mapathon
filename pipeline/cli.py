@@ -565,6 +565,19 @@ def validate(ctx):
     click.echo("Full metrics: data/output/validation_metrics.json")
 
 
+@cli.command()
+@click.pass_context
+def crosscheck(ctx):
+    """Check Sentinel-1 flood masks against the Global Flood Database."""
+    from pipeline.crosscheck import run_crosscheck
+
+    cfg = ctx.obj["config"]
+    logger.info("=== Sentinel-1 masks against the Global Flood Database ===")
+    for name, r in run_crosscheck(cfg, _dir(cfg, "raw"), _dir(cfg, "output")).items():
+        click.echo(f"{name}: POD {r['pod']:.3f} | FAR {r['far']:.3f} | "
+                   f"CSI {r['csi']:.3f} | {r['n_cells']:,} cells")
+
+
 # ---------------------------------------------------------------------------
 # Benchmark — the graph model against ordinary tabular models
 # ---------------------------------------------------------------------------

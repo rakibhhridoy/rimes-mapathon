@@ -319,6 +319,21 @@ def region_numbers(region_id: str) -> list[str]:
         _macro(f"{prefix}TempProxyAhead", tproxy.get("seeds_temporal_ahead")),
     ]
 
+    # Sentinel-1 masks against the Global Flood Database, one event per region.
+    cross = (_read_json(paths["output"] / "flood_crosscheck.json") or {}).get("events") or {}
+    xc = next(iter(cross.values()), {})
+    lines += [
+        _macro(f"{prefix}XcCells", xc.get("n_cells")),
+        _macro(f"{prefix}XcSOneShare", _pct(xc.get("s1_flooded_share"))),
+        _macro(f"{prefix}XcGfdShare", _pct(xc.get("gfd_flooded_share"))),
+        _macro(f"{prefix}XcPOD", xc.get("pod")),
+        _macro(f"{prefix}XcFAR", xc.get("far")),
+        _macro(f"{prefix}XcCSI", xc.get("csi")),
+        _macro(f"{prefix}XcKappa", xc.get("cohen_kappa")),
+        _macro(f"{prefix}XcAgree", _pct(xc.get("agreement"))),
+        _macro(f"{prefix}XcAUC", xc.get("auc_roc")),
+    ]
+
     # Past flooding as a feature, trained on the latest pre-cutoff event.
     pastf = _read_json(paths["output"] / "past_flooding_feature.json") or {}
     psum = pastf.get("summary") or {}
