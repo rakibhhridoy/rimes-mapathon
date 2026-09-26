@@ -98,7 +98,7 @@ function drawChain(svg, d3, n) {
     ["WorldPop", `${n.worldpop_m} m population`],
     ["geoBoundaries", `${fmt(n.unions)} unions`],
     ["NASA COOLR", `${fmt(n.landslides)} landslides`],
-  ];
+  ].filter(([name]) => name !== "NASA COOLR" || n.landslides != null);
   const sGap = 12, sW = (R - L - (srcs.length - 1) * sGap) / srcs.length;
   const srcX = srcs.map((_, i) => L + i * (sW + sGap));
   srcs.forEach(([name, detail], i) => {
@@ -142,7 +142,8 @@ function drawChain(svg, d3, n) {
     x = end + gSep;
   });
   label(midX, fTop + fH - 14,
-    "each asset = standardised feature vector · y = ground flooded in at least m of the mapped Sentinel-1 events (Hill Tracts: COOLR landslide points)",
+    "each asset = standardised feature vector · y = ground flooded in at least m of the mapped Sentinel-1 events"
+      + (n.landslides != null ? " (Hill Tracts: COOLR landslide points)" : ""),
     { size: 12, fill: C.muted, italic: true });
 
   // ===================== MODEL =====================

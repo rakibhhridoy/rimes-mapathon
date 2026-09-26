@@ -1,4 +1,4 @@
-\begin{thebibliography}{37}
+\begin{thebibliography}{26}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -22,16 +22,6 @@ Donato Amitrano, Gerardo Di~Martino, Alessio Di~Simone, and Pasquale
 \newblock {Flood Detection with SAR: A Review of Techniques and Datasets}.
 \newblock \emph{Remote Sensing}, 16\penalty0 (4):\penalty0 656, 2024.
 \newblock \doi{10.3390/rs16040656}.
-
-\bibitem[Barbet-Massin et~al.(2012)Barbet-Massin, Jiguet, Albert, and
-  Thuiller]{barbetmassin2012}
-Morgane Barbet-Massin, Frédéric Jiguet, Cécile~Hélène Albert, and Wilfried
-  Thuiller.
-\newblock {Selecting pseudo-absences for species distribution models: how,
-  where and how many?}
-\newblock \emph{Methods in Ecology and Evolution}, 3\penalty0 (2):\penalty0
-  327--338, 2012.
-\newblock \doi{10.1111/j.2041-210x.2011.00172.x}.
 
 \bibitem[Bentivoglio et~al.(2022)Bentivoglio, Isufi, Jonkman, and
   Taormina]{bentivoglio2022}
@@ -64,16 +54,6 @@ William~L. Hamilton, Rex Ying, and Jure Leskovec.
 \newblock Advances in Neural Information Processing Systems 30;
   arXiv:1706.02216, 2017.
 
-\bibitem[Hasan et~al.(2024)Hasan, Roy, Talha, Ferdous, and Nasher]{hasanm2024}
-Md.~Mahmudul Hasan, Sujit~Kumar Roy, MD~Talha, Md~Tasim Ferdous, and
-  N.~M.~Refat Nasher.
-\newblock {Predictive landslide susceptibility modeling in the southeastern
-  hilly region of Bangladesh: application of machine learning algorithms in
-  Khagrachari district}.
-\newblock \emph{Environmental Science and Pollution Research}, 32\penalty0
-  (59):\penalty0 31204--31221, 2024.
-\newblock \doi{10.1007/s11356-024-34949-5}.
-
 \bibitem[Herfort et~al.(2023)Herfort, Lautenbach, Porto~de Albuquerque,
   Anderson, and Zipf]{herfort2023}
 Benjamin Herfort, Sven Lautenbach, João Porto~de Albuquerque, Jennings
@@ -82,16 +62,6 @@ Benjamin Herfort, Sven Lautenbach, João Porto~de Albuquerque, Jennings
   inequalities of global urban building data in OpenStreetMap}.
 \newblock \emph{Nature Communications}, 14\penalty0 (1):\penalty0 3985, 2023.
 \newblock \doi{10.1038/s41467-023-39698-6}.
-
-\bibitem[Hossain et~al.(2025)Hossain, Ferdous, Bhattacharjee, and
-  Rahman]{hossain2025}
-Mohammad~Ismail Hossain, Md~Nahid Ferdous, Swarnali Bhattacharjee, and Mizanur
-  Rahman.
-\newblock {Remote sensing and GIS-driven landslide susceptibility mapping using
-  machine learning for sustainable land management: a study from the Chittagong
-  Hill Tracts of Bangladesh}.
-\newblock \emph{Discover Sustainability}, 6\penalty0 (1):\penalty0 1200, 2025.
-\newblock \doi{10.1007/s43621-025-02084-x}.
 
 \bibitem[Islam et~al.(2021)Islam, Talukdar, Mahato, Kundu, Eibek, Pham, Kuriqi,
   and Linh]{islam2021}
@@ -102,36 +72,12 @@ Abu Reza Md.~Towfiqul Islam, Swapan Talukdar, Susanta Mahato, Sonali Kundu,
 \newblock \emph{Geoscience Frontiers}, 12\penalty0 (3):\penalty0 101075, 2021.
 \newblock \doi{10.1016/j.gsf.2020.09.006}.
 
-\bibitem[Islam et~al.(2025)Islam, Arrafi, Peas, Hossain, Hasan, Murshed, and
-  Tania]{islama2025}
-Md.~Ashraful Islam, Musabbir~Ahmed Arrafi, Mehedi~Hasan Peas, Tanvir Hossain,
-  Md~Mehedi Hasan, Sanzida Murshed, and Monira~Jahan Tania.
-\newblock {Predicting urban landslides in the hilly regions of Bangladesh
-  leveraging a hybrid machine learning model and CMIP6 climate projections}.
-\newblock \emph{Geosystems and Geoenvironment}, 4\penalty0 (2):\penalty0
-  100354, 2025.
-\newblock \doi{10.1016/j.geogeo.2025.100354}.
-
 \bibitem[Islam and Chowdhury(2024)]{islamr2024}
 Rakibul Islam and Padmanabha Chowdhury.
 \newblock {Local-scale flash flood susceptibility assessment in northeastern
   Bangladesh using machine learning algorithms}.
 \newblock \emph{Environmental Challenges}, 14:\penalty0 100833, 2024.
 \newblock \doi{10.1016/j.envc.2023.100833}.
-
-\bibitem[Juang et~al.(2019)Juang, Stanley, and Kirschbaum]{juang2019}
-Caroline~S. Juang, Thomas~A. Stanley, and Dalia~B. Kirschbaum.
-\newblock {Using citizen science to expand the global map of landslides:
-  Introducing the Cooperative Open Online Landslide Repository (COOLR)}.
-\newblock \emph{PLOS ONE}, 14\penalty0 (7):\penalty0 e0218657, 2019.
-\newblock \doi{10.1371/journal.pone.0218657}.
-
-\bibitem[Kirschbaum and Stanley(2018)]{kirschbaum2018}
-Dalia Kirschbaum and Thomas Stanley.
-\newblock {Satellite-Based Assessment of Rainfall-Triggered Landslide Hazard
-  for Situational Awareness}.
-\newblock \emph{Earth's Future}, 6\penalty0 (3):\penalty0 505--523, 2018.
-\newblock \doi{10.1002/2017ef000715}.
 
 \bibitem[Koks et~al.(2019)Koks, Rozenberg, Zorn, Tariverdi, Vousdoukas, Fraser,
   Hall, and Hallegatte]{koks2019}
@@ -193,21 +139,6 @@ Pierre Ploton, Frédéric Mortier, Maxime Réjou-Méchain, Nicolas Barbier,
 \newblock \emph{Nature Communications}, 11\penalty0 (1):\penalty0 4540, 2020.
 \newblock \doi{10.1038/s41467-020-18321-y}.
 
-\bibitem[Rabby and Li(2019)]{rabby2019}
-Yasin~Wahid Rabby and Yingkui Li.
-\newblock {Landslide Inventory (2001--2017) of Chittagong Hilly Areas,
-  Bangladesh}.
-\newblock \emph{Data}, 5\penalty0 (1):\penalty0 4, 2019.
-\newblock \doi{10.3390/data5010004}.
-
-\bibitem[Reichenbach et~al.(2018)Reichenbach, Rossi, Malamud, Mihir, and
-  Guzzetti]{reichenbach2018}
-Paola Reichenbach, Mauro Rossi, Bruce~D. Malamud, Monika Mihir, and Fausto
-  Guzzetti.
-\newblock {A review of statistically-based landslide susceptibility models}.
-\newblock \emph{Earth-Science Reviews}, 180:\penalty0 60--91, 2018.
-\newblock \doi{10.1016/j.earscirev.2018.03.001}.
-
 \bibitem[Roberts et~al.(2017)Roberts, Bahn, Ciuti, Boyce, Elith,
   Guillera-Arroita, Hauenstein, Lahoz-Monfort, Schröder, Thuiller, Warton,
   Wintle, Hartig, and Dormann]{roberts2017}
@@ -220,38 +151,12 @@ David~R. Roberts, Volker Bahn, Simone Ciuti, Mark~S. Boyce, Jane Elith,
 \newblock \emph{Ecography}, 40\penalty0 (8):\penalty0 913--929, 2017.
 \newblock \doi{10.1111/ecog.02881}.
 
-\bibitem[Roy et~al.(2025)Roy, Zidan, Ullah, and Moniruzzaman]{roy2025}
-Sujit~Kumar Roy, Md. Zidanur~Rahman Zidan, Md.~Shafayat Ullah, and Muhammad
-  Moniruzzaman.
-\newblock {Landslide susceptibility assessment in Chittagong division using
-  remote sensing, GIS, and machine learning}.
-\newblock \emph{Discover Geoscience}, 3\penalty0 (1):\penalty0 221, 2025.
-\newblock \doi{10.1007/s44288-025-00337-w}.
-
 \bibitem[Rudra and Sarkar(2023)]{rudra2023}
 Rhyme~Rubayet Rudra and Showmitra~Kumar Sarkar.
 \newblock {Artificial neural network for flood susceptibility mapping in
   Bangladesh}.
 \newblock \emph{Heliyon}, 9\penalty0 (6):\penalty0 e16459, 2023.
 \newblock \doi{10.1016/j.heliyon.2023.e16459}.
-
-\bibitem[Steger et~al.(2016)Steger, Brenning, Bell, and Glade]{steger2016}
-Stefan Steger, Alexander Brenning, Rainer Bell, and Thomas Glade.
-\newblock {The propagation of inventory-based positional errors into
-  statistical landslide susceptibility models}.
-\newblock \emph{Natural Hazards and Earth System Sciences}, 16\penalty0
-  (12):\penalty0 2729--2745, 2016.
-\newblock \doi{10.5194/nhess-16-2729-2016}.
-
-\bibitem[Steger et~al.(2021)Steger, Mair, Kofler, Pittore, Zebisch, and
-  Schneiderbauer]{steger2021}
-Stefan Steger, Volkmar Mair, Christian Kofler, Massimiliano Pittore, Marc
-  Zebisch, and Stefan Schneiderbauer.
-\newblock {Correlation does not imply geomorphic causation in data-driven
-  landslide susceptibility modelling -- Benefits of exploring landslide data
-  collection effects}.
-\newblock \emph{Science of The Total Environment}, 776:\penalty0 145935, 2021.
-\newblock \doi{10.1016/j.scitotenv.2021.145935}.
 
 \bibitem[Talukdar et~al.(2020)Talukdar, Ghose, Shahfahad, Salam, Mahato, Pham,
   Linh, Costache, and Avand]{talukdar2020}
