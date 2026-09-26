@@ -279,11 +279,16 @@ def run_temporal_holdout(cfg: dict, processed_dir: Path, raw_dir: Path,
     against the extents of the later ones, so the test ground is new in both
     space and time.
 
-    Two references are scored on the same assets. "past_flooding" is the share
-    of earlier events in which the ground flooded, which is the map a planner
-    would have without any model. "all_events" is the same model trained on
-    labels that include the later events, the spatial-only design, and gives
-    the ceiling the temporal test is measured against.
+    Three references are scored on the same assets. "past_flooding" is the
+    share of earlier events in which the ground flooded, which is the map a
+    planner would have without any model. "all_events" is the same model
+    trained on labels that include the later events, the spatial-only design,
+    and gives the ceiling the temporal test is measured against.
+    "proxy_trained" is the same model trained on the terrain-threshold labels.
+    In the spatial label comparison the observed-label model is scored against
+    its own label definition and the proxy model against another; here both
+    are scored against floods neither was trained on, which makes the label
+    comparison fair to the proxy.
     """
     import geopandas as gpd
     from scipy import stats
@@ -326,6 +331,9 @@ def run_temporal_holdout(cfg: dict, processed_dir: Path, raw_dir: Path,
     y_early = (early_count >= min_events).astype(int)
     y_late = (late_count >= 1).astype(int)
     past = early_count / len(early)
+    proxy_path = processed_dir / "flood_proxy_labels.tif"
+    y_proxy = ((sample_raster_at_points(str(proxy_path), points) > 0.5).astype(int)
+               if proxy_path.exists() else None)
 
     coords_m = project_coords(np.asarray(coords), cfg["aoi"]["crs"])
     block_m = cfg["graph"].get("block_size_m", 10_000)
@@ -347,14 +355,18 @@ def run_temporal_holdout(cfg: dict, processed_dir: Path, raw_dir: Path,
                           .predict_proba(X[test])[:, 1],
             "past_flooding": past[test],
         }
+        if y_proxy is not None and len(np.unique(y_proxy[train])) == 2:
+            scores["proxy_trained"] = (_fit_tabular(kind, X, y_proxy, train, seed)
+                                       .predict_proba(X[test])[:, 1])
         per_seed.append({"seed": seed, "n_test": int(test.sum()),
                          "scores": {k: _metrics(y_late[test], v)
                                     for k, v in scores.items()}})
 
     summary = {}
-    for name in ("temporal", "all_events", "past_flooding"):
-        aucs = np.array([r["scores"][name]["auc_roc"] for r in per_seed])
-        lifts = np.array([r["scores"][name]["ap_lift"] for r in per_seed])
+    for name in ("temporal", "all_events", "past_flooding", "proxy_trained"):
+        rows = [r["scores"][name] for r in per_seed if name in r["scores"]]
+        aucs = np.array([m["auc_roc"] for m in rows])
+        lifts = np.array([m["ap_lift"] for m in rows])
         if len(aucs):
             summary[name] = {
                 "auc_mean": float(aucs.mean()),
@@ -362,9 +374,10 @@ def run_temporal_holdout(cfg: dict, processed_dir: Path, raw_dir: Path,
                 "ap_lift_mean": float(lifts.mean()),
                 "n_seeds": int(len(aucs)),
             }
-    for ref in ("past_flooding", "all_events"):
+    for ref in ("past_flooding", "all_events", "proxy_trained"):
         diff = np.array([r["scores"]["temporal"]["auc_roc"]
-                         - r["scores"][ref]["auc_roc"] for r in per_seed])
+                         - r["scores"][ref]["auc_roc"] for r in per_seed
+                         if ref in r["scores"]])
         if len(diff) > 1:
             summary[f"temporal_minus_{ref}"] = {
                 "mean": float(diff.mean()), "sd": float(diff.std(ddof=1)),
@@ -379,6 +392,7 @@ def run_temporal_holdout(cfg: dict, processed_dir: Path, raw_dir: Path,
         "test_events": [e["name"] for e in late],
         "train_min_events": int(min_events),
         "train_positive_rate": float(y_early.mean()),
+        "proxy_positive_rate": None if y_proxy is None else float(y_proxy.mean()),
         "test_positive_rate": float(y_late.mean()),
         "per_seed": per_seed, "summary": summary,
     }
