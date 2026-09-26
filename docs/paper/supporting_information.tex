@@ -3,6 +3,8 @@
 \usepackage[T1]{fontenc}
 \usepackage{newtxtext,newtxmath}
 \usepackage{amsmath}
+\usepackage{graphicx}
+\graphicspath{{../}}
 \usepackage{xcolor}
 \usepackage[round]{natbib}
 \usepackage{xr}
@@ -12,6 +14,7 @@
 \newcommand{\fileref}[1]{\texttt{#1}}
 \input{../numbers.tex}
 \renewcommand{\thesection}{S\arabic{section}}
+\renewcommand{\thefigure}{S\arabic{figure}}
 
 \title{Supporting Information for ``Do flood susceptibility models know more than the flood record? Evidence from radar-observed floods in Bangladesh''}
 \author{Md Rakib Hasan}
@@ -20,7 +23,7 @@
 \begin{document}
 \maketitle
 
-This file gives the pipeline settings, the construction of the composite risk and the sensitivity of its weights, which the main text summarises. Section, figure and table numbers without the prefix S refer to the main text. The code that produces every number here is at \url{https://github.com/rakibhhridoy/rimes-mapathon}, and the data at \url{https://doi.org/10.5281/zenodo.22978729}.
+This file gives the pipeline settings with a map of the two hazard surfaces (Fig.~S1), the construction of the composite risk and the sensitivity of its weights, which the main text summarises. Section, figure and table numbers without the prefix S refer to the main text. The code that produces every number here is at \url{https://github.com/rakibhhridoy/rimes-mapathon}, and the data at \url{https://doi.org/10.5281/zenodo.22978729}.
 
 \section{Pipeline and model settings}
 \label{si:settings}
@@ -46,6 +49,13 @@ Validation holds out whole spatial blocks of 10\,km instead of random nodes, bec
 Two hazard surfaces are produced for every flood region, and the composite risk uses one of them according to the configuration setting \texttt{risk.hazard\_source}. The first is ordinary Kriging of the model scores at the asset locations, with a spherical variogram fitted on up to 3,000 points and a residual Kriging pass that adds back the score residuals at the nodes. How much it can say between assets depends on the spatial structure of the scores, which the fitted variogram reports. The nugget is the share of the variance that is unexplained at zero distance, and the mean Kriging variance over the full sill is the share the interpolation leaves unexplained on average. On the current runs the nugget is \RRNuggetSillRatio{} of the sill in Rangpur and Rajshahi and \SylhetNuggetSillRatio{} in Sylhet, and the mean Kriging variance is \RRKrigingSillRatio{} and \SylhetKrigingSillRatio{} of the sill respectively, so in both regions the interpolated surface smooths substantially towards the regional average. In Rangpur and Rajshahi its standard deviation across the grid is \RRKrigedGridSD{} against \RRTerrainGridSD{} for the terrain surface described next, and it varies smoothly over tens of kilometres where the terrain surface follows individual channels and levees (Fig.~\ref{fig:hazard}).
 
 The second surface is a class-weighted logistic regression from each grid cell's own terrain, using elevation, slope, TWI, HAND and flow accumulation and nothing else, because distances to hospitals or roads describe exposure and vulnerability rather than the likelihood of flooding. It is trained at the asset locations on the same labels and the same spatial blocks as the asset model, and evaluated at every grid cell, so it varies at the resolution of the elevation model rather than at the spacing of mapped infrastructure. In Rangpur and Rajshahi it reaches an AUC of \RRHazardAUC{} on held-out blocks, and it is the default. The two surfaces can also be scored directly against observed flooding over every grid cell, not only at assets, and there the terrain surface reaches an AUC of \RRSurfaceTerrainObsAUC{} against \RRSurfaceKrigedObsAUC{} for the Kriged one. Both are written to the grid so the difference between them can be inspected. Because the terrain model is trained on the observed extents, it is a flood-probability surface fitted to what the radar saw. Were it trained on the proxy labels instead, the circularity described in Section~\ref{sec:labels} would apply with full force, and it would be no more than ground the ensemble calls flood-prone, smoothed into a probability.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_hazard_surfaces.pdf}
+\caption{The two flood hazard surfaces for Rangpur and Rajshahi, with district boundaries in white. The Kriged surface interpolates the asset model's scores between mapped assets and has a standard deviation of \RRKrigedGridSD{} across the grid. The terrain model scores each 30\,m cell from its own elevation, slope, TWI, HAND and flow accumulation, has a standard deviation of \RRTerrainGridSD{}, and reaches a cell-level AUC against observed flooding of \RRSurfaceTerrainObsAUC{}, against \RRSurfaceKrigedObsAUC{} for the Kriged surface.}
+\label{fig:hazard}
+\end{figure}
 
 \section{Exposure, vulnerability, composite risk and aggregation}
 \label{si:risk}
