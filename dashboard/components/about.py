@@ -19,7 +19,7 @@ from dashboard.data.loader import (
 from dashboard.data.regions import region_config, region_status
 
 REPO_URL = "https://github.com/rakibhhridoy/rimes-mapathon"
-DATA_DOI = "10.5281/zenodo.19233968"
+DATA_DOI = "10.5281/zenodo.22978729"
 
 
 def _section(title: str):
