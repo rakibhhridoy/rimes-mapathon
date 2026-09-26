@@ -4,6 +4,8 @@ RETIRED 2026-09-26. The paper is now edited directly in paper.tex, cut to the
 6,000-word limit of the Journal of Flood Risk Management, and no longer tracks
 the technical document. Running this would overwrite that work, so it refuses
 unless --force is given. Numbers still come from docs/numbers.tex.
+The sections/ folder it read was deleted on 2026-09-26; restore it from commit
+47c0d18 to run this again.
 """
 import sys
 if "--force" not in sys.argv:
