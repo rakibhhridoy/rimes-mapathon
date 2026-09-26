@@ -39,6 +39,9 @@ sentinel1:
   export_scale_m: 100                       # keeps the AOI under the pixel cap
   events:
     - name: "aug2017"
+      # Independent MODIS map of the same flood (10-26 Aug 2017) in the Global
+      # Flood Database, used only to check this mask (`pipeline.cli crosscheck`).
+      gfd_ids: [4507, 4508]
       # Second monsoon flood began 12 August; Dinajpur, Kurigram, Lalmonirhat,
       # Rangpur among the worst affected.
       source: "https://reliefweb.int/report/bangladesh/monsoon-floods-bangladesh-situation-report-02-16-august-2017"
