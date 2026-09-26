@@ -99,10 +99,11 @@ def _read_wgs84(path, max_dim=900):
 
 
 # ── Figure 1: study area ────────────────────────────────────────────────────
-def fig_study_area():
+def fig_study_area(landslide=True):
     """Bangladesh with each study region tinted inside the country: blue
     steps for the three flood regions, orange for the landslide region,
-    neighbouring countries pale and the sea pale blue."""
+    neighbouring countries pale and the sea pale blue. Without the landslide
+    region it is the flood paper's version, fig_study_area_flood.pdf."""
     districts = _districts()
     countries = gpd.read_file(ROOT / "data/shared/naturalearth/ne_10m_admin_0_countries.geojson")
     from shapely.geometry import box as _box
@@ -118,6 +119,8 @@ def fig_study_area():
         "sw_coastal": ("South-west\ncoast", "surge", "#A6CEE3"),
         "cht": ("Chittagong\nHill Tracts", "landslide", "#F4A582"),
     }
+    if not landslide:
+        regions.pop("cht")
     fig, ax = plt.subplots(figsize=(COL_W, COL_W * 1.22))
     ax.set_facecolor(SEA)
     neighbours.plot(ax=ax, facecolor=NEIGHBOUR, edgecolor="#c9c7c0", linewidth=0.4, zorder=1)
@@ -146,7 +149,7 @@ def fig_study_area():
     ax.grid(True, zorder=0, color="#dde6ef")
     ax.set_axisbelow(True)
     fig.tight_layout(pad=0.3)
-    fig.savefig(OUT / "fig_study_area.pdf")
+    fig.savefig(OUT / ("fig_study_area.pdf" if landslide else "fig_study_area_flood.pdf"))
     plt.close(fig)
 
 
@@ -393,6 +396,10 @@ def fig_chain():
     subprocess.run(["node", "render.mjs"], cwd=d3_dir, check=True)
     subprocess.run(["rsvg-convert", "-f", "pdf", "-o", str(OUT / "fig_chain.pdf"),
                     str(d3_dir / "chain.svg")], check=True)
+    # The flood paper's version, without the landslide inventory.
+    subprocess.run(["node", "render.mjs", "--flood-only"], cwd=d3_dir, check=True)
+    subprocess.run(["rsvg-convert", "-f", "pdf", "-o", str(OUT / "fig_chain_flood.pdf"),
+                    str(d3_dir / "chain_flood.svg")], check=True)
 
 
 # ── Figure 7: the graph model against tabular baselines ────────────────────
@@ -526,6 +533,7 @@ def fig_union_risk():
 if __name__ == "__main__":
     fig_chain(); print("fig_chain.pdf")
     fig_study_area(); print("fig_study_area.pdf")
+    fig_study_area(landslide=False); print("fig_study_area_flood.pdf")
     fig_flood_frequency(); print("fig_flood_frequency.pdf")
     fig_hazard_surfaces(); print("fig_hazard_surfaces.pdf")
     summary = fig_roc(); print("fig_roc.pdf", json.dumps(

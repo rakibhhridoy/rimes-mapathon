@@ -10,10 +10,14 @@ globalThis.document = dom.window.document;
 eval(fs.readFileSync(new URL("./chain.js", import.meta.url), "utf8"));
 
 const counts = JSON.parse(fs.readFileSync(new URL("./counts.json", import.meta.url), "utf8"));
+// --flood-only drops the landslide inventory, for the flood paper's version.
+const floodOnly = process.argv.includes("--flood-only");
+if (floodOnly) counts.landslides = null;
+const outName = floodOnly ? "./chain_flood.svg" : "./chain.svg";
 const svg = d3.select(dom.window.document.body).append("svg")
   .attr("xmlns", "http://www.w3.org/2000/svg");
 globalThis.drawChain(svg, d3, counts);
 
-fs.writeFileSync(new URL("./chain.svg", import.meta.url),
+fs.writeFileSync(new URL(outName, import.meta.url),
   '<?xml version="1.0" encoding="UTF-8"?>\n' + dom.window.document.body.innerHTML);
-console.log("wrote chain.svg");
+console.log("wrote " + outName.slice(2));
