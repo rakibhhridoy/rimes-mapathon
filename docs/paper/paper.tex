@@ -264,14 +264,7 @@ The default asset model is class-weighted gradient boosting with 300 iterations 
 \subsection{Hazard surfaces}
 \label{sec:hazard}
 
-Two hazard surfaces cover the grid. The first interpolates the asset scores by ordinary Kriging, which can add little between assets where the scores lack spatial structure, and the fitted variograms leave \RRNuggetSillRatio{} of the sill unexplained at zero distance in Rangpur and Rajshahi and \SylhetNuggetSillRatio{} in Sylhet. The second, the default, is a class-weighted logistic regression on each cell's own elevation, slope, TWI, HAND and flow accumulation, trained at the assets on the observed labels and blocks and evaluated at every 30\,m cell. It leaves out the access distances, which describe exposure rather than the likelihood of flooding, and so follows individual channels and levees where the Kriged surface varies over tens of kilometres (Fig.~\ref{fig:hazard}).
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=0.8\textwidth]{figures/fig_hazard_surfaces.pdf}
-\caption{The two flood hazard surfaces for Rangpur and Rajshahi, with district boundaries in white. The Kriged surface interpolates the asset model's scores between mapped assets and has a standard deviation of \RRKrigedGridSD{} across the grid. The terrain model scores each 30\,m cell from its own elevation, slope, TWI, HAND and flow accumulation, has a standard deviation of \RRTerrainGridSD{}, and reaches a cell-level AUC against observed flooding of \RRSurfaceTerrainObsAUC{}, against \RRSurfaceKrigedObsAUC{} for the Kriged surface.}
-\label{fig:hazard}
-\end{figure*}
+Two hazard surfaces cover the grid. The first interpolates the asset scores by ordinary Kriging, which can add little between assets where the scores lack spatial structure, and the fitted variograms leave \RRNuggetSillRatio{} of the sill unexplained at zero distance in Rangpur and Rajshahi and \SylhetNuggetSillRatio{} in Sylhet. The second, the default, is a class-weighted logistic regression on each cell's own elevation, slope, TWI, HAND and flow accumulation, trained at the assets on the observed labels and blocks and evaluated at every 30\,m cell. It leaves out the access distances, which describe exposure rather than the likelihood of flooding, and so follows individual channels and levees where the Kriged surface varies over tens of kilometres (Supporting Information, Fig.~S1).
 
 \subsection{Exposure, vulnerability and composite risk}
 \label{sec:aggregation}
