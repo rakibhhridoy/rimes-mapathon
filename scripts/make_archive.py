@@ -116,4 +116,4 @@ if __name__ == "__main__":
     for region in regions:
         archive_region(region, Path(args.out))
     print("Upload the archives and manifests to Zenodo as a new version of "
-          "10.5281/zenodo.19233968, and cite the DOI it assigns.")
+          "10.5281/zenodo.22978729, and cite the DOI it assigns.")

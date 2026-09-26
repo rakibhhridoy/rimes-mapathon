@@ -20,7 +20,7 @@ Usage:
     python scripts/zenodo_upload.py                     # list your drafts
     python scripts/zenodo_upload.py --draft 12345678    # upload to that draft
     python scripts/zenodo_upload.py --draft 12345678 --remove-others
-    python scripts/zenodo_upload.py --new-version 19233968 --remove-others
+    python scripts/zenodo_upload.py --new-version 22978729 --remove-others
 
 The draft ID is the number in the browser address while you edit the draft
 (zenodo.org/uploads/12345678). `--new-version` instead opens a new-version

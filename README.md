@@ -27,7 +27,8 @@ cd rimes-mapathon
 
 The full data folder is archived on Zenodo:
 
-> **DOI**: [10.5281/zenodo.19233968](https://doi.org/10.5281/zenodo.19233968)
+> **DOI**: [10.5281/zenodo.22978729](https://doi.org/10.5281/zenodo.22978729) (version 2.0, September 2026)  
+> All versions: [10.5281/zenodo.19233967](https://doi.org/10.5281/zenodo.19233967)
 
 Download and extract the `data/` folder into the project root so the structure looks like:
 
@@ -411,9 +412,10 @@ See the `docs/` folder for detailed documentation:
 If you use this code or its outputs, please cite the software (MIT licence, see
 `LICENSE`) and the input data archive:
 
-> Hasan, M. R., Zubyer, S., & Arabi, F. Z. (2026). *Fermium Hazard Mapper /
-> SGMDI: flood risk to infrastructure in Rangpur and Rajshahi, Bangladesh.*
-> Zenodo. https://doi.org/10.5281/zenodo.19233968
+> Hasan, M. R., Zubyer, S., & Arabi, F. Z. (2026). *Fermium Hazard Mapper:
+> input data and outputs for flood and landslide susceptibility in Bangladesh*
+> (version 2.0).
+> Zenodo. https://doi.org/10.5281/zenodo.22978729
 
 ## Licence
 

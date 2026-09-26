@@ -1,5 +1,9 @@
 # Zenodo record: new version of 10.5281/zenodo.19233968
 
+**Published 2026-09-26 as 10.5281/zenodo.22978729** (concept DOI 10.5281/zenodo.19233967, which always resolves to the
+latest version). The metadata below still has to be pasted into the record
+(Edit on the record page); only the files are locked after publishing.
+
 Create the new version from the existing record ("New version" on the record
 page), so the concept DOI stays the same and the March 2026 version is kept
 as history. Upload the eight files that `python scripts/make_archive.py`
