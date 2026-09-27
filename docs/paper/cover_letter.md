@@ -10,7 +10,7 @@ Journal of Flood Risk Management
 
 Dear Editor,
 
-I am pleased to submit the manuscript "Do flood susceptibility models know more than the flood record? Evidence from radar-observed floods in Bangladesh" for consideration as a Research Article in the Journal of Flood Risk Management.
+I am pleased to submit the manuscript "Do flood susceptibility models know more than the flood record? Evidence from radar-observed floods in Bangladesh" for consideration as an Original Paper in the Journal of Flood Risk Management.
 
 Flood susceptibility maps are widely produced to guide where flood risk should be managed, and in Bangladesh the studies closest to this one report areas under the ROC curve (AUC) of 0.87 to 0.98. Those figures are rarely set against the simplest alternative a flood manager already holds, the record of where floods have been, and they usually come from random splits of spatially clustered points, which test a model beside its own training data. The manuscript tests both points in three regions with contrasting flood regimes, using flood extents mapped from Sentinel-1 radar for thirteen events and scoring every model on 10 km blocks held out from training over twenty block assignments.
 

@@ -30,7 +30,7 @@ def words(tex: str) -> int:
 def main():
     tex = (HERE / "paper.tex").read_text()
     abstract = (HERE / "abstract.tex").read_text()
-    body = tex[tex.index(r"\section{Introduction}"):tex.index(r"\section*{Data and code availability}")]
+    body = tex[tex.index(r"\section{Introduction}"):tex.index(r"\section*{Data availability statement}")]
     parts = re.split(r"(\\section\{[^}]*\})", body)
     rows, name = [("Abstract", words(abstract))], None
     for part in parts:

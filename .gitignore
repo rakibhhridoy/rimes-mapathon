@@ -53,3 +53,8 @@ web/data/
 
 # Full texts for the literature check; most may not be redistributed.
 docs/litreview/pdfs/
+
+# Submission package: PNGs and intermediate Markdown are rebuilt by
+# docs/paper/build_submission.py
+docs/paper/submission/figures/*.png
+docs/paper/submission/*.md

@@ -583,12 +583,12 @@ def fig_union_risk():
         edges = np.quantile(scored["mean_risk"], [0.2, 0.4, 0.6, 0.8])
         scored["cls"] = np.searchsorted(edges, scored["mean_risk"], side="right")
         unions[~unions.index.isin(scored.index)].plot(
-            ax=ax, facecolor=missing, edgecolor="none", zorder=1)
+            ax=ax, facecolor=missing, edgecolor="none", zorder=1, rasterized=True)
         for k, c in enumerate(classes):
             part = scored[scored["cls"] == k]
             if len(part):
-                part.plot(ax=ax, facecolor=c, edgecolor="none", zorder=2)
-        districts.boundary.plot(ax=ax, color="#6f6d66", linewidth=0.3, zorder=3)
+                part.plot(ax=ax, facecolor=c, edgecolor="none", zorder=2, rasterized=True)
+        districts.boundary.plot(ax=ax, color="#6f6d66", linewidth=0.3, zorder=3, rasterized=True)
         w, s_, e, n = boxes[region]
         ax.set_xlim(w, e); ax.set_ylim(s_, n); ax.set_aspect("equal")
         ax.set_title(f"{REGIONS[region][0]} ({len(scored):,} of {len(unions):,} unions scored)",
@@ -600,7 +600,7 @@ def fig_union_risk():
                loc="lower center", ncol=6, frameon=False, bbox_to_anchor=(0.53, 0.02),
                title="Mean composite risk of the union, relative class within the region",
                title_fontsize=7.5)
-    fig.savefig(OUT / "fig_union_risk.pdf", bbox_inches="tight", pad_inches=0.03)
+    fig.savefig(OUT / "fig_union_risk.pdf", bbox_inches="tight", pad_inches=0.03, dpi=300)
     plt.close(fig)
 
 

@@ -84,7 +84,8 @@
 \vspace{0.5em}
 {\small \textsuperscript{1}Department of Soil, Water and Environment, University of Dhaka, Dhaka-1000, Bangladesh\\
 \textsuperscript{2}Fermium Systems, Dhaka-1207, Bangladesh\\[0.2em]
-\textsuperscript{*}Correspondence: \href{mailto:rakibhhridoy@fermium.systems}{rakibhhridoy@fermium.systems}\par}
+\textsuperscript{*}Correspondence: \href{mailto:rakibhhridoy@fermium.systems}{rakibhhridoy@fermium.systems}\\[0.2em]
+Running title: Flood records and susceptibility models\par}
 \end{center}
 \vspace{1.6em}
 
@@ -428,13 +429,11 @@ The coast is the clearest limit. Both hazard surfaces are close to chance there,
 
 Radar-observed flood extents made better training labels than terrain thresholds, by \RRLabelGap{}, \SylhetLabelGap{} and \CoastalLabelGap{} in AUC on held-out ground and by \RRTempProxyGap{}, \SylhetTempProxyGap{} and \CoastalTempProxyGap{} against later floods, which bears on how any map trained and scored against terrain-derived labels should be read. In the riverine regions the record of earlier floods predicted the 2024 flooding better than the model, and a model given that record as a feature beat both, reaching \RRPastFeatAUC{} and \SylhetPastFeatAUC{}. Ordinary tabular models matched or beat a graph neural network, with elevation and the access distances carrying the signal. The terrain hazard surface followed observed flooding in the riverine regions and failed on the coast. Every number in this paper is generated from the released pipeline outputs, so each can be checked and rebuilt.
 
-\section*{Data and code availability}
+\section*{Data availability statement}
 
-The pipeline, region configurations, dashboard and test suite are available at \url{https://github.com/rakibhhridoy/rimes-mapathon} under the MIT licence. The pipeline also holds a landslide susceptibility module for the Chittagong Hill Tracts, which is described in the technical documentation and will be reported separately. Input data and outputs for all four regions, including that one, are packaged per region with a manifest of checksums and licences at \url{https://doi.org/10.5281/zenodo.22978729}. Every figure in this paper is written into the text by the analysis scripts in the code repository directly from the pipeline outputs, so a rerun of the pipeline updates text and results together. The results are published through an open dashboard at \url{https://fermium.systems/hazmapper}, which shows the risk maps, rankings and per-unit summaries without a sign-in and states the limitations of Section~\ref{sec:discussion} beside the maps. An earlier technical report on this system, prepared for the RIMES Mapathon in March 2026, contained errors that were found in a later review, the most serious being a coordinate-system error that left every training label at zero. Each error and its correction is listed in the technical documentation in the code repository, and no result of that report is used here.
+The data that support the findings of this study are openly available in Zenodo at \url{https://doi.org/10.5281/zenodo.22978729}. The code that produced them is openly available at \url{https://github.com/rakibhhridoy/rimes-mapathon} under the MIT licence. The repository holds the pipeline, region configurations, dashboard and test suite. The pipeline also holds a landslide susceptibility module for the Chittagong Hill Tracts, which is described in the technical documentation and will be reported separately. The Zenodo archive packages the input data and outputs for all four regions, including that one, per region with a manifest of checksums and licences. Every figure in this paper is written into the text by the analysis scripts in the code repository directly from the pipeline outputs, so a rerun of the pipeline updates text and results together. The results are published through an open dashboard at \url{https://fermium.systems/hazmapper}, which shows the risk maps, rankings and per-unit summaries without a sign-in and states the limitations of Section~\ref{sec:discussion} beside the maps. An earlier technical report on this system, prepared for the RIMES Mapathon in March 2026, contained errors that were found in a later review, the most serious being a coordinate-system error that left every training label at zero. Each error and its correction is listed in the technical documentation in the code repository, and no result of that report is used here.
 
 \section*{Declarations}
-
-\textbf{Funding.} The author received no specific funding for this work.
 
 \textbf{Competing interests.} Md Rakib Hasan is affiliated with Fermium Systems, which hosts the public dashboard described here. The software is released under the MIT licence and the data under the open licences listed in Table~\ref{tab:data}, and no result depends on a proprietary component.
 
@@ -444,7 +443,7 @@ The pipeline, region configurations, dashboard and test suite are available at \
 
 \section*{Acknowledgements}
 
-Infrastructure data are \copyright{} OpenStreetMap contributors, under the Open Database Licence. Population data are from WorldPop, University of Southampton, CC BY 4.0. Administrative boundaries are from geoBoundaries, William \& Mary geoLab, CC BY 4.0. Neighbouring country outlines in Figure~\ref{fig:study} are from Natural Earth, in the public domain. Surface-water occurrence is from the Joint Research Centre of the European Commission \citep{pekel2016}. Elevation is from the NASA Shuttle Radar Topography Mission. Sentinel-1 data are from the Copernicus programme of the European Union. The system was first developed for the RIMES Mapathon, ResilienceAI track.
+The author received no specific funding for this work. Infrastructure data are \copyright{} OpenStreetMap contributors, under the Open Database Licence. Population data are from WorldPop, University of Southampton, CC BY 4.0. Administrative boundaries are from geoBoundaries, William \& Mary geoLab, CC BY 4.0. Neighbouring country outlines in Figure~\ref{fig:study} are from Natural Earth, in the public domain. Surface-water occurrence is from the Joint Research Centre of the European Commission \citep{pekel2016}. Elevation is from the NASA Shuttle Radar Topography Mission. Sentinel-1 data are from the Copernicus programme of the European Union. The system was first developed for the RIMES Mapathon, ResilienceAI track.
 
 \bibliographystyle{apalike}
 \bibliography{references}
