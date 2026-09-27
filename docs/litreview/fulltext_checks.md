@@ -51,4 +51,4 @@ submission.**
 | rahmanm2025 | 10.1111/jfr3.70089 | household survey (487 households) in flood-prone Sunamganj: economic, physical (housing) and social (age, vulnerable members) dimensions of vulnerability | abstract only |
 | williams2025 | 10.1111/jfr3.70045 | expert-elicited depth-damage curves for 34 infrastructure network components | abstract only |
 | schotten2023 | 10.1111/jfr3.12913 | topology-based modelling of cascading critical-infrastructure disruption, proof of concept in Accra | abstract only |
-| ali2019 | 10.1111/jfr3.12450 | Sirajganj: structural and non-structural flood measures proposed | abstract only |
+| ali2019 | 10.1111/jfr3.12450 | — | **removed** 2026-09-27: not open access, so it could not be checked; the sentence now stands without it |
