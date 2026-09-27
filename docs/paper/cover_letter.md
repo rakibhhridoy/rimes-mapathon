@@ -26,7 +26,12 @@ The manuscript states its limits plainly. The radar flood maps agree only modera
 
 The main text runs to about 4,700 words, excluding references, figures and tables, with 7 figures and 7 tables. The manuscript is original, has not been published, and is not under consideration elsewhere. I am its sole author and approve its submission. I declare an affiliation with Fermium Systems, which hosts the public dashboard described in the paper. The software is released under the MIT licence and the data under open licences, and no result depends on a proprietary component. The work received no specific funding.
 
-[Optional: suggested reviewers, with name, affiliation, email and a one-line reason each, and any reviewers to exclude.]
+Suggested reviewers, none of whom has collaborated with me:
+
+- Dr Beth Tellman, School of Geography, Development and Environment, University of Arizona, USA ([email]). Lead developer of the Global Flood Database, against which the radar flood maps are checked.
+- Dr Sandro Martinis, German Aerospace Center (DLR), Germany ([email]). Automated Sentinel-1 flood mapping.
+- Prof. Hanna Meyer, Institute of Landscape Ecology, University of Münster, Germany ([email]). Spatial validation of machine-learning prediction models.
+- Dr Alexandre Wadoux, [affiliation to confirm] ([email]). Map accuracy assessment and the limits of spatial cross-validation.
 
 Thank you for considering the manuscript.
 
