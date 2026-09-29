@@ -400,7 +400,29 @@ observed flooding. Results land in `data/output/validation_metrics.json`.
 - **CSV**: Asset rankings, admin-level summaries
 - **GeoTIFF**: Kriged flood risk surface, kriging variance
 - **PDF**: Situation report with top at-risk unions and assets
-- **Dashboard**: Interactive Streamlit app with map, analytics, and export
+- **Web application**: the public map at <https://fermium.systems/hazmapper/>
+
+### Everything in one database
+
+```bash
+python scripts/build_database.py      # -> dist/hazmapper.gpkg
+```
+
+writes every input, intermediate and output of all four regions into one
+GeoPackage, which is SQLite with a standard layout for geometry and rasters,
+so QGIS, ArcGIS, GDAL and any SQLite client open it directly. Vector layers
+and tables are named `<region>_<file>` (national layers under `shared_`),
+rasters are raster tables, metrics sit in `metrics` as JSON that SQLite's
+JSON functions can query, NumPy arrays in `arrays`, and models and reports in
+`files`. The `sources` table gives each item's source file, SHA-256 and
+licence. The pipeline itself still works on files; the database is an export
+of them, rebuilt after each run.
+
+```sql
+-- the validation AUC of every region, straight from the metrics
+SELECT region, json_extract(json, '$.assets_vs_observed.held_out_blocks.auc_roc')
+FROM metrics WHERE name = 'validation_metrics';
+```
 
 ## Documentation
 
