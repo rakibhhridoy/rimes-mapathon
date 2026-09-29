@@ -44,7 +44,7 @@
   city={Dhaka}, postcode={1207}, country={Bangladesh}}
 
 \begin{abstract}
-Flood susceptibility maps for Bangladesh are usually trained on a few hundred surveyed points and scored on a random share of the same points, so their accuracy says little about unmapped ground. Fermium Hazard Mapper is an open Python pipeline and web application that trains flood models on extents mapped from Sentinel-1 radar, scores every model on whole areas held out from training, and publishes asset-level and grid-level risk with the evidence behind it. One configuration file per region drives a chain of command-line stages from data download to calibrated scores, composite risk, administrative summaries and a validation suite that compares models, label sources and time periods on identical spatial blocks. Four regions of Bangladesh are configured, three for flooding and one for landslides, and the results are served openly at \url{https://fermium.systems/hazmapper}. A test suite of 125 tests guards each defect found in an audit of the first release.
+Flood susceptibility maps for Bangladesh are usually trained on a few hundred surveyed points and scored on a random share of the same points, so their accuracy says little about unmapped ground. Fermium Hazard Mapper is an open Python pipeline and web application that trains flood models on extents mapped from Sentinel-1 radar, scores every model on whole areas held out from training, and publishes asset-level and grid-level risk with the evidence behind it. One configuration file per region drives a chain of command-line stages from data download to calibrated scores, composite risk, administrative summaries and a validation suite that compares models, label sources and time periods on identical spatial blocks. Four regions of Bangladesh are configured, three for flooding and one for landslides, and the results are served openly at \url{https://fermium.systems/hazmapper}. A test suite of 132 tests guards each defect found in an audit of the first release.
 \end{abstract}
 
 \begin{keyword}
@@ -108,7 +108,7 @@ The public site is the web application, which serves the outputs from an SQLite 
 
 \subsection{Software functionalities}
 
-The data stages listed in Table~\ref{tab:stages} fetch OpenStreetMap assets from the Overpass API in tiles of 0.75$^\circ$, clipped to the region, and derive slope, the topographic wetness index, height above nearest drainage and flow accumulation from 30\,m SRTM elevation. Population comes from WorldPop and administrative units from geoBoundaries at district, upazila and union level. The Sentinel-1 stage maps each configured event in Google Earth Engine by change detection against a dry-season baseline, following the UN-SPIDER practice \citep{unspider}. It removes permanent water with the JRC surface-water record \citep{pekel2016}, and averages the event masks into a flood-frequency layer that becomes the training label.
+The data stages listed in Table~\ref{tab:stages} fetch OpenStreetMap assets from the Overpass API in tiles of 0.75$^\circ$, clipped to the region and to the country, so that a box crossing a land border keeps only the home side, and derive slope, the topographic wetness index, height above nearest drainage and flow accumulation from 30\,m SRTM elevation. Population comes from WorldPop and administrative units from geoBoundaries at district, upazila and union level. The Sentinel-1 stage maps each configured event in Google Earth Engine by change detection against a dry-season baseline, following the UN-SPIDER practice \citep{unspider}. It removes permanent water with the JRC surface-water record \citep{pekel2016}, and averages the event masks into a flood-frequency layer that becomes the training label.
 
 \begin{table*}[t]
 \centering
@@ -118,6 +118,7 @@ The data stages listed in Table~\ref{tab:stages} fetch OpenStreetMap assets from
 Stage & What it does \\
 \midrule
 \texttt{download}, \texttt{ingest} & fetch assets, elevation, population, boundaries and surface water, and clip them to the region \\
+\texttt{clip} & drop assets across a land border from an asset file fetched earlier \\
 \texttt{preprocess} & derive terrain rasters and write both label sources, radar-observed and terrain-threshold \\
 \texttt{sentinel1} & map each configured flood event from radar and build the flood-frequency layer \\
 \texttt{features}, \texttt{graph} & sample features at every asset and assign assets to 10\,km spatial blocks \\
@@ -141,14 +142,14 @@ The validation suite is what distinguishes the system from a mapping tool. Every
 
 The first release of the system contained a coordinate-system error that sampled rasters stored in UTM with longitude and latitude, so every terrain value came back as the nodata fill and every training label was zero. Nothing failed, and the model it produced was published with a validation score. The current release stops on inputs of that kind, halting if any feature comes out constant, if the labels hold a single class, if a radar event returns no imagery, or if a zonal summary overlaps no unit. Units without mapped assets are left unscored instead of scored zero, and a missing output is reported as missing.
 
-The audit found seventeen defects, and each one that was a computation is now guarded by a test in a suite of 125, which also fails if the dashboard reintroduces mock data or random values. No figure in the documentation is typed by hand, because a build script reads each region's outputs and writes one LaTeX macro per value. A value the pipeline has not produced renders as a visible marker, and a test checks that every macro used in the documentation exists. Rerunning the pipeline and rebuilding a document therefore updates its text and its results together.
+The audit found seventeen defects and a later review an eighteenth, assets across the border in India, and each one that was a computation is now guarded by a test in a suite of 132, which also fails if the dashboard reintroduces mock data or random values. No figure in the documentation is typed by hand, because a build script reads each region's outputs and writes one LaTeX macro per value. A value the pipeline has not produced renders as a visible marker, and a test checks that every macro used in the documentation exists. Rerunning the pipeline and rebuilding a document therefore updates its text and its results together.
 
 %% ─────────────────────────────────────────────────────────────────────
 \section{Illustrative example}
 
 Four regions are configured, Rangpur and Rajshahi for riverine flooding, Sylhet for flash flooding, the south-west coast for cyclone surge, and the Chittagong Hill Tracts for landslides. Thirteen flood events between 2017 and 2024 were mapped from Sentinel-1 for the three flood regions, and the pipeline scored \RRAssets{} mapped assets in Rangpur and Rajshahi, \SylhetAssets{} in Sylhet and \CoastalAssets{} on the coast.
 
-In the output of the \texttt{benchmark} stage (Table~\ref{tab:benchmark}), the graph network the system was first built around trails the best ordinary model in every region. The gap is \RRBenchGap{} in AUC in Rangpur and Rajshahi and \SylhetBenchGap{} in Sylhet, while on the coast its gap of \CoastalBenchGap{} cannot be told apart from noise. Gradient boosting became the default as a result, and the comparison stays in the pipeline so that a future model has to beat it on the same blocks. The spread across assignments, \RRBenchBoostingSD{} to \CoastalBenchBoostingSD{} in AUC, is as large as several of the differences, which is the reason every figure is reported with it.
+In the output of the \texttt{benchmark} stage (Table~\ref{tab:benchmark}), the graph network the system was first built around trails the best ordinary model in every region. The gap is \RRBenchGap{} in AUC in Rangpur and Rajshahi and \CoastalBenchGap{} on the coast, while in Sylhet its gap of \SylhetBenchGap{} cannot be told apart from noise. Gradient boosting became the default as a result, and the comparison stays in the pipeline so that a future model has to beat it on the same blocks. The spread across assignments, \SylhetBenchBoostingSD{} to \CoastalBenchBoostingSD{} in AUC, is as large as several of the differences, which is the reason every figure is reported with it.
 
 \begin{table}[t]
 \centering

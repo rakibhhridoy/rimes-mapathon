@@ -611,8 +611,9 @@ def crosscheck(ctx):
 @click.pass_context
 def benchmark(ctx, seeds):
     """Compare the graph model with tabular baselines over repeated splits."""
-    from pipeline.benchmark import (SEEDS, run_benchmark, run_label_comparison,
-                                    run_past_flooding_feature, run_temporal_holdout)
+    from pipeline.benchmark import (SEEDS, run_benchmark, run_feature_importance,
+                                    run_label_comparison, run_past_flooding_feature,
+                                    run_temporal_holdout)
 
     cfg = ctx.obj["config"]
     chosen = tuple(int(s) for s in seeds.split(",")) if seeds else SEEDS
@@ -621,6 +622,8 @@ def benchmark(ctx, seeds):
                             _infra_path(cfg), seeds=chosen)
     labels = run_label_comparison(cfg, _dir(cfg, "processed"), _dir(cfg, "output"),
                                   _infra_path(cfg), seeds=chosen)
+    run_feature_importance(cfg, _dir(cfg, "processed"), _dir(cfg, "output"),
+                           _infra_path(cfg), seeds=chosen)
     if (cfg.get("data", {}).get("labels", {}) or {}).get("source") == "observed":
         temporal = run_temporal_holdout(cfg, _dir(cfg, "processed"), _dir(cfg, "raw"),
                                         _dir(cfg, "output"), _infra_path(cfg),
