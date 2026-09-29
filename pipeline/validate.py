@@ -208,7 +208,10 @@ def _validate_one_surface(cfg: dict, hazard_path: Path, raw_dir: Path) -> dict:
             resampling=Resampling.average,
         )
 
-    valid = np.isfinite(hazard) & np.isfinite(observed)
+    from pipeline.country import foreign_mask
+
+    valid = (np.isfinite(hazard) & np.isfinite(observed)
+             & ~foreign_mask(cfg, ref_shape, ref_transform, ref_crs))
     if hazard_nodata is not None:
         valid &= hazard != hazard_nodata
     hazard_v = hazard[valid]
@@ -263,7 +266,10 @@ def compare_proxy_to_observed(cfg: dict, processed_dir: Path, raw_dir: Path) -> 
     n_events = len(cfg.get("sentinel1", {}).get("events", [])) or 1
     min_events = cfg["data"].get("labels", {}).get("min_events", 1)
     threshold_pct = 100.0 * min_events / n_events - 1e-6
-    valid = np.isfinite(proxy) & (proxy >= 0) & np.isfinite(observed)
+    from pipeline.country import foreign_mask
+
+    valid = (np.isfinite(proxy) & (proxy >= 0) & np.isfinite(observed)
+             & ~foreign_mask(cfg, ref_shape, ref_transform, ref_crs))
     agreement = _binary_agreement(observed[valid] >= threshold_pct, proxy[valid] > 0.5)
     agreement["min_events"] = min_events
     agreement["proxy_positive_share"] = float((proxy[valid] > 0.5).mean())

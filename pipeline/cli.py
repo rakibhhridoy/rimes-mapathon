@@ -151,6 +151,27 @@ def ingest(ctx):
     click.echo(f"Fetched {len(infra)} infrastructure features.")
 
 
+@cli.command()
+@click.pass_context
+def clip(ctx):
+    """Drop assets in a neighbouring country from an existing asset file.
+
+    New fetches are clipped as they are written. This applies the same rule
+    to a file fetched before it existed, without querying OpenStreetMap again,
+    whose content will have changed since. Rerun from `features` afterwards.
+    """
+    import geopandas as gpd
+    from pipeline.country import drop_foreign
+
+    cfg = ctx.obj["config"]
+    path = _infra_path(cfg)
+    infra = gpd.read_file(str(path))
+    kept = drop_foreign(infra, cfg, "assets")
+    if len(kept) < len(infra):
+        kept.to_file(str(path), driver="GPKG")
+    click.echo(f"Kept {len(kept)} of {len(infra)} assets inside the country.")
+
+
 # ---------------------------------------------------------------------------
 # Step 2 — Preprocess
 # ---------------------------------------------------------------------------
@@ -383,6 +404,9 @@ def risk(ctx):
     logger.info("=== Step 8: Composite Risk ===")
     processed_dir = _dir(cfg, "processed")
     grid_gdf = create_risk_grid(bounds, grid_res)
+    from pipeline.country import drop_foreign
+    grid_gdf = drop_foreign(grid_gdf, cfg, "grid cells").reset_index(drop=True)
+    grid_gdf["cell_id"] = range(len(grid_gdf))
 
     # Hazard per grid cell. Two surfaces are available: the kriged GNN
     # scores, and a terrain model evaluated at each cell. Which one the

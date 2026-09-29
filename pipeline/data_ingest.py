@@ -200,6 +200,9 @@ def fetch_osm_infrastructure(cfg: dict, output_dir: Path) -> gpd.GeoDataFrame:
 
     infra = merge_tile_results(all_gdfs, bbox)
 
+    from pipeline.country import drop_foreign
+    infra = drop_foreign(infra, cfg, "assets")
+
     infra["asset_type"] = infra["source_tag"].apply(_classify_asset)
 
     if "name" not in infra.columns:

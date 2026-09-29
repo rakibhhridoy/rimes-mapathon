@@ -58,3 +58,4 @@ docs/litreview/pdfs/
 # docs/paper/build_submission.py
 docs/paper/submission/figures/*.png
 docs/paper/submission/*.md
+data/backup_*/

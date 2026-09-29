@@ -14,6 +14,10 @@ paths:
 aoi:
   name: "rangpur_rajshahi"
   iso3: "BGD"
+  # Assets, grid cells and grid-level scores in a neighbouring country are
+  # dropped (pipeline/country.py): the boxes cross Bangladesh's land borders.
+  country_boundary: "data/shared/geoboundaries/BGD_ADM2.geojson"
+  neighbours: "data/shared/naturalearth/ne_10m_admin_0_countries.geojson"
   divisions: ["Rangpur", "Rajshahi"]
   bbox: [88.0, 24.0, 89.9, 26.7]          # [west, south, east, north]
   crs: "EPSG:32646"                         # UTM Zone 46N
