@@ -15,6 +15,7 @@
 \usepackage{xurl}
 \usepackage{listings}
 \usepackage{float}
+\usepackage{xcolor}
 
 \lstset{basicstyle=\footnotesize\ttfamily, breaklines=true,
         columns=fullflexible, frame=tb, framerule=0.3pt}
@@ -33,6 +34,8 @@
 \author[du,fs]{Md Rakib Hasan\corref{cor}}
 \ead{rakibhhridoy@fermium.systems}
 \cortext[cor]{Corresponding author.}
+\author[fs]{Shoumik Zubyer}
+\ead{\textcolor{red}{[email to confirm]}}
 \affiliation[du]{organization={Department of Soil, Water and Environment, University of Dhaka},
   city={Dhaka}, postcode={1000}, country={Bangladesh}}
 \affiliation[fs]{organization={Fermium Systems},
@@ -90,12 +93,12 @@ python -m pipeline.cli -c configs/sylhet.yaml run
 \end{lstlisting}
 and any stage can be rerun alone after a change to its settings. Because stages share nothing but files, every intermediate product can be opened in a GIS for inspection.
 
-\begin{figure*}[t]
+\begin{figure}[!htbp]
 \centering
-\includegraphics[width=\textwidth]{figures/fig_chain.pdf}
+\includegraphics[width=\textwidth,height=0.72\textheight,keepaspectratio]{figures/fig_chain.pdf}
 \caption{The processing chain, top to bottom. Each asset enters the models as a vector of terrain, population, access-distance and asset-type features, with a label from the Sentinel-1 flood frequency. Every model trains on the same spatial blocks, and dashed connectors mark what the validation scores on the test blocks. In the landslide region a model fitted to a mapped inventory takes the place of the flood labels.}
 \label{fig:chain}
-\end{figure*}
+\end{figure}
 
 A region is defined by a YAML file that states only what differs from a shared base configuration and names that base with an \texttt{extends} key. The base holds the model settings, weights and thresholds, so a change to any of them reaches every region and results stay comparable. A region file carries its bounding box, country code, projected coordinate system, data directories and, for validation, the flood events to map from radar, each with the dates of its window and the situation report those dates came from.
 
@@ -183,10 +186,10 @@ Fermium Hazard Mapper joins radar-observed flood labels, spatially blocked valid
 
 %% ── Declarations ─────────────────────────────────────────────────────
 \section*{CRediT authorship contribution statement}
-\textbf{Md Rakib Hasan:} Conceptualization, Methodology, Software, Validation, Formal analysis, Data curation, Visualization, Writing -- original draft, Writing -- review \& editing.
+\textbf{Md Rakib Hasan:} Conceptualization, Methodology, Software, Validation, Formal analysis, Data curation, Visualization, Writing -- original draft, Writing -- review \& editing. \textbf{Shoumik Zubyer:} \textcolor{red}{[roles to confirm, e.g. Software, Writing -- review \& editing]}.
 
 \section*{Declaration of competing interest}
-The author is affiliated with Fermium Systems, which hosts the public dashboard. The software is released under the MIT licence and the dashboard is free to use. The author declares no other competing interests.
+The authors are affiliated with Fermium Systems, which hosts the public dashboard. The software is released under the MIT licence and the dashboard is free to use. The authors declare no other competing interests.
 
 \section*{Data availability}
 The code is at \url{https://github.com/rakibhhridoy/rimes-mapathon}. Input data and outputs for all four regions are archived at \url{https://doi.org/10.5281/zenodo.22978729}.
