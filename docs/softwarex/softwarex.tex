@@ -67,7 +67,7 @@ C2 & Permanent link to code/repository used for this code version & \url{https:/
 C3 & Permanent link to reproducible capsule & Archived release and data: \url{https://doi.org/10.5281/zenodo.22978729} \\
 C4 & Legal code license & MIT \\
 C5 & Code versioning system used & git \\
-C6 & Software code languages, tools and services used & Python 3.11; GeoPandas, Rasterio, scikit-learn, PyTorch Geometric, PyKrige, PySAL; Google Earth Engine; FastAPI, SQLite, PMTiles and MapLibre GL; Streamlit \\
+C6 & Software code languages, tools and services used & Python 3.11; GeoPandas, Rasterio, scikit-learn, PyTorch Geometric, PyKrige, PySAL; Google Earth Engine; FastAPI, SQLite, PMTiles and MapLibre GL \\
 C7 & Compilation requirements, operating environments and dependencies & Linux or macOS; dependencies pinned in \texttt{requirements.txt}; a Google Earth Engine project for the Sentinel-1 stage \\
 C8 & Link to developer documentation/manual & \url{https://github.com/rakibhhridoy/rimes-mapathon\#readme} \\
 C9 & Support email for questions & rakibhhridoy@fermium.systems \\
@@ -104,7 +104,7 @@ and any stage can be rerun alone after a change to its settings. Because stages 
 
 A region is defined by a YAML file that states only what differs from a shared base configuration and names that base with an \texttt{extends} key. The base holds the model settings, weights and thresholds, so a change to any of them reaches every region and results stay comparable. A region file carries its bounding box, country code, projected coordinate system, data directories and, for validation, the flood events to map from radar, each with the dates of its window and the situation report those dates came from.
 
-Neither front end computes anything, since a Streamlit dashboard reads the pipeline outputs directly and a faster web application serves the same outputs from an SQLite database and PMTiles vector tiles. Its FastAPI service and MapLibre GL client move panning and filtering into the browser, which makes the web application the faster of the two. A build step converts the outputs into that database and those tiles, and every value a visitor sees can therefore be traced to a file the pipeline wrote.
+The public site is the web application, which serves the outputs from an SQLite database and PMTiles vector tiles through a FastAPI service and a MapLibre GL client, so that every asset of a region is drawn at once and panning and filtering happen in the browser. A Streamlit dashboard that reads the outputs directly remains for local use. Neither front end computes anything, since a build step converts the outputs into that database and those tiles, and every value a visitor sees can therefore be traced to a file the pipeline wrote.
 
 \subsection{Software functionalities}
 
