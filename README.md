@@ -65,17 +65,17 @@ pip install -r requirements.txt
 `numpy` is pinned below 2.0 because the torch 2.2 wheels are built against
 numpy 1.x. On platforms with newer torch wheels the pin can be relaxed.
 
-### 4. Launch the dashboard
+### 4. Launch the map
 
 ```bash
-streamlit run dashboard/app.py -- --config config.yaml
+python scripts/build_web.py          # database + tiles + overlays, per region
+uvicorn web.api:app --port 2030      # then open http://127.0.0.1:2030/
 ```
 
 No pipeline execution needed — the Zenodo archive includes all pre-computed
-outputs. Server options (loopback bind, CSRF, no uploads) live in
-`.streamlit/config.toml`; `apps.conf` and `hazmapper.service` are the nginx and
-systemd units used for the public deployment, including per-IP rate limits and
-memory caps.
+outputs. `apps.conf` and `hazmapper-web.service` are the nginx and systemd
+units used for the public deployment, including per-IP rate limits, memory
+caps and the content security policy.
 
 ## Web application (fast path)
 
@@ -110,34 +110,40 @@ and every value in the API comes from a file the pipeline wrote.
 
 ### Deploying the web application
 
+The public site at <https://fermium.systems/hazmapper/> is the web
+application. `apps.conf` is its nginx server block and `hazmapper-web.service`
+its systemd unit. The map offers three basemaps, satellite imagery, imagery
+with relief shaded from elevation tiles (the default), and a hybrid with road
+and place labels, and it opens fitted to every mapped asset of the region.
+
+Switching the server over from the retired Streamlit dashboard, once:
+
 ```bash
-ssh root@server 'cd /var/www/hazmapper && git pull'
+ssh root@server 'cd /var/www/hazmapper && git pull && pip install fastapi uvicorn'
 rsync -a --delete web/data root@server:/var/www/hazmapper/web/
 scp hazmapper-web.service root@server:/etc/systemd/system/
-ssh root@server 'pip install fastapi uvicorn && systemctl daemon-reload \
-  && systemctl enable --now hazmapper-web'
+scp apps.conf root@server:/etc/nginx/conf.d/hazmapper.conf   # or wherever the old apps.conf lives
+ssh root@server 'systemctl daemon-reload && systemctl enable --now hazmapper-web \
+  && nginx -t && systemctl reload nginx \
+  && systemctl disable --now hazmapper'
 ```
 
-Point nginx at port 2030 for the path you want it served on. The Streamlit
-dashboard can keep running on 2020 until you are satisfied with the new one.
+The last command stops the Streamlit service. If Cloudflare caches the old
+page, purge `/hazmapper*` in its dashboard.
 
 ### Deploying an update to the public server
 
 ```bash
-# Code comes from git; only the outputs and dashboard caches are copied.
+# Code comes from git; the database and tiles are built locally and copied.
+python scripts/build_web.py
 ssh root@server 'cd /var/www/hazmapper && git pull'
-rsync -a --delete data/output data/cache root@server:/var/www/hazmapper/data/
-rsync -a --delete data/sylhet/output data/sylhet/cache root@server:/var/www/hazmapper/data/sylhet/
-rsync -a --delete data/sw_coastal/output data/sw_coastal/cache root@server:/var/www/hazmapper/data/sw_coastal/
-rsync -a --delete data/cht/output data/cht/cache root@server:/var/www/hazmapper/data/cht/
-rsync -a data/shared/geoboundaries root@server:/var/www/hazmapper/data/shared/
-ssh root@server 'cd /var/www/hazmapper && pip install -r requirements.txt && systemctl restart hazmapper'
+rsync -a --delete web/data root@server:/var/www/hazmapper/web/
+ssh root@server 'systemctl restart hazmapper-web'
 ```
 
-The dashboard needs only each region's `output/` and `cache/` directories, not
-the raw or processed data, and it discovers regions from `configs/` and the
-files present. `hazmapper.service` and `apps.conf` carry the systemd and nginx
-settings.
+The Streamlit dashboard in `dashboard/` still runs locally
+(`streamlit run dashboard/app.py -- --config config.yaml`) and reads the
+pipeline outputs directly, but it is no longer deployed.
 
 ### 5. Run the tests
 

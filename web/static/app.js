@@ -28,6 +28,7 @@ const state = {
   panel: null,
   selected: null,
   availableOverlays: new Set(),
+  basemap: "topo",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -50,25 +51,85 @@ const hideLoading = () => ($("loading").hidden = true);
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol("pmtiles", protocol.tile);
 
+/* Three basemaps built from one set of sources. Satellite imagery is always
+ * drawn; relief is a hillshade computed in the browser from elevation tiles,
+ * laid over the imagery; the hybrid adds road and place-name labels on top.
+ * Switching is a visibility change, so no tiles are refetched. */
+const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
+const BASEMAPS = {
+  satellite: { relief: false, labels: false },
+  topo: { relief: true, labels: false },
+  hybrid: { relief: true, labels: true },
+};
+const LABEL_LAYERS = ["basemap-roads", "basemap-places"];
+
 const map = new maplibregl.Map({
   container: "map",
   style: {
     version: 8,
-    glyphs: "https://basemaps.cartocdn.com/gl/positron-gl-style/{fontstack}/{range}.pbf",
     sources: {
-      basemap: {
+      imagery: {
         type: "raster",
-        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"],
-        tileSize: 256,
-        attribution: "Tiles &copy; Esri &middot; Map data &copy; OpenStreetMap contributors",
+        tiles: [`${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`],
+        tileSize: 256, maxzoom: 19,
+        attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics",
+      },
+      elevation: {
+        type: "raster-dem",
+        tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+        encoding: "terrarium", tileSize: 256, maxzoom: 14,
+        attribution: "Relief: Mapzen terrain tiles, AWS Open Data",
+      },
+      roads: {
+        type: "raster",
+        tiles: [`${ESRI}/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}`],
+        tileSize: 256, maxzoom: 19,
+      },
+      places: {
+        type: "raster",
+        tiles: [`${ESRI}/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}`],
+        tileSize: 256, maxzoom: 19,
+        attribution: "Labels &copy; Esri &middot; Asset data &copy; OpenStreetMap contributors",
       },
     },
-    layers: [{ id: "basemap", type: "raster", source: "basemap" }],
+    layers: [
+      {
+        id: "basemap-imagery", type: "raster", source: "imagery",
+        // a touch less saturated, so the risk colours stand out from the fields
+        paint: { "raster-saturation": -0.15, "raster-contrast": 0.05 },
+      },
+      {
+        id: "basemap-relief", type: "hillshade", source: "elevation",
+        paint: {
+          "hillshade-exaggeration": 0.55,
+          "hillshade-shadow-color": "#0b1220",
+          "hillshade-highlight-color": "#fff6e8",
+          "hillshade-accent-color": "#1b2a3a",
+          "hillshade-illumination-direction": 315,
+        },
+      },
+      { id: "basemap-roads", type: "raster", source: "roads", paint: { "raster-opacity": 0.75 } },
+      { id: "basemap-places", type: "raster", source: "places" },
+    ],
   },
   center: [89.2, 25.4],
   zoom: 7,
   attributionControl: { compact: true },
 });
+
+// Captured at creation: the region list can arrive after the map has loaded,
+// and a listener attached then would wait for an event that already fired.
+const mapReady = new Promise((resolve) => map.once("load", resolve));
+
+function setBasemap(name) {
+  const choice = BASEMAPS[name] || BASEMAPS.topo;
+  state.basemap = name;
+  const show = (on) => (on ? "visible" : "none");
+  map.setLayoutProperty("basemap-relief", "visibility", show(choice.relief));
+  LABEL_LAYERS.forEach((id) => map.setLayoutProperty(id, "visibility", show(choice.labels)));
+  document.querySelectorAll("#basemaps button").forEach((button) =>
+    button.setAttribute("aria-checked", String(button.dataset.basemap === name)));
+}
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: "metric" }), "bottom-right");
 
@@ -118,7 +179,7 @@ async function addOverlays(region) {
       id, type: "raster", source: id,
       paint: { "raster-opacity": name === "landslide" ? 0.68 : 0.55 },
       layout: { visibility: state.layers[name] ? "visible" : "none" },
-    }, map.getLayer("unions-fill") ? "unions-fill" : undefined);
+    }, map.getLayer("unions-fill") ? "unions-fill" : "basemap-roads");
     state.availableOverlays.add(name);
   }
 }
@@ -148,32 +209,36 @@ function addRegionLayers(region) {
     paint: {
       "fill-color": ["interpolate", ["linear"], ["coalesce", ["get", "mean_risk"], 0],
         0, "#cde2fb", 0.2, "#9ec5f4", 0.35, "#6da7ec", 0.5, "#2a78d6"],
-      "fill-opacity": 0.45,
+      "fill-opacity": 0.18,
     },
-  });
+  }, "basemap-roads");
   map.addLayer({
     id: "unions-line", type: "line", source: "unions", "source-layer": "unions",
-    paint: { "line-color": "#8f8d86", "line-width": 0.5, "line-opacity": 0.8 },
-  });
+    paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.4, 12, 1.2], "line-opacity": 0.55 },
+  }, "basemap-roads");
 
   map.addSource("hotspots", { type: "vector", url: `${base}/hotspots.pmtiles` });
   map.addLayer({
     id: "hotspots-fill", type: "fill", source: "hotspots", "source-layer": "hotspots",
-    paint: { "fill-color": "#c62828", "fill-opacity": 0.16 },
-  });
+    paint: { "fill-color": "#c62828", "fill-opacity": 0.22 },
+  }, "basemap-roads");
 
   map.addSource("assets", { type: "vector", url: `${base}/assets.pmtiles` });
   map.addLayer({
     id: "assets-circle", type: "circle", source: "assets", "source-layer": "assets",
+    // the most susceptible sites draw last, so they stay visible in dense areas
+    layout: { "circle-sort-key": ["coalesce", ["get", "flood_risk"], 0] },
     paint: {
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 2.2, 10, 4, 14, 7],
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 1.6, 9, 2.6, 11, 4, 14, 7],
       "circle-color": ["step", ["coalesce", ["get", "flood_risk"], 0],
         "#15803d", 0.30, "#a16207", 0.50, "#b45309", 0.70, "#c62828"],
       "circle-stroke-color": "#ffffff",
-      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 8, 0.3, 13, 1],
-      "circle-opacity": 0.9,
+      // no outline at regional zoom, where outlines merge into white streaks
+      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 9, 0, 11, 0.8, 14, 1.2],
+      "circle-stroke-opacity": 0.9,
+      "circle-opacity": 0.95,
     },
-  });
+  }, "basemap-roads");        // under the hybrid's labels, which stay readable
   applyFilters();
 }
 
@@ -513,9 +578,13 @@ async function selectRegion(id) {
   renderLayerToggles();
   renderTypeFilter(summary);
 
-  if (region.bbox) {
-    map.fitBounds([[region.bbox[0], region.bbox[1]], [region.bbox[2], region.bbox[3]]],
-      { padding: 60, duration: 0 });
+  // Open on every mapped site; a region without assets opens on its box.
+  // The padding keeps the sites clear of the floating panels.
+  const frame = summary.extent || region.bbox;
+  if (frame) {
+    map.fitBounds([[frame[0], frame[1]], [frame[2], frame[3]]], {
+      padding: { top: 130, bottom: 50, left: 50, right: 230 }, duration: 0,
+    });
   }
   if (region.has_assets) addRegionLayers(id); else removeRegionLayers();
   await addOverlays(id);
@@ -561,6 +630,8 @@ $("minScore").addEventListener("input", (event) => {
 document.querySelectorAll("#panelButtons button").forEach((button) =>
   button.addEventListener("click", () => openPanel(button.dataset.panel)));
 $("sheetClose").addEventListener("click", closePanel);
+document.querySelectorAll("#basemaps button").forEach((button) =>
+  button.addEventListener("click", () => setBasemap(button.dataset.basemap)));
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && state.panel) closePanel();
 });
@@ -594,6 +665,7 @@ map.on("mouseleave", "assets-circle", () => (map.getCanvas().style.cursor = ""))
   document.querySelectorAll("#regionChips button").forEach((button) =>
     button.addEventListener("click", () => selectRegion(button.dataset.region)));
 
-  await new Promise((resolve) => map.on("load", resolve));
+  await mapReady;
+  setBasemap(state.basemap);
   await selectRegion(regions[0].id);
 })();

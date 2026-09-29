@@ -7,6 +7,10 @@
 <base href="./">
 <title>Fermium Hazard Mapper</title>
 <meta name="description" content="Flood risk to mapped infrastructure and landslide susceptibility in Bangladesh, validated against observed floods.">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#121a2e">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -29,7 +33,17 @@
       <div>Modelled susceptibility, not a forecast or an official warning.
         For warnings use FFWC and BMD; in an emergency dial 999.</div>
     </div>
-    <p class="credits">Map data © OpenStreetMap contributors · Tiles © Esri</p>
+    <p class="credits">Imagery © Esri, Maxar, Earthstar Geographics · Relief from
+      Mapzen terrain tiles (AWS Open Data) · Labels © Esri · Asset data © OpenStreetMap contributors</p>
+  </section>
+
+  <section>
+    <h2>Basemap</h2>
+    <div id="basemaps" class="segmented" role="radiogroup" aria-label="Basemap">
+      <button data-basemap="satellite" role="radio">Satellite</button>
+      <button data-basemap="topo" role="radio">Satellite + relief</button>
+      <button data-basemap="hybrid" role="radio">Hybrid</button>
+    </div>
   </section>
 
   <section>

@@ -80,6 +80,10 @@ def region_summary(region: str):
     counts = one(
         "SELECT COUNT(*) AS assets, SUM(is_high_risk) AS high,"
         " AVG(flood_risk) AS mean_risk FROM assets WHERE region = ?", (region,))
+    # The extent of the mapped assets, so the map can open on every site
+    # rather than on the configured bounding box.
+    extent = one("SELECT MIN(lon) AS west, MIN(lat) AS south, MAX(lon) AS east,"
+                 " MAX(lat) AS north FROM assets WHERE region = ?", (region,))
     by_type = {row["asset_type"]: row["n"] for row in rows(
         "SELECT asset_type, COUNT(*) AS n FROM assets WHERE region = ?"
         " GROUP BY asset_type", (region,))}
@@ -90,6 +94,8 @@ def region_summary(region: str):
                    "high_risk": int(counts["high"] or 0),
                    "mean_risk": counts["mean_risk"],
                    "by_type": by_type},
+        "extent": ([extent["west"], extent["south"], extent["east"], extent["north"]]
+                   if extent and extent["west"] is not None else None),
         "metrics": metrics,
     })
 
