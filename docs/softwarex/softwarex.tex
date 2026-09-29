@@ -1,0 +1,200 @@
+%% SoftwareX original software publication: Fermium Hazard Mapper.
+%% Built on elsarticle, following the SoftwareX template's section order and
+%% code metadata table. Every reported value is a macro from ../numbers.tex,
+%% which docs/build_numbers.py writes from the pipeline outputs.
+%% Build: latexmk -pdf softwarex.tex   (run from docs/softwarex/)
+
+\documentclass[preprint,12pt]{elsarticle}
+
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{siunitx}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xurl}
+\usepackage{listings}
+\usepackage{float}
+
+\lstset{basicstyle=\footnotesize\ttfamily, breaklines=true,
+        columns=fullflexible, frame=tb, framerule=0.3pt}
+
+\graphicspath{{../}}
+\input{../numbers.tex}
+
+\journal{SoftwareX}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Fermium Hazard Mapper: an open pipeline for flood and landslide risk mapping, trained and tested on radar-observed floods}
+
+\author[du,fs]{Md Rakib Hasan\corref{cor}}
+\ead{rakibhhridoy@fermium.systems}
+\cortext[cor]{Corresponding author.}
+\affiliation[du]{organization={Department of Soil, Water and Environment, University of Dhaka},
+  city={Dhaka}, postcode={1000}, country={Bangladesh}}
+\affiliation[fs]{organization={Fermium Systems},
+  city={Dhaka}, postcode={1207}, country={Bangladesh}}
+
+\begin{abstract}
+Flood susceptibility maps for Bangladesh are usually trained on a few hundred surveyed points and scored on a random share of the same points, so their accuracy says little about unmapped ground. Fermium Hazard Mapper is an open Python pipeline and web application that trains flood models on extents mapped from Sentinel-1 radar, scores every model on whole areas held out from training, and publishes asset-level and grid-level risk with the evidence behind it. One configuration file per region drives a chain of command-line stages from data download to calibrated scores, composite risk, administrative summaries and a validation suite that compares models, label sources and time periods on identical spatial blocks. Four regions of Bangladesh are configured, three for flooding and one for landslides, and the results are served openly at \url{https://fermium.systems/hazmapper}. A test suite of 125 tests guards each defect found in an audit of the first release.
+\end{abstract}
+
+\begin{keyword}
+flood susceptibility \sep Sentinel-1 \sep spatial cross-validation \sep risk mapping \sep open-source software \sep Bangladesh
+\end{keyword}
+
+\end{frontmatter}
+
+%% ── Code metadata (SoftwareX Table 1; excluded from the word count) ─────
+\section*{Code metadata}
+
+\begin{table}[H]
+\small
+\begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}p{5.2cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Nr. & Code metadata description & Metadata \\
+\midrule
+C1 & Current code version & v2.0 \\
+C2 & Permanent link to code/repository used for this code version & \url{https://github.com/rakibhhridoy/rimes-mapathon} \\
+C3 & Permanent link to reproducible capsule & Archived release and data: \url{https://doi.org/10.5281/zenodo.22978729} \\
+C4 & Legal code license & MIT \\
+C5 & Code versioning system used & git \\
+C6 & Software code languages, tools and services used & Python 3.11; GeoPandas, Rasterio, scikit-learn, PyTorch Geometric, PyKrige, PySAL; Google Earth Engine; FastAPI, SQLite, PMTiles and MapLibre GL; Streamlit \\
+C7 & Compilation requirements, operating environments and dependencies & Linux or macOS; dependencies pinned in \texttt{requirements.txt}; a Google Earth Engine project for the Sentinel-1 stage \\
+C8 & Link to developer documentation/manual & \url{https://github.com/rakibhhridoy/rimes-mapathon\#readme} \\
+C9 & Support email for questions & rakibhhridoy@fermium.systems \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+%% ─────────────────────────────────────────────────────────────────────
+\section{Motivation and significance}
+
+Bangladesh floods every monsoon, yet the susceptibility maps published for its flood regions rarely show how they would fare on ground they were not trained on. Studies in the Teesta basin, the Sylhet haor and the south-west coast report AUCs between 0.81 and 0.984 \citep{islam2021, talukdar2020, islamr2024, adnan2023}, each from a random split of a few hundred to a few thousand points. A random split of spatially clustered points tests a model mostly on locations next to its training points, and block cross-validation, which holds out whole areas, exists to remove that advantage \citep{roberts2017}. Where the two have been compared the gap can be large, as in a forest-biomass model that explained more than half the variance under random validation and almost none under spatial validation \citep{ploton2020}. The flood locations themselves vary in kind, from field surveys to single satellite scenes, so the same accuracy figure can measure agreement with quite different things.
+
+A stricter design is now practical, because Sentinel-1 radar sees through monsoon cloud and has been processed into flood maps of high accuracy, including for the 2017 Bangladesh floods \citep{twele2016, uddin2019}, while OpenStreetMap records the roads, schools, hospitals, shelters and embankments that a flood would reach. What has been missing is software that joins them in one reproducible chain, trains on what the radar saw rather than on terrain thresholds, holds out whole areas when scoring, and puts the result in front of planners with its limits attached.
+
+Fermium Hazard Mapper fills that gap by answering three questions for a configured region, namely where the ground is likely to flood, which mapped assets and which people stand on that ground, and how far those people are from the services that would help them cope. It then reports how well each answer holds up on areas held out from training, on floods that occurred after the training period, and against a model-free reference. The scientific findings obtained with it, including the value of radar labels over terrain labels and the comparison between model and flood record on the 2024 floods, are reported separately \citep{hasan2026jfrm}. This article describes the software that produces them and that can be pointed at a new region.
+
+%% ─────────────────────────────────────────────────────────────────────
+\section{Software description}
+
+\subsection{Software architecture}
+
+The system has three layers, a processing pipeline, a validation suite and two front ends, and they communicate only through files (Fig.~\ref{fig:chain}). The pipeline is a Python package driven by one command-line interface, in which each stage reads the files the previous stage wrote into the region's data directory and writes its own. A region runs end to end with a single command,
+\begin{lstlisting}
+python -m pipeline.cli -c configs/sylhet.yaml run
+\end{lstlisting}
+and any stage can be rerun alone after a change to its settings. Because stages share nothing but files, every intermediate product can be opened in a GIS for inspection.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_chain.pdf}
+\caption{The processing chain, top to bottom. Each asset enters the models as a vector of terrain, population, access-distance and asset-type features, with a label from the Sentinel-1 flood frequency. Every model trains on the same spatial blocks, and dashed connectors mark what the validation scores on the test blocks. In the landslide region a model fitted to a mapped inventory takes the place of the flood labels.}
+\label{fig:chain}
+\end{figure*}
+
+A region is defined by a YAML file that states only what differs from a shared base configuration and names that base with an \texttt{extends} key. The base holds the model settings, weights and thresholds, so a change to any of them reaches every region and results stay comparable. A region file carries its bounding box, country code, projected coordinate system, data directories and, for validation, the flood events to map from radar, each with the dates of its window and the situation report those dates came from.
+
+Neither front end computes anything, since a Streamlit dashboard reads the pipeline outputs directly and a faster web application serves the same outputs from an SQLite database and PMTiles vector tiles. Its FastAPI service and MapLibre GL client move panning and filtering into the browser, which makes the web application the faster of the two. A build step converts the outputs into that database and those tiles, and every value a visitor sees can therefore be traced to a file the pipeline wrote.
+
+\subsection{Software functionalities}
+
+The data stages listed in Table~\ref{tab:stages} fetch OpenStreetMap assets from the Overpass API in tiles of 0.75$^\circ$, clipped to the region, and derive slope, the topographic wetness index, height above nearest drainage and flow accumulation from 30\,m SRTM elevation. Population comes from WorldPop and administrative units from geoBoundaries at district, upazila and union level. The Sentinel-1 stage maps each configured event in Google Earth Engine by change detection against a dry-season baseline, following the UN-SPIDER practice \citep{unspider}. It removes permanent water with the JRC surface-water record \citep{pekel2016}, and averages the event masks into a flood-frequency layer that becomes the training label.
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l>{\raggedright\arraybackslash}X@{}}
+\toprule
+Stage & What it does \\
+\midrule
+\texttt{download}, \texttt{ingest} & fetch assets, elevation, population, boundaries and surface water, and clip them to the region \\
+\texttt{preprocess} & derive terrain rasters and write both label sources, radar-observed and terrain-threshold \\
+\texttt{sentinel1} & map each configured flood event from radar and build the flood-frequency layer \\
+\texttt{features}, \texttt{graph} & sample features at every asset and assign assets to 10\,km spatial blocks \\
+\texttt{train} & fit the configured asset model on training blocks and calibrate it on calibration blocks \\
+\texttt{krige}, \texttt{risk} & build the terrain and Kriged hazard surfaces, exposure, vulnerability and composite risk, and summarise them by administrative unit \\
+\texttt{landslide} & fit a landslide susceptibility model to a mapped inventory \\
+\texttt{validate}, \texttt{crosscheck} & score models and surfaces against observed floods, and radar masks against an independent flood database \\
+\texttt{benchmark}, \texttt{sensitivity} & compare models and label sources over repeated block assignments, run the temporal hold-out, and perturb the risk weights \\
+\texttt{run} & run the whole chain for one region \\
+\bottomrule
+\end{tabularx}
+\caption{Pipeline stages, each a subcommand of the command-line interface.}
+\label{tab:stages}
+\end{table*}
+
+The asset model is set in the configuration, with class-weighted gradient boosting as the default and a random forest, logistic regression and a two-layer GraphSAGE network \citep{hamilton2017} on a $k$-nearest-neighbour graph of assets available as alternatives. Scores are calibrated by isotonic regression \citep{zadrozny2002} fitted on blocks the model never trained on, with each calibration level shrunk towards the middle in proportion to how few points it holds, so that a level of three flooded points cannot return a certainty. Two hazard surfaces are written, a logistic model of each grid cell's own terrain and an ordinary Kriging of the asset scores, and the composite risk uses the one the configuration names. Composite risk is the geometric mean of hazard, exposure and vulnerability on a 500\,m grid, the aggregation the INFORM index uses \citep{inform2017}, and it is written twice, once for mapped infrastructure and once for population, with hotspots located by the Getis--Ord $G_i^*$ statistic \citep{getis1992}. For the landslide region the pipeline fits a logistic model to a mapped inventory, drawing background points only from the ground the inventory covers so that the model learns terrain rather than the mapping footprint \citep{barbetmassin2012}.
+
+The validation suite is what distinguishes the system from a mapping tool. Every model is scored on 10\,km blocks held out from training, and the \texttt{benchmark} stage refits it over \RRBenchSeeds{} block assignments so that each difference is reported with its spread. On identical features, assets and blocks, the same stage compares the configured models with one another and with the wetness index alone, compares training on radar labels with training on terrain-threshold labels, and trains on earlier floods to score against the latest year. The \texttt{crosscheck} stage compares the radar masks with the MODIS-based Global Flood Database \citep{tellman2021}, and the \texttt{sensitivity} stage recomputes the composite under alternative and randomly perturbed weights.
+
+\subsection{Safeguards against silent failure}
+
+The first release of the system contained a coordinate-system error that sampled rasters stored in UTM with longitude and latitude, so every terrain value came back as the nodata fill and every training label was zero. Nothing failed, and the model it produced was published with a validation score. The current release stops on inputs of that kind, halting if any feature comes out constant, if the labels hold a single class, if a radar event returns no imagery, or if a zonal summary overlaps no unit. Units without mapped assets are left unscored instead of scored zero, and a missing output is reported as missing.
+
+The audit found seventeen defects, and each one that was a computation is now guarded by a test in a suite of 125, which also fails if the dashboard reintroduces mock data or random values. No figure in the documentation is typed by hand, because a build script reads each region's outputs and writes one LaTeX macro per value. A value the pipeline has not produced renders as a visible marker, and a test checks that every macro used in the documentation exists. Rerunning the pipeline and rebuilding a document therefore updates its text and its results together.
+
+%% ─────────────────────────────────────────────────────────────────────
+\section{Illustrative example}
+
+Four regions are configured, Rangpur and Rajshahi for riverine flooding, Sylhet for flash flooding, the south-west coast for cyclone surge, and the Chittagong Hill Tracts for landslides. Thirteen flood events between 2017 and 2024 were mapped from Sentinel-1 for the three flood regions, and the pipeline scored \RRAssets{} mapped assets in Rangpur and Rajshahi, \SylhetAssets{} in Sylhet and \CoastalAssets{} on the coast.
+
+In the output of the \texttt{benchmark} stage (Table~\ref{tab:benchmark}), the graph network the system was first built around trails the best ordinary model in every region. The gap is \RRBenchGap{} in AUC in Rangpur and Rajshahi and \SylhetBenchGap{} in Sylhet, while on the coast its gap of \CoastalBenchGap{} cannot be told apart from noise. Gradient boosting became the default as a result, and the comparison stays in the pipeline so that a future model has to beat it on the same blocks. The spread across assignments, \RRBenchBoostingSD{} to \CoastalBenchBoostingSD{} in AUC, is as large as several of the differences, which is the reason every figure is reported with it.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Model & Rangpur \& Rajshahi & Sylhet & SW coast \\
+\midrule
+GraphSAGE & \RRBenchGraphAUC{} $\pm$ \RRBenchGraphSD{} & \SylhetBenchGraphAUC{} $\pm$ \SylhetBenchGraphSD{} & \CoastalBenchGraphAUC{} $\pm$ \CoastalBenchGraphSD{} \\
+Gradient boosting & \RRBenchBoostingAUC{} $\pm$ \RRBenchBoostingSD{} & \SylhetBenchBoostingAUC{} $\pm$ \SylhetBenchBoostingSD{} & \CoastalBenchBoostingAUC{} $\pm$ \CoastalBenchBoostingSD{} \\
+Random forest & \RRBenchForestAUC{} $\pm$ \RRBenchForestSD{} & \SylhetBenchForestAUC{} $\pm$ \SylhetBenchForestSD{} & \CoastalBenchForestAUC{} $\pm$ \CoastalBenchForestSD{} \\
+Logistic regression & \RRBenchLogisticAUC{} $\pm$ \RRBenchLogisticSD{} & \SylhetBenchLogisticAUC{} $\pm$ \SylhetBenchLogisticSD{} & \CoastalBenchLogisticAUC{} $\pm$ \CoastalBenchLogisticSD{} \\
+Wetness index alone & \RRBenchTwiAUC{} $\pm$ \RRBenchTwiSD{} & \SylhetBenchTwiAUC{} $\pm$ \SylhetBenchTwiSD{} & \CoastalBenchTwiAUC{} $\pm$ \CoastalBenchTwiSD{} \\
+\bottomrule
+\end{tabular}
+\caption{AUC on held-out 10\,km test blocks against radar-observed flooding, as mean $\pm$ standard deviation over \RRBenchSeeds{} block assignments, from the \texttt{benchmark} stage. Every model sees the same features, assets and blocks.}
+\label{tab:benchmark}
+\end{table}
+
+The same run reports what a user should not take from the maps. Trained on radar labels rather than terrain thresholds, the default model gains \RRLabelGap{} in AUC in Rangpur and Rajshahi, \SylhetLabelGap{} in Sylhet and \CoastalLabelGap{} on the coast. Trained only on floods up to 2022, it ranks the ground the 2024 floods reached at \RRTempAUC{} and \SylhetTempAUC{} in the two riverine regions, but the radar record of earlier flooding ranks it better, at \RRTempPastAUC{} and \SylhetTempPastAUC{}. On the coast both hazard surfaces are close to chance across the grid, at \CoastalSurfaceTerrainObsAUC{} for the terrain surface, because surge flooding follows embankments and tides that terrain does not describe. The dashboard states each of these limits beside the map it qualifies, and the landslide model, at an AUC of \CHTLSAUC{} from \CHTLandslides{} landslides mapped after a single storm, carries its single-event caveat above the map.
+
+%% ─────────────────────────────────────────────────────────────────────
+\section{Impact}
+
+The system changes what a flood susceptibility result for Bangladesh can be checked against. Its comparisons of models, label sources and time periods run on identical blocks and are repeated over many block assignments, so a claim such as ``the graph network helps'' or ``radar labels help'' becomes a number with a spread that another researcher can reproduce with one command. That design is what showed the graph architecture adding nothing over a gradient-boosted tree, and it is what the companion study uses to ask whether a susceptibility model knows more than the flood record itself \citep{hasan2026jfrm}. A new model enters the same comparisons once it is added to the asset-model module as another configurable type.
+
+For planners and responders, the public dashboard at \url{https://fermium.systems/hazmapper} gives union-, upazila- and district-level risk for the three flood regions without a sign-in, with separate readings for infrastructure and for people. Every figure on it can be traced to a pipeline output, and units without mapped assets are shown as missing rather than as safe, which matters in rural areas where OpenStreetMap is thin. The dashboard names the Flood Forecasting and Warning Centre and the Bangladesh Meteorological Department as the sources for warnings, since the maps describe typical monsoon conditions and not a forecast.
+
+The pipeline is not tied to the four regions, since a new region needs only a configuration file with a bounding box, a country code, a projected coordinate system and a list of flood events with their dates. The same commands then download the data, map the events, and train and score the models. All inputs other than the Sentinel-1 stage come from global open datasets, and that stage needs only a noncommercial Earth Engine project. The parts that remain specific to Bangladesh are the event lists and the asset weights, both of which are set in the configuration files and not in the code. The input data and outputs of all four regions are archived with checksums and licences \citep{hasan2026data}.
+
+%% ─────────────────────────────────────────────────────────────────────
+\section{Limitations and conclusions}
+
+Three limitations bound what the software can currently deliver. Exposure depends on OpenStreetMap, whose completeness varies widely \citep{herfort2023} and has not been measured for rural Bangladesh, so composite risk describes mapped exposure. Vulnerability uses population density and three access distances and leaves out income, housing and age structure. The coastal hazard surface is close to chance, and a coastal model would need embankment and tide data the pipeline does not yet ingest. Retraining the landslide model on the multi-year inventory of \citet{rabby2019} is the most direct improvement to the fourth region.
+
+Fermium Hazard Mapper joins radar-observed flood labels, spatially blocked validation and a public dashboard in one open and reproducible chain. Its main contribution is a validation suite that runs every comparison on identical held-out areas and reports it with its spread, together with a design that stops on the kinds of silent error that invalidated its own first release.
+
+%% ── Declarations ─────────────────────────────────────────────────────
+\section*{CRediT authorship contribution statement}
+\textbf{Md Rakib Hasan:} Conceptualization, Methodology, Software, Validation, Formal analysis, Data curation, Visualization, Writing -- original draft, Writing -- review \& editing.
+
+\section*{Declaration of competing interest}
+The author is affiliated with Fermium Systems, which hosts the public dashboard. The software is released under the MIT licence and the dashboard is free to use. The author declares no other competing interests.
+
+\section*{Data availability}
+The code is at \url{https://github.com/rakibhhridoy/rimes-mapathon}. Input data and outputs for all four regions are archived at \url{https://doi.org/10.5281/zenodo.22978729}.
+
+\section*{Acknowledgements}
+Infrastructure data are \copyright{} OpenStreetMap contributors, under the Open Database Licence. Population data are from WorldPop, University of Southampton, CC BY 4.0. Administrative boundaries are from geoBoundaries, William \& Mary geoLab, CC BY 4.0. Sentinel-1 data are Copernicus Sentinel data, processed in Google Earth Engine. Landslide locations are from NASA's Cooperative Open Online Landslide Repository.
+
+\bibliographystyle{elsarticle-num-names}
+\bibliography{../references,softwarex}
+
+\end{document}

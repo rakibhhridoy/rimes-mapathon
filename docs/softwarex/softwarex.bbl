@@ -1,0 +1,209 @@
+\begin{thebibliography}{20}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+\providecommand{\url}[1]{\texttt{#1}}
+\providecommand{\href}[2]{#2}
+\providecommand{\path}[1]{#1}
+\providecommand{\DOIprefix}{doi:}
+\providecommand{\ArXivprefix}{arXiv:}
+\providecommand{\URLprefix}{URL: }
+\providecommand{\Pubmedprefix}{pmid:}
+\providecommand{\doi}[1]{\href{http://dx.doi.org/#1}{\path{#1}}}
+\providecommand{\Pubmed}[1]{\href{pmid:#1}{\path{#1}}}
+\providecommand{\bibinfo}[2]{#2}
+\ifx\xfnm\relax \def\xfnm[#1]{\unskip,\space#1}\fi
+%Type = Article
+\bibitem[{Islam et~al.(2021)Islam, Talukdar, Mahato, Kundu, Eibek, Pham,
+  Kuriqi, and Linh}]{islam2021}
+\bibinfo{author}{A.~R. M.~T. Islam}, \bibinfo{author}{S.~Talukdar},
+  \bibinfo{author}{S.~Mahato}, \bibinfo{author}{S.~Kundu},
+  \bibinfo{author}{K.~U. Eibek}, \bibinfo{author}{Q.~B. Pham},
+  \bibinfo{author}{A.~Kuriqi}, \bibinfo{author}{N.~T.~T. Linh},
+\newblock \bibinfo{title}{{Flood susceptibility modelling using advanced
+  ensemble machine learning models}},
+\newblock \bibinfo{journal}{Geoscience Frontiers} \bibinfo{volume}{12}
+  (\bibinfo{year}{2021}) \bibinfo{pages}{101075}.
+  \DOIprefix\doi{10.1016/j.gsf.2020.09.006}.
+%Type = Article
+\bibitem[{Talukdar et~al.(2020)Talukdar, Ghose, Shahfahad, Salam, Mahato, Pham,
+  Linh, Costache, and Avand}]{talukdar2020}
+\bibinfo{author}{S.~Talukdar}, \bibinfo{author}{B.~Ghose},
+  \bibinfo{author}{Shahfahad}, \bibinfo{author}{R.~Salam},
+  \bibinfo{author}{S.~Mahato}, \bibinfo{author}{Q.~B. Pham},
+  \bibinfo{author}{N.~T.~T. Linh}, \bibinfo{author}{R.~Costache},
+  \bibinfo{author}{M.~Avand},
+\newblock \bibinfo{title}{{Flood susceptibility modeling in Teesta River basin,
+  Bangladesh using novel ensembles of bagging algorithms}},
+\newblock \bibinfo{journal}{Stochastic Environmental Research and Risk
+  Assessment} \bibinfo{volume}{34} (\bibinfo{year}{2020})
+  \bibinfo{pages}{2277--2300}. \DOIprefix\doi{10.1007/s00477-020-01862-5}.
+%Type = Article
+\bibitem[{Islam and Chowdhury(2024)}]{islamr2024}
+\bibinfo{author}{R.~Islam}, \bibinfo{author}{P.~Chowdhury},
+\newblock \bibinfo{title}{{Local-scale flash flood susceptibility assessment in
+  northeastern Bangladesh using machine learning algorithms}},
+\newblock \bibinfo{journal}{Environmental Challenges} \bibinfo{volume}{14}
+  (\bibinfo{year}{2024}) \bibinfo{pages}{100833}.
+  \DOIprefix\doi{10.1016/j.envc.2023.100833}.
+%Type = Article
+\bibitem[{Adnan et~al.(2023)Adnan, Siam, Kabir, Kabir, Ahmed, Hassan, Rahman,
+  and Dewan}]{adnan2023}
+\bibinfo{author}{M.~S.~G. Adnan}, \bibinfo{author}{Z.~S. Siam},
+  \bibinfo{author}{I.~Kabir}, \bibinfo{author}{Z.~Kabir},
+  \bibinfo{author}{M.~R. Ahmed}, \bibinfo{author}{Q.~K. Hassan},
+  \bibinfo{author}{R.~M. Rahman}, \bibinfo{author}{A.~Dewan},
+\newblock \bibinfo{title}{{A novel framework for addressing uncertainties in
+  machine learning-based geospatial approaches for flood prediction}},
+\newblock \bibinfo{journal}{Journal of Environmental Management}
+  \bibinfo{volume}{326} (\bibinfo{year}{2023}) \bibinfo{pages}{116813}.
+  \DOIprefix\doi{10.1016/j.jenvman.2022.116813}.
+%Type = Article
+\bibitem[{Roberts et~al.(2017)Roberts, Bahn, Ciuti, Boyce, Elith,
+  Guillera-Arroita, Hauenstein, Lahoz-Monfort, Schröder, Thuiller, Warton,
+  Wintle, Hartig, and Dormann}]{roberts2017}
+\bibinfo{author}{D.~R. Roberts}, \bibinfo{author}{V.~Bahn},
+  \bibinfo{author}{S.~Ciuti}, \bibinfo{author}{M.~S. Boyce},
+  \bibinfo{author}{J.~Elith}, \bibinfo{author}{G.~Guillera-Arroita},
+  \bibinfo{author}{S.~Hauenstein}, \bibinfo{author}{J.~J. Lahoz-Monfort},
+  \bibinfo{author}{B.~Schröder}, \bibinfo{author}{W.~Thuiller},
+  \bibinfo{author}{D.~I. Warton}, \bibinfo{author}{B.~A. Wintle},
+  \bibinfo{author}{F.~Hartig}, \bibinfo{author}{C.~F. Dormann},
+\newblock \bibinfo{title}{{Cross-validation strategies for data with temporal,
+  spatial, hierarchical, or phylogenetic structure}},
+\newblock \bibinfo{journal}{Ecography} \bibinfo{volume}{40}
+  (\bibinfo{year}{2017}) \bibinfo{pages}{913--929}.
+  \DOIprefix\doi{10.1111/ecog.02881}.
+%Type = Article
+\bibitem[{Ploton et~al.(2020)Ploton, Mortier, Réjou-Méchain, Barbier, Picard,
+  Rossi, Dormann, Cornu, Viennois, Bayol, Lyapustin, Gourlet-Fleury, and
+  Pélissier}]{ploton2020}
+\bibinfo{author}{P.~Ploton}, \bibinfo{author}{F.~Mortier},
+  \bibinfo{author}{M.~Réjou-Méchain}, \bibinfo{author}{N.~Barbier},
+  \bibinfo{author}{N.~Picard}, \bibinfo{author}{V.~Rossi},
+  \bibinfo{author}{C.~Dormann}, \bibinfo{author}{G.~Cornu},
+  \bibinfo{author}{G.~Viennois}, \bibinfo{author}{N.~Bayol},
+  \bibinfo{author}{A.~Lyapustin}, \bibinfo{author}{S.~Gourlet-Fleury},
+  \bibinfo{author}{R.~Pélissier},
+\newblock \bibinfo{title}{{Spatial validation reveals poor predictive
+  performance of large-scale ecological mapping models}},
+\newblock \bibinfo{journal}{Nature Communications} \bibinfo{volume}{11}
+  (\bibinfo{year}{2020}) \bibinfo{pages}{4540}.
+  \DOIprefix\doi{10.1038/s41467-020-18321-y}.
+%Type = Article
+\bibitem[{Twele et~al.(2016)Twele, Cao, Plank, and Martinis}]{twele2016}
+\bibinfo{author}{A.~Twele}, \bibinfo{author}{W.~Cao},
+  \bibinfo{author}{S.~Plank}, \bibinfo{author}{S.~Martinis},
+\newblock \bibinfo{title}{{Sentinel-1-based flood mapping: a fully automated
+  processing chain}},
+\newblock \bibinfo{journal}{International Journal of Remote Sensing}
+  \bibinfo{volume}{37} (\bibinfo{year}{2016}) \bibinfo{pages}{2990--3004}.
+  \DOIprefix\doi{10.1080/01431161.2016.1192304}.
+%Type = Article
+\bibitem[{Uddin et~al.(2019)Uddin, Matin, and Meyer}]{uddin2019}
+\bibinfo{author}{K.~Uddin}, \bibinfo{author}{M.~A. Matin},
+  \bibinfo{author}{F.~J. Meyer},
+\newblock \bibinfo{title}{{Operational Flood Mapping Using Multi-Temporal
+  Sentinel-1 SAR Images: A Case Study from Bangladesh}},
+\newblock \bibinfo{journal}{Remote Sensing} \bibinfo{volume}{11}
+  (\bibinfo{year}{2019}) \bibinfo{pages}{1581}.
+  \DOIprefix\doi{10.3390/rs11131581}.
+%Type = Unpublished
+\bibitem[{Hasan(2026)}]{hasan2026jfrm}
+\bibinfo{author}{M.~R. Hasan}, \bibinfo{title}{Do flood susceptibility models
+  know more than the flood record? {E}vidence from radar-observed floods in
+  {B}angladesh}, \bibinfo{year}{2026}. \bibinfo{note}{Manuscript submitted to
+  the Journal of Flood Risk Management}.
+%Type = Misc
+\bibitem[{{UN-SPIDER}(2019)}]{unspider}
+\bibinfo{author}{{UN-SPIDER}}, \bibinfo{title}{{Recommended Practice: Flood
+  Mapping and Damage Assessment Using Sentinel-1 SAR Data in Google Earth
+  Engine}},
+  \bibinfo{howpublished}{\url{https://un-spider.org/advisory-support/recommended-practices/recommended-practice-google-earth-engine-flood-mapping}},
+  \bibinfo{year}{2019}.
+%Type = Article
+\bibitem[{Pekel et~al.(2016)Pekel, Cottam, Gorelick, and Belward}]{pekel2016}
+\bibinfo{author}{J.-F. Pekel}, \bibinfo{author}{A.~Cottam},
+  \bibinfo{author}{N.~Gorelick}, \bibinfo{author}{A.~S. Belward},
+\newblock \bibinfo{title}{{High-resolution mapping of global surface water and
+  its long-term changes}},
+\newblock \bibinfo{journal}{Nature} \bibinfo{volume}{540}
+  (\bibinfo{year}{2016}) \bibinfo{pages}{418--422}.
+  \DOIprefix\doi{10.1038/nature20584}.
+%Type = Misc
+\bibitem[{Hamilton et~al.(2017)Hamilton, Ying, and Leskovec}]{hamilton2017}
+\bibinfo{author}{W.~L. Hamilton}, \bibinfo{author}{R.~Ying},
+  \bibinfo{author}{J.~Leskovec}, \bibinfo{title}{{Inductive Representation
+  Learning on Large Graphs}}, \bibinfo{howpublished}{Advances in Neural
+  Information Processing Systems 30; arXiv:1706.02216}, \bibinfo{year}{2017}.
+  \href{http://arxiv.org/abs/1706.02216}{{\tt arXiv:1706.02216}}.
+%Type = Inproceedings
+\bibitem[{Zadrozny and Elkan(2002)}]{zadrozny2002}
+\bibinfo{author}{B.~Zadrozny}, \bibinfo{author}{C.~Elkan},
+\newblock \bibinfo{title}{{Transforming classifier scores into accurate
+  multiclass probability estimates}},
+\newblock in: \bibinfo{booktitle}{Proceedings of the eighth ACM SIGKDD
+  international conference on Knowledge discovery and data mining},
+  \bibinfo{year}{2002}, pp. \bibinfo{pages}{694--699}.
+  \DOIprefix\doi{10.1145/775047.775151}.
+%Type = Techreport
+\bibitem[{{European Commission Joint Research Centre}(2017)}]{inform2017}
+\bibinfo{author}{{European Commission Joint Research Centre}},
+  \bibinfo{title}{{Index for Risk Management -- INFORM: Concept and
+  Methodology, Version 2017}}, \bibinfo{type}{Technical Report}, Publications
+  Office of the European Union, \bibinfo{year}{2017}.
+  \DOIprefix\doi{10.2760/094023}.
+%Type = Article
+\bibitem[{Getis and Ord(1992)}]{getis1992}
+\bibinfo{author}{A.~Getis}, \bibinfo{author}{J.~K. Ord},
+\newblock \bibinfo{title}{{The Analysis of Spatial Association by Use of
+  Distance Statistics}},
+\newblock \bibinfo{journal}{Geographical Analysis} \bibinfo{volume}{24}
+  (\bibinfo{year}{1992}) \bibinfo{pages}{189--206}.
+  \DOIprefix\doi{10.1111/j.1538-4632.1992.tb00261.x}.
+%Type = Article
+\bibitem[{Barbet-Massin et~al.(2012)Barbet-Massin, Jiguet, Albert, and
+  Thuiller}]{barbetmassin2012}
+\bibinfo{author}{M.~Barbet-Massin}, \bibinfo{author}{F.~Jiguet},
+  \bibinfo{author}{C.~H. Albert}, \bibinfo{author}{W.~Thuiller},
+\newblock \bibinfo{title}{{Selecting pseudo-absences for species distribution
+  models: how, where and how many?}},
+\newblock \bibinfo{journal}{Methods in Ecology and Evolution}
+  \bibinfo{volume}{3} (\bibinfo{year}{2012}) \bibinfo{pages}{327--338}.
+  \DOIprefix\doi{10.1111/j.2041-210x.2011.00172.x}.
+%Type = Article
+\bibitem[{Tellman et~al.(2021)Tellman, Sullivan, Kuhn, Kettner, Doyle,
+  Brakenridge, Erickson, and Slayback}]{tellman2021}
+\bibinfo{author}{B.~Tellman}, \bibinfo{author}{J.~A. Sullivan},
+  \bibinfo{author}{C.~Kuhn}, \bibinfo{author}{A.~J. Kettner},
+  \bibinfo{author}{C.~S. Doyle}, \bibinfo{author}{G.~R. Brakenridge},
+  \bibinfo{author}{T.~A. Erickson}, \bibinfo{author}{D.~A. Slayback},
+\newblock \bibinfo{title}{{Satellite imaging reveals increased proportion of
+  population exposed to floods}},
+\newblock \bibinfo{journal}{Nature} \bibinfo{volume}{596}
+  (\bibinfo{year}{2021}) \bibinfo{pages}{80--86}.
+  \DOIprefix\doi{10.1038/s41586-021-03695-w}.
+%Type = Misc
+\bibitem[{Hasan(2026)}]{hasan2026data}
+\bibinfo{author}{M.~R. Hasan}, \bibinfo{title}{Fermium hazard mapper: input
+  data and outputs for flood and landslide susceptibility in {B}angladesh
+  (version 2)}, \bibinfo{year}{2026}. \DOIprefix\doi{10.5281/zenodo.22978729}.
+%Type = Article
+\bibitem[{Herfort et~al.(2023)Herfort, Lautenbach, Porto~de Albuquerque,
+  Anderson, and Zipf}]{herfort2023}
+\bibinfo{author}{B.~Herfort}, \bibinfo{author}{S.~Lautenbach},
+  \bibinfo{author}{J.~Porto~de Albuquerque}, \bibinfo{author}{J.~Anderson},
+  \bibinfo{author}{A.~Zipf},
+\newblock \bibinfo{title}{{A spatio-temporal analysis investigating
+  completeness and inequalities of global urban building data in
+  OpenStreetMap}},
+\newblock \bibinfo{journal}{Nature Communications} \bibinfo{volume}{14}
+  (\bibinfo{year}{2023}) \bibinfo{pages}{3985}.
+  \DOIprefix\doi{10.1038/s41467-023-39698-6}.
+%Type = Article
+\bibitem[{Rabby and Li(2019)}]{rabby2019}
+\bibinfo{author}{Y.~W. Rabby}, \bibinfo{author}{Y.~Li},
+\newblock \bibinfo{title}{{Landslide Inventory (2001--2017) of Chittagong Hilly
+  Areas, Bangladesh}},
+\newblock \bibinfo{journal}{Data} \bibinfo{volume}{5} (\bibinfo{year}{2019})
+  \bibinfo{pages}{4}. \DOIprefix\doi{10.3390/data5010004}.
+
+\end{thebibliography}
