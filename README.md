@@ -73,9 +73,9 @@ uvicorn web.api:app --port 2030      # then open http://127.0.0.1:2030/
 ```
 
 No pipeline execution needed — the Zenodo archive includes all pre-computed
-outputs. `apps.conf` and `hazmapper-web.service` are the nginx and systemd
-units used for the public deployment, including per-IP rate limits, memory
-caps and the content security policy.
+outputs. `hazmapper.service` is the systemd unit of the public deployment and
+`apps.conf` the nginx parts, including per-IP rate limits, memory caps and the
+content security policy.
 
 ## Web application (fast path)
 
@@ -111,25 +111,13 @@ and every value in the API comes from a file the pipeline wrote.
 ### Deploying the web application
 
 The public site at <https://fermium.systems/hazmapper/> is the web
-application. `apps.conf` is its nginx server block and `hazmapper-web.service`
-its systemd unit. The map offers three basemaps, satellite imagery, imagery
+application, run by `hazmapper.service` (uvicorn on port 2030, as a
+dedicated `hazmapper` user, from a virtual environment in
+`/var/www/hazmapper/.venv`). `apps.conf` holds the nginx lines it needs; on
+the server they sit in the shared nginx file that serves the rest of
+fermium.systems. The map offers three basemaps, satellite imagery, imagery
 with relief shaded from elevation tiles (the default), and a hybrid with road
 and place labels, and it opens fitted to every mapped asset of the region.
-
-Switching the server over from the retired Streamlit dashboard, once:
-
-```bash
-ssh root@server 'cd /var/www/hazmapper && git pull && pip install fastapi uvicorn'
-rsync -a --delete web/data root@server:/var/www/hazmapper/web/
-scp hazmapper-web.service root@server:/etc/systemd/system/
-scp apps.conf root@server:/etc/nginx/conf.d/hazmapper.conf   # or wherever the old apps.conf lives
-ssh root@server 'systemctl daemon-reload && systemctl enable --now hazmapper-web \
-  && nginx -t && systemctl reload nginx \
-  && systemctl disable --now hazmapper'
-```
-
-The last command stops the Streamlit service. If Cloudflare caches the old
-page, purge `/hazmapper*` in its dashboard.
 
 ### Deploying an update to the public server
 
@@ -137,8 +125,8 @@ page, purge `/hazmapper*` in its dashboard.
 # Code comes from git; the database and tiles are built locally and copied.
 python scripts/build_web.py
 ssh root@server 'cd /var/www/hazmapper && git pull'
-rsync -a --delete web/data root@server:/var/www/hazmapper/web/
-ssh root@server 'systemctl restart hazmapper-web'
+rsync -a --delete --exclude '._*' web/data/ root@server:/var/www/hazmapper/web/data/
+ssh root@server 'chown -R root:hazmapper /var/www/hazmapper && systemctl restart hazmapper'
 ```
 
 The Streamlit dashboard in `dashboard/` still runs locally

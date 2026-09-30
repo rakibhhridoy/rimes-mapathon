@@ -59,3 +59,4 @@ docs/litreview/pdfs/
 docs/paper/submission/figures/*.png
 docs/paper/submission/*.md
 data/backup_*/
+web/apps.conf
