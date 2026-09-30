@@ -147,3 +147,9 @@ class TestAPI:
         assert asset["asset_id"] == row["asset_id"]
         assert client.get(f"/api/region/{row['region']}/rank/0").status_code == 404
 
+    def test_page_names_its_script_by_content_and_is_revalidated(self, client):
+        response = client.get("/")
+        assert response.headers.get("cache-control") == "no-cache"
+        assert 'src="app.js?v=' in response.text
+        assert 'href="app.css?v=' in response.text
+

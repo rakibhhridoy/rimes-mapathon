@@ -11,12 +11,13 @@ Responses carry long cache headers because the data only changes when the
 pipeline runs again, and the build stamps a version that busts those caches.
 """
 
+import hashlib
 import json
 import sqlite3
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Response
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 ROOT = Path(__file__).resolve().parent
@@ -313,6 +314,27 @@ def health():
         raise HTTPException(503, "database not built; run scripts/build_web.py")
     return {"status": "ok", "version": _version(),
             "regions": one("SELECT COUNT(*) AS n FROM regions")["n"]}
+
+
+# The page names its script and stylesheet with a hash of their contents, so
+# every change gets a URL no cache has seen: Cloudflare keeps .js and .css at
+# its edge, and a page served with the previous script would break.
+STATIC = ROOT / "static"
+
+
+def _fingerprint(name: str) -> str:
+    return hashlib.sha256((STATIC / name).read_bytes()).hexdigest()[:12]
+
+
+@app.get("/", include_in_schema=False)
+@app.get("/index.html", include_in_schema=False)
+def index():
+    html = (STATIC / "index.html").read_text()
+    for name in ("app.js", "app.css"):
+        html = html.replace(f'"{name}"', f'"{name}?v={_fingerprint(name)}"')
+    # The page itself is always revalidated, so a new fingerprint reaches
+    # visitors on their next load.
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
 
 # The front end is static files; the API above is mounted first so it wins.
