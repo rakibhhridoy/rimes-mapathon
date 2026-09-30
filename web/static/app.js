@@ -3,7 +3,8 @@
  * The map draws vector tiles the build script wrote, so panning and zooming
  * never ask the server for geometry again. Numbers come from small JSON
  * responses that the browser caches. Nothing here computes a risk figure:
- * every value shown is one the pipeline produced.
+ * every value shown is one the pipeline produced, and the counters beside the
+ * map are counted by the API for whatever the filters leave visible.
  */
 
 /* The app may be served at / or under a path such as /hazmapper, so every
@@ -11,34 +12,61 @@
 const BASE = document.baseURI.replace(/[^/]*$/, "");
 const url = (path) => BASE + path.replace(/^\//, "");
 
-const RISK_COLOURS = [
-  ["#15803d", 0.30],      // low
-  ["#a16207", 0.50],      // moderate
-  ["#b45309", 0.70],      // high
-  ["#c62828", 1.01],      // very high
+const ALL = "all";
+
+const CLASSES = [
+  { value: "low", label: "Low", range: [0, 0.30], colour: "#15803d" },
+  { value: "moderate", label: "Moderate", range: [0.30, 0.50], colour: "#a16207" },
+  { value: "high", label: "High", range: [0.50, 0.70], colour: "#b45309" },
+  { value: "very_high", label: "Very high", range: [0.70, 1.01], colour: "#c62828" },
 ];
+
+const REGION_SHORT = {
+  rangpur_rajshahi: "Rangpur", sylhet: "Sylhet", sw_coastal: "Coast", cht: "Hill Tracts",
+};
+
+const TYPE_LABELS = {
+  bridge: "Bridge", cropland: "Cropland", embankment: "Embankment", fishpond: "Fish pond",
+  flood_shelter: "Flood shelter", hospital: "Hospital & clinic", irrigation: "Irrigation channel",
+  market: "Market", railway: "Railway", road: "Road", school: "School",
+};
+
+const OVERLAYS = {
+  landslide: "Landslide susceptibility",
+  flood_risk: "Kriged hazard surface",
+  hand: "Height above drainage",
+  slope: "Slope",
+  dem: "Elevation",
+  kriging_variance: "Kriging variance",
+};
 
 const state = {
   regions: [],
-  region: null,
+  view: ALL,
   summary: null,
-  layers: { assets: true, unions: true, hotspots: true, landslide: true },
-  minScore: 0,
-  types: new Set(),
-  panel: null,
-  selected: null,
-  availableOverlays: new Set(),
   basemap: "topo",
+  panel: null,
+  layers: { assets: true, unions: true, hotspots: true, landslide: true },
+  filters: { regions: new Set(), districts: new Set(), types: new Set(), classes: new Set(), min: 0, max: 1 },
 };
 
 const $ = (id) => document.getElementById(id);
-const fmt = (n) => (n === null || n === undefined ? "—" : n.toLocaleString());
-const fixed = (n, d = 3) => (n === null || n === undefined ? "—" : Number(n).toFixed(d));
+const fmt = (n) => (n === null || n === undefined ? "—" : Number(n).toLocaleString());
+const fixed = (n, d = 3) => (n === null || n === undefined || Number.isNaN(Number(n)) ? "—" : Number(n).toFixed(d));
+const esc = (text) => String(text ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const regionName = (id) => state.regions.find((r) => r.id === id)?.name || id;
+const typeLabel = (type) => TYPE_LABELS[type] || String(type || "asset").replace(/_/g, " ");
 
-async function getJSON(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${url}: ${response.status}`);
+async function getJSON(address) {
+  const response = await fetch(address);
+  if (!response.ok) throw new Error(`${address}: ${response.status}`);
   return response.json();
+}
+
+function debounce(fn, wait) {
+  let timer = null;
+  return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), wait); };
 }
 
 function showLoading(label) {
@@ -47,11 +75,8 @@ function showLoading(label) {
 }
 const hideLoading = () => ($("loading").hidden = true);
 
-/* ── Map ──────────────────────────────────────────────────────────────── */
-const protocol = new pmtiles.Protocol();
-maplibregl.addProtocol("pmtiles", protocol.tile);
-
-/* Three basemaps built from one set of sources. Satellite imagery is always
+/* ── Map and basemaps ─────────────────────────────────────────────────────
+ * Three basemaps built from one set of sources. Satellite imagery is always
  * drawn; relief is a hillshade computed in the browser from elevation tiles,
  * laid over the imagery; the hybrid adds road and place-name labels on top.
  * Switching is a visibility change, so no tiles are refetched. */
@@ -62,6 +87,9 @@ const BASEMAPS = {
   hybrid: { relief: true, labels: true },
 };
 const LABEL_LAYERS = ["basemap-roads", "basemap-places"];
+
+const protocol = new pmtiles.Protocol();
+maplibregl.addProtocol("pmtiles", protocol.tile);
 
 const map = new maplibregl.Map({
   container: "map",
@@ -112,16 +140,18 @@ const map = new maplibregl.Map({
       { id: "basemap-places", type: "raster", source: "places" },
     ],
   },
-  center: [89.2, 25.4],
-  zoom: 7,
+  center: [90.3, 23.8],
+  zoom: 6.3,
   attributionControl: { compact: true },
 });
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: "metric" }), "bottom-left");
 
 // Captured at creation: the region list can arrive after the map has loaded,
 // and a listener attached then would wait for an event that already fired.
 const mapReady = new Promise((resolve) => map.once("load", resolve));
 
-// The credits are written out in the sidebar, so on the map they stay folded
+// The credits are written out in the panel, so on the map they stay folded
 // into the ⓘ button, which Esri's terms still require to be on the map.
 // MapLibre opens a compact attribution on wide screens; close it once loaded.
 map.once("load", () =>
@@ -136,82 +166,31 @@ function setBasemap(name) {
   document.querySelectorAll("#basemaps button").forEach((button) =>
     button.setAttribute("aria-checked", String(button.dataset.basemap === name)));
 }
-map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: "metric" }), "bottom-left");
+
+/* ── Regions in view ──────────────────────────────────────────────────── */
+const viewRegions = () => (state.view === ALL ? state.regions.map((r) => r.id) : [state.view]);
+const regionInfo = (id) => (state.summary?.regions || []).find((r) => r.id === id) || {};
+const assetRegions = () => viewRegions().filter((id) => regionInfo(id).has_assets);
+const regionShown = (id) => state.filters.regions.size === 0 || state.filters.regions.has(id);
+const assetLayerIds = () => assetRegions().map((r) => `assets-${r}`).filter((id) => map.getLayer(id));
 
 /* ── Region layers ────────────────────────────────────────────────────── */
-function riskExpression() {
-  // Colour by the asset's own score, in the four classes the legend names.
-  const stops = [];
-  RISK_COLOURS.forEach(([colour, upper], index) => {
-    if (index < RISK_COLOURS.length - 1) stops.push(upper, colour);
-  });
-  return ["step", ["coalesce", ["get", "flood_risk"], 0], RISK_COLOURS[0][0], ...stops.slice(0, -1).reverse().reverse()];
-}
-
-const OVERLAYS = {
-  flood_risk: "Kriged hazard surface",
-  landslide: "Landslide susceptibility",
-  hand: "Height above drainage",
-  slope: "Slope",
-  kriging_variance: "Kriging variance",
-};
-
-async function addOverlays(region) {
-  // Raster layers the pipeline pre-rendered. They are PNGs with bounds, so
-  // the browser draws them without asking the server for anything else.
-  const region_info = state.summary?.region || {};
-  for (const [name, label] of Object.entries(OVERLAYS)) {
-    // Do not ask for a layer this region cannot have: it would be a 404 in
-    // the console on every load.
-    if (name === "landslide" && !region_info.has_landslide) continue;
-    if (name !== "landslide" && !region_info.has_assets && name !== "hand" && name !== "slope") continue;
-    const id = `overlay-${name}`;
-    if (map.getLayer(id)) map.removeLayer(id);
-    if (map.getSource(id)) map.removeSource(id);
-    let meta;
-    try {
-      meta = await getJSON(url(`overlays/${region}/${name}.json`));
-    } catch {
-      continue;                       // this region has no such layer
-    }
-    const [[south, west], [north, east]] = meta.bounds;
-    map.addSource(id, {
-      type: "image",
-      url: url(`overlays/${region}/${name}.png`),
-      coordinates: [[west, north], [east, north], [east, south], [west, south]],
-    });
-    map.addLayer({
-      id, type: "raster", source: id,
-      paint: { "raster-opacity": name === "landslide" ? 0.68 : 0.55 },
-      layout: { visibility: state.layers[name] ? "visible" : "none" },
-    }, map.getLayer("unions-fill") ? "unions-fill" : "basemap-roads");
-    state.availableOverlays.add(name);
-  }
-}
-
 function removeRegionLayers() {
-  Object.keys(OVERLAYS).forEach((name) => {
-    const id = `overlay-${name}`;
-    if (map.getLayer(id)) map.removeLayer(id);
-    if (map.getSource(id)) map.removeSource(id);
+  const prefixes = ["assets-", "unions-", "hotspots-", "overlay-"];
+  (map.getStyle().layers || []).forEach((layer) => {
+    if (prefixes.some((p) => layer.id.startsWith(p))) map.removeLayer(layer.id);
   });
-  state.availableOverlays.clear();
-  ["assets-circle", "unions-fill", "unions-line", "hotspots-fill", "heatmap"].forEach((id) => {
-    if (map.getLayer(id)) map.removeLayer(id);
-  });
-  ["assets", "unions", "hotspots", "heat"].forEach((id) => {
-    if (map.getSource(id)) map.removeSource(id);
+  Object.keys(map.getStyle().sources || {}).forEach((id) => {
+    if (prefixes.some((p) => id.startsWith(p))) map.removeSource(id);
   });
 }
 
 function addRegionLayers(region) {
-  removeRegionLayers();
   const base = `pmtiles://${url(`tiles/${region}`)}`;
-
-  map.addSource("unions", { type: "vector", url: `${base}/unions.pmtiles` });
+  // Area layers sit under the hybrid's labels; the assets go above them.
+  map.addSource(`unions-${region}`, { type: "vector", url: `${base}/unions.pmtiles` });
   map.addLayer({
-    id: "unions-fill", type: "fill", source: "unions", "source-layer": "unions",
+    id: `unions-fill-${region}`, type: "fill", source: `unions-${region}`, "source-layer": "unions",
     paint: {
       "fill-color": ["interpolate", ["linear"], ["coalesce", ["get", "mean_risk"], 0],
         0, "#cde2fb", 0.2, "#9ec5f4", 0.35, "#6da7ec", 0.5, "#2a78d6"],
@@ -219,19 +198,23 @@ function addRegionLayers(region) {
     },
   }, "basemap-roads");
   map.addLayer({
-    id: "unions-line", type: "line", source: "unions", "source-layer": "unions",
-    paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.4, 12, 1.2], "line-opacity": 0.55 },
+    id: `unions-line-${region}`, type: "line", source: `unions-${region}`, "source-layer": "unions",
+    paint: {
+      "line-color": "#ffffff",
+      "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.4, 12, 1.2],
+      "line-opacity": 0.55,
+    },
   }, "basemap-roads");
 
-  map.addSource("hotspots", { type: "vector", url: `${base}/hotspots.pmtiles` });
+  map.addSource(`hotspots-${region}`, { type: "vector", url: `${base}/hotspots.pmtiles` });
   map.addLayer({
-    id: "hotspots-fill", type: "fill", source: "hotspots", "source-layer": "hotspots",
+    id: `hotspots-${region}`, type: "fill", source: `hotspots-${region}`, "source-layer": "hotspots",
     paint: { "fill-color": "#c62828", "fill-opacity": 0.22 },
   }, "basemap-roads");
 
-  map.addSource("assets", { type: "vector", url: `${base}/assets.pmtiles` });
+  map.addSource(`assets-${region}`, { type: "vector", url: `${base}/assets.pmtiles` });
   map.addLayer({
-    id: "assets-circle", type: "circle", source: "assets", "source-layer": "assets",
+    id: `assets-${region}`, type: "circle", source: `assets-${region}`, "source-layer": "assets",
     // the most susceptible sites draw last, so they stay visible in dense areas
     layout: { "circle-sort-key": ["coalesce", ["get", "flood_risk"], 0] },
     paint: {
@@ -245,145 +228,394 @@ function addRegionLayers(region) {
       "circle-opacity": 0.95,
     },
   }, "basemap-roads");        // under the hybrid's labels, which stay readable
-  applyFilters();
 }
 
-function applyFilters() {
-  Object.keys(OVERLAYS).forEach((name) => {
-    const id = `overlay-${name}`;
-    if (map.getLayer(id)) {
-      map.setLayoutProperty(id, "visibility", state.layers[name] ? "visible" : "none");
+/* Overlays are PNGs of several megabytes each, so one is fetched only when
+ * its layer is first switched on, and only for the regions in view. */
+async function ensureOverlay(name, region) {
+  const id = `overlay-${name}-${region}`;
+  if (map.getSource(id)) return true;
+  let meta;
+  try {
+    meta = await getJSON(url(`overlays/${region}/${name}.json`));
+  } catch {
+    return false;
+  }
+  if (map.getSource(id)) return true;         // added while this one waited
+  const [[south, west], [north, east]] = meta.bounds;
+  map.addSource(id, {
+    type: "image",
+    url: url(`overlays/${region}/${name}.png`),
+    coordinates: [[west, north], [east, north], [east, south], [west, south]],
+  });
+  const below = (map.getStyle().layers || []).find((l) => l.id.startsWith("unions-fill-"))?.id || "basemap-roads";
+  map.addLayer({
+    id, type: "raster", source: id,
+    paint: { "raster-opacity": name === "landslide" ? 0.68 : 0.55 },
+  }, below);
+  return true;
+}
+
+async function applyLayers() {
+  const show = (on) => (on ? "visible" : "none");
+  for (const region of viewRegions()) {
+    const shown = regionShown(region);
+    for (const [key, ids] of Object.entries({
+      assets: [`assets-${region}`],
+      unions: [`unions-fill-${region}`, `unions-line-${region}`],
+      hotspots: [`hotspots-${region}`],
+    })) {
+      ids.forEach((id) => map.getLayer(id) && map.setLayoutProperty(id, "visibility", show(state.layers[key] && shown)));
     }
-  });
-  if (!map.getLayer("assets-circle")) return;
-  const conditions = [">=", ["coalesce", ["get", "flood_risk"], 0], state.minScore];
-  const filter = state.types.size
-    ? ["all", conditions, ["in", ["get", "asset_type"], ["literal", [...state.types]]]]
-    : conditions;
-  map.setFilter("assets-circle", filter);
-  ["assets-circle"].forEach((id) =>
-    map.setLayoutProperty(id, "visibility", state.layers.assets ? "visible" : "none"));
-  ["unions-fill", "unions-line"].forEach((id) => {
-    if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", state.layers.unions ? "visible" : "none");
-  });
-  if (map.getLayer("hotspots-fill")) {
-    map.setLayoutProperty("hotspots-fill", "visibility", state.layers.hotspots ? "visible" : "none");
+    for (const name of regionInfo(region).overlays || []) {
+      const id = `overlay-${name}-${region}`;
+      const wanted = Boolean(state.layers[name]) && shown;
+      if (wanted && !map.getLayer(id)) await ensureOverlay(name, region);
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", show(wanted));
+    }
   }
 }
 
-/* ── Sidebar panels ───────────────────────────────────────────────────── */
-function renderProvenance(summary) {
-  // A landslide region has no scored assets, so it reports its own model
-  // rather than rows of dashes where the flood figures would be.
-  if (!summary.region.has_assets && summary.metrics.landslide_model) {
-    const model = summary.metrics.landslide_model;
+/* ── Filters ──────────────────────────────────────────────────────────── */
+function filterExpression() {
+  const f = state.filters;
+  const score = ["coalesce", ["get", "flood_risk"], 0];
+  const conditions = ["all", [">=", score, f.min], ["<=", score, f.max]];
+  if (f.types.size) conditions.push(["in", ["get", "asset_type"], ["literal", [...f.types]]]);
+  if (f.districts.size) conditions.push(["in", ["get", "division"], ["literal", [...f.districts]]]);
+  if (f.classes.size) {
+    conditions.push(["any", ...CLASSES.filter((c) => f.classes.has(c.value)).map((c) =>
+      ["all", [">=", score, c.range[0]], ["<", score, c.range[1]]])]);
+  }
+  return conditions;
+}
+
+const filtersActive = () => {
+  const f = state.filters;
+  return f.regions.size + f.districts.size + f.types.size + f.classes.size > 0 || f.min > 0 || f.max < 1;
+};
+
+function applyFilters() {
+  const expression = filterExpression();
+  assetLayerIds().forEach((id) => map.setFilter(id, expression));
+  $("resetFilters").hidden = !filtersActive();
+  applyLayers();
+  refreshCounters();
+}
+
+/* A multi-select dropdown. An empty selection means no restriction, which
+ * the button reads as "All". The list opens inside the panel rather than as
+ * a popover, so the panel's scrolling never clips it. */
+function multiSelect(root, config) {
+  const { label, selected, onChange, searchable = false } = config;
+  let options = config.options;
+  root.innerHTML = `
+    <button type="button" class="ms-button" aria-expanded="false">
+      <span class="ms-label">${esc(label)}</span>
+      <span class="ms-summary"></span>
+      <svg class="ms-chevron" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="ms-menu">
+      ${searchable ? `<input type="search" class="ms-search" placeholder="Search ${esc(label.toLowerCase())}…">` : ""}
+      <div class="ms-actions">
+        <button type="button" class="link-button" data-act="all">Select all</button>
+        <button type="button" class="link-button" data-act="none">Clear</button>
+      </div>
+      <div class="ms-list" role="listbox" aria-multiselectable="true"></div>
+    </div>`;
+  const button = root.querySelector(".ms-button");
+  const list = root.querySelector(".ms-list");
+  const search = root.querySelector(".ms-search");
+
+  const summarise = () => {
+    const summary = root.querySelector(".ms-summary");
+    const picked = options.filter((o) => selected.has(o.value));
+    summary.textContent = picked.length === 0 ? "All"
+      : picked.length === 1 ? picked[0].label : `${picked.length} selected`;
+    summary.classList.toggle("active", picked.length > 0);
+  };
+
+  const visible = () => {
+    const query = (search?.value || "").trim().toLowerCase();
+    return options.filter((o) => !query || o.label.toLowerCase().includes(query)
+      || (o.group || "").toLowerCase().includes(query));
+  };
+
+  const render = () => {
+    const shown = visible();
+    let group = null;
+    list.innerHTML = shown.map((o) => {
+      const head = o.group && o.group !== group ? `<div class="ms-group">${esc(o.group)}</div>` : "";
+      group = o.group || group;
+      return `${head}<label class="ms-option">
+        <input type="checkbox" value="${esc(o.value)}" ${selected.has(o.value) ? "checked" : ""}>
+        ${o.swatch ? `<span class="swatch" style="background:${o.swatch}"></span>` : ""}
+        <span class="name">${esc(o.label)}</span>
+        ${o.count !== undefined ? `<span class="count">${fmt(o.count)}</span>` : ""}
+      </label>`;
+    }).join("") || `<div class="ms-empty">Nothing matches</div>`;
+    summarise();
+  };
+
+  button.addEventListener("click", () => {
+    const open = !root.classList.contains("open");
+    document.querySelectorAll(".ms.open").forEach((other) => other !== root && other.classList.remove("open"));
+    root.classList.toggle("open", open);
+    button.setAttribute("aria-expanded", String(open));
+    if (open && search) search.focus();
+  });
+  list.addEventListener("change", (event) => {
+    const value = event.target.value;
+    event.target.checked ? selected.add(value) : selected.delete(value);
+    summarise();
+    onChange();
+  });
+  root.querySelector(".ms-actions").addEventListener("click", (event) => {
+    const act = event.target.dataset.act;
+    if (!act) return;
+    if (act === "all") visible().forEach((o) => selected.add(o.value));
+    if (act === "none") selected.clear();
+    render();
+    onChange();
+  });
+  search?.addEventListener("input", render);
+
+  render();
+  return {
+    setOptions(next) {
+      options = next;
+      const allowed = new Set(next.map((o) => o.value));
+      [...selected].forEach((value) => allowed.has(value) || selected.delete(value));
+      render();
+    },
+    refresh: render,
+  };
+}
+
+const controls = {};
+
+function districtOptions() {
+  const byDistrict = state.summary?.counts?.by_district || [];
+  const regions = state.filters.regions;
+  return byDistrict
+    .filter((d) => d.district && (regions.size === 0 || regions.has(d.region)))
+    .map((d) => ({
+      value: d.district, label: d.district, count: d.n,
+      group: state.view === ALL ? regionName(d.region) : undefined,
+    }));
+}
+
+function buildFilters() {
+  const summary = state.summary;
+  const f = state.filters;
+  const hasAssets = Boolean(summary.region.has_assets);
+  $("filterSection").hidden = !hasAssets;
+  if (!hasAssets) return;
+
+  const assetTotals = {};
+  (summary.counts.by_district || []).forEach((d) => (assetTotals[d.region] = (assetTotals[d.region] || 0) + d.n));
+  controls.region = multiSelect($("fRegion"), {
+    label: "Region", selected: f.regions,
+    options: viewRegions().map((id) => ({
+      value: id, label: regionName(id),
+      count: regionInfo(id).has_assets ? assetTotals[id] || 0 : undefined,
+    })),
+    onChange: () => { controls.district.setOptions(districtOptions()); applyFilters(); },
+  });
+  $("fRegion").hidden = state.view !== ALL;
+
+  controls.district = multiSelect($("fDistrict"), {
+    label: "District", selected: f.districts, searchable: true,
+    options: districtOptions(), onChange: applyFilters,
+  });
+  controls.type = multiSelect($("fType"), {
+    label: "Asset type", selected: f.types,
+    options: Object.entries(summary.counts.by_type || {})
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, n]) => ({ value: type, label: typeLabel(type), count: n })),
+    onChange: applyFilters,
+  });
+  controls.class = multiSelect($("fClass"), {
+    label: "Class", selected: f.classes,
+    options: CLASSES.map((c) => ({ value: c.value, label: c.label, swatch: c.colour })),
+    onChange: applyFilters,
+  });
+  syncScoreSlider();
+}
+
+function syncScoreSlider() {
+  const f = state.filters;
+  $("scoreMin").value = f.min;
+  $("scoreMax").value = f.max;
+  $("scoreFill").style.left = `${f.min * 100}%`;
+  $("scoreFill").style.right = `${(1 - f.max) * 100}%`;
+  $("scoreOut").textContent = `${f.min.toFixed(2)} – ${f.max.toFixed(2)}`;
+}
+
+const scoreChanged = debounce(applyFilters, 120);
+["scoreMin", "scoreMax"].forEach((id) => $(id).addEventListener("input", (event) => {
+  const f = state.filters;
+  let min = Number($("scoreMin").value);
+  let max = Number($("scoreMax").value);
+  // the handles may not cross: the one being dragged stops at the other
+  if (min > max) {
+    if (event.target.id === "scoreMin") min = max; else max = min;
+  }
+  f.min = min;
+  f.max = max;
+  syncScoreSlider();
+  scoreChanged();
+}));
+
+function resetFilters() {
+  const f = state.filters;
+  [f.regions, f.districts, f.types, f.classes].forEach((set) => set.clear());
+  f.min = 0;
+  f.max = 1;
+  if (state.summary) buildFilters();
+  applyFilters();
+}
+
+/* ── Counters ─────────────────────────────────────────────────────────── */
+const refreshCounters = debounce(async () => {
+  const summary = state.summary;
+  if (!summary) return;
+  const cht = (summary.metrics_by_region?.cht || {}).landslide_model;
+
+  if (!summary.region.has_assets) {
+    const inventory = cht?.inventory || {};
+    const validation = cht?.validation || {};
+    renderCounters([
+      [fmt(inventory.n_landslides), "Landslides mapped"],
+      [fmt(inventory.n_background), "Background points"],
+      [fixed(validation.val_auc_roc), "Validation AUC"],
+      [fixed(validation.val_average_precision), "Average precision"],
+    ], false);
+    return;
+  }
+
+  const f = state.filters;
+  const regions = assetRegions().filter(regionShown);
+  const params = new URLSearchParams({
+    regions: regions.join(","), types: [...f.types].join(","), districts: [...f.districts].join(","),
+    classes: [...f.classes].join(","), min_score: f.min, max_score: f.max,
+  });
+  const stats = regions.length
+    ? await getJSON(url(`api/stats?${params}`))
+    : { assets: 0, high_risk: 0, mean_risk: null, by_type: {} };
+  const t = stats.by_type || {};
+  const rows = [
+    [fmt(stats.assets), "Assets shown"],
+    [fmt(stats.high_risk), "High susceptibility"],
+    [fixed(stats.mean_risk), "Mean score"],
+    [fmt(t.hospital || 0), "Hospitals &amp; clinics"],
+    [fmt(t.school || 0), "Schools"],
+    [fmt(t.bridge || 0), "Bridges"],
+    [fmt(t.flood_shelter || 0), "Flood shelters"],
+    [fmt(t.cropland || 0), "Cropland parcels"],
+  ];
+  if (state.view === ALL && cht && regionShown("cht")) {
+    rows.push([fmt((cht.inventory || {}).n_landslides), "Landslides mapped"]);
+  }
+  renderCounters(rows, filtersActive());
+}, 150);
+
+function renderCounters(rows, filtered) {
+  $("counters").innerHTML = (filtered ? `<div class="filtered">Filtered view</div>` : "")
+    + rows.map(([value, label]) =>
+      `<div class="row"><span class="value">${value}</span><span class="label">${label}</span></div>`).join("");
+}
+
+/* ── Panel: layers and provenance ─────────────────────────────────────── */
+function renderLayerToggles() {
+  const available = new Set();
+  viewRegions().forEach((id) => (regionInfo(id).overlays || []).forEach((name) => available.add(name)));
+  const hasAssets = Boolean(state.summary?.region?.has_assets);
+  const entries = [
+    ...(hasAssets ? [["assets", "Asset markers"], ["unions", "Union boundaries"], ["hotspots", "Hotspots (Gi*, 95%)"]] : []),
+    ...Object.keys(OVERLAYS).filter((name) => available.has(name)).map((name) => [name, OVERLAYS[name]]),
+  ];
+  $("layers").innerHTML = entries.map(([key, label]) => `
+    <label><span>${esc(label)}</span>
+      <span class="switch"><input type="checkbox" data-layer="${key}" ${state.layers[key] ? "checked" : ""}><span></span></span>
+    </label>`).join("");
+  $("layers").querySelectorAll("input").forEach((input) =>
+    input.addEventListener("change", () => {
+      state.layers[input.dataset.layer] = input.checked;
+      applyLayers();
+    }));
+}
+
+function regionValidation(metrics) {
+  const meta = metrics.pipeline_metadata || {};
+  const held = ((metrics.validation || {}).assets_vs_observed || {}).held_out_blocks || {};
+  return { meta, validation: meta.gnn_validation || {}, observed: held };
+}
+
+const statRows = (rows) => rows.map(([label, value, note]) => `
+  <div class="row"><span class="label">${label}</span><span class="value">${value}</span></div>
+  ${note ? `<div class="note">${note}</div>` : ""}`).join("");
+
+function renderProvenance() {
+  const summary = state.summary;
+  const box = $("provenance");
+  const byRegion = summary.metrics_by_region || {};
+
+  if (state.view === ALL) {
+    const totals = {};
+    (summary.counts.by_district || []).forEach((d) => (totals[d.region] = (totals[d.region] || 0) + d.n));
+    const flood = assetRegions().map((id) => {
+      const { validation, observed } = regionValidation(byRegion[id] || {});
+      return `<tr><td>${esc(REGION_SHORT[id] || regionName(id))}</td><td>${fmt(totals[id])}</td>
+        <td>${fixed(validation.val_auc_roc)}</td><td>${fixed(observed.auc_roc)}</td></tr>`;
+    }).join("");
+    const cht = (byRegion.cht || {}).landslide_model;
+    const landslide = cht ? `<tr><td>Hill Tracts</td><td>${fmt((cht.inventory || {}).n_landslides)}</td>
+      <td>${fixed((cht.validation || {}).val_auc_roc)}</td><td>—</td></tr>` : "";
+    box.innerHTML = `<table>
+        <thead><tr><th>Region</th><th>Assets</th><th>AUC</th><th>vs obs.</th></tr></thead>
+        <tbody>${flood}${landslide}</tbody></table>
+      <div class="foot">AUC on 10 km blocks held out from training, and against flood extents
+        observed by Sentinel-1. The Hill Tracts row counts mapped landslides.</div>`;
+    return;
+  }
+
+  if (!summary.region.has_assets) {
+    const model = summary.metrics.landslide_model || {};
     const inventory = model.inventory || {};
     const validation = model.validation || {};
-    const rows = [
+    box.innerHTML = statRows([
       ["Landslides mapped", fmt(inventory.n_landslides)],
       ["Background points", fmt(inventory.n_background)],
       ["Validation AUC", fixed(validation.val_auc_roc), "held-out 10 km blocks"],
       ["Average precision", fixed(validation.val_average_precision)],
-      ["Event dates", (inventory.event_dates || []).join(", ") || "—",
+      ["Event dates", esc((inventory.event_dates || []).join(", ") || "—"),
         inventory.single_event ? "one rainfall episode, so this maps that storm" : ""],
-    ];
-    $("provenance").innerHTML = rows.map(([label, value, note]) => `
-      <div class="row"><span class="label">${label}</span><span class="value">${value}</span></div>
-      ${note ? `<div class="note">${note}</div>` : ""}`).join("");
-    $("observed").hidden = true;
+    ]);
     return;
   }
-  const meta = summary.metrics.pipeline_metadata || {};
-  const validation = meta.gnn_validation || {};
-  const rows = [
-    ["Processed", (meta.generated_at || "").replace("T", " ").slice(0, 16) || "—"],
-    ["Model", validation.model_type || "—"],
+
+  const { meta, validation, observed } = regionValidation(summary.metrics);
+  box.innerHTML = statRows([
+    ["Processed", esc((meta.generated_at || "").replace("T", " ").slice(0, 16) || "—")],
+    ["Model", esc(validation.model_type || "—")],
     ["Assets", fmt(summary.counts.assets)],
     ["Flood-prone labels", meta.label_positive_rate != null ? `${(meta.label_positive_rate * 100).toFixed(1)} %` : "—",
       "share of assets on ground labelled flood-prone"],
     ["Validation AUC", fixed(validation.val_auc_roc), "held-out 10 km blocks"],
     ["Brier score", fixed(validation.val_brier), "lower is better"],
-  ];
-  $("provenance").innerHTML = rows.map(([label, value, note]) => `
-    <div class="row"><span class="label">${label}</span><span class="value">${value}</span></div>
-    ${note ? `<div class="note">${note}</div>` : ""}`).join("");
-
-  const observed = ((summary.metrics.validation || {}).assets_vs_observed || {}).held_out_blocks;
-  const box = $("observed");
-  if (observed && observed.auc_roc != null) {
-    box.hidden = false;
-    box.innerHTML = `<div class="head">VS OBSERVED FLOODS</div>
-      <div class="row"><span class="label">AUC</span><span class="value">${fixed(observed.auc_roc)}</span></div>
-      <div class="row"><span class="label">Precision lift</span><span class="value">${fixed(observed.ap_lift, 1)}×</span></div>`;
-  } else {
-    box.hidden = true;
-  }
-}
-
-function renderCounters(summary) {
-  if (!summary.region.has_assets) {
-    const model = summary.metrics.landslide_model || {};
-    const inventory = model.inventory || {};
-    const validation = model.validation || {};
-    $("counters").innerHTML = [
-      [fmt(inventory.n_landslides), "Landslides mapped"],
-      [fmt(inventory.n_background), "Background points"],
-      [fixed(validation.val_auc_roc), "Validation AUC"],
-      [fixed(validation.val_average_precision), "Average precision"],
-    ].map(([value, label]) =>
-      `<div class="row"><span class="value">${value}</span><span class="label">${label}</span></div>`).join("");
-    return;
-  }
-  const byType = summary.counts.by_type || {};
-  const rows = [
-    [fmt(summary.counts.assets), "Assets shown"],
-    [fmt(summary.counts.high_risk), "High susceptibility"],
-    [fixed(summary.counts.mean_risk), "Mean score"],
-    [fmt(byType.hospital || 0), "Hospitals &amp; clinics"],
-    [fmt(byType.school || 0), "Schools"],
-    [fmt(byType.bridge || 0), "Bridges"],
-    [fmt(byType.flood_shelter || 0), "Flood shelters"],
-    [fmt(byType.cropland || 0), "Cropland parcels"],
-  ];
-  $("counters").innerHTML = rows.map(([value, label]) =>
-    `<div class="row"><span class="value">${value}</span><span class="label">${label}</span></div>`).join("");
-}
-
-function renderLayerToggles() {
-  const entries = [
-    ["assets", "Asset markers"],
-    ["unions", "Union boundaries"],
-    ["hotspots", "Hotspots (Gi*, 95%)"],
-    ...[...state.availableOverlays].map((name) => [name, OVERLAYS[name]]),
-  ].filter(([key]) => key !== "assets" || state.summary?.region?.has_assets);
-  $("layers").innerHTML = entries.map(([key, label]) =>
-    `<label><input type="checkbox" data-layer="${key}" ${state.layers[key] ? "checked" : ""}>${label}</label>`).join("");
-  $("layers").querySelectorAll("input").forEach((input) =>
-    input.addEventListener("change", () => {
-      state.layers[input.dataset.layer] = input.checked;
-      applyFilters();
-    }));
-}
-
-function renderTypeFilter(summary) {
-  const types = Object.keys(summary.counts.by_type || {}).sort();
-  $("typeFilter").innerHTML = types.map((type) =>
-    `<label><input type="checkbox" data-type="${type}">${type}</label>`).join("");
-  $("typeFilter").querySelectorAll("input").forEach((input) =>
-    input.addEventListener("change", () => {
-      input.checked ? state.types.add(input.dataset.type) : state.types.delete(input.dataset.type);
-      applyFilters();
-    }));
+    ["AUC vs observed floods", fixed(observed.auc_roc), "Sentinel-1 flood extents"],
+    ["Precision lift", observed.ap_lift != null ? `${fixed(observed.ap_lift, 1)}×` : "—", "over the base rate"],
+  ]);
 }
 
 /* ── Asset detail ─────────────────────────────────────────────────────── */
 function riskColour(score) {
-  for (const [colour, upper] of RISK_COLOURS) if (score < upper) return colour;
-  return RISK_COLOURS[RISK_COLOURS.length - 1][0];
+  const found = CLASSES.find((c) => score < c.range[1]);
+  return (found || CLASSES[CLASSES.length - 1]).colour;
 }
 
 function showDetail(asset) {
-  state.selected = asset;
   const probability = asset.flood_probability;
   const factors = [
     ["Hazard", asset.cell_hazard, "#c62828"],
@@ -393,9 +625,10 @@ function showDetail(asset) {
   ];
   $("detail").innerHTML = `
     <button class="close" id="detailClose" aria-label="Close">×</button>
-    <span class="tag">${asset.asset_type || "asset"}</span>
-    <h3>${asset.name || "unnamed"}</h3>
-    <div class="meta">${asset.division || ""} · ${Number(asset.lat).toFixed(4)}, ${Number(asset.lon).toFixed(4)} · Rank #${fmt(asset.risk_rank)}</div>
+    <span class="tag">${esc(typeLabel(asset.asset_type))}</span>
+    <span class="tag">${esc(REGION_SHORT[asset.region] || regionName(asset.region))}</span>
+    <h3>${esc(asset.name || "unnamed")}</h3>
+    <div class="meta">${esc(asset.division || "")} · ${Number(asset.lat).toFixed(4)}, ${Number(asset.lon).toFixed(4)} · Rank #${fmt(asset.risk_rank)} in its region</div>
     <div class="probability" style="color:${riskColour(asset.flood_risk || 0)}">
       ${probability != null ? `${Math.round(probability * 100)}%` : fixed(asset.flood_risk)}
     </div>
@@ -410,7 +643,7 @@ function showDetail(asset) {
   $("detailClose").addEventListener("click", () => ($("detail").hidden = true));
 }
 
-/* ── Panels ───────────────────────────────────────────────────────────── */
+/* ── Full panels ──────────────────────────────────────────────────────── */
 async function openPanel(name) {
   if (state.panel === name) { closePanel(); return; }
   state.panel = name;
@@ -433,59 +666,64 @@ function closePanel() {
 async function panelBody(name) {
   if (name === "rankings") return rankingsPanel();
   if (name === "preparedness") return preparednessPanel();
-  return aboutPanel();
+  return state.view === ALL ? aboutAllPanel() : aboutPanel();
 }
 
 async function rankingsPanel() {
-  if (!state.summary.region.has_assets) return landslidePanel();
+  if (!state.summary.region.has_assets) return landslidePanel(state.summary.metrics.landslide_model);
+  const view = state.view;
   const [assets, admin] = await Promise.all([
-    getJSON(url(`api/region/${state.region}/assets?limit=200`)),
-    getJSON(url(`api/region/${state.region}/admin?level=union&limit=24`)),
+    getJSON(url(`api/region/${view}/assets?limit=200`)),
+    getJSON(url(`api/region/${view}/admin?level=union&limit=24`)),
   ]);
-  const table = assets.assets.slice(0, 50).map((a) => `
-    <tr><td class="num">${fmt(a.risk_rank)}</td><td>${a.asset_type}</td><td>${a.name}</td>
+  const many = view === ALL;
+  const table = assets.assets.slice(0, 50).map((a, i) => `
+    <tr><td class="num">${many ? i + 1 : fmt(a.risk_rank)}</td>
+    ${many ? `<td>${esc(REGION_SHORT[a.region] || a.region)}</td>` : ""}
+    <td>${esc(typeLabel(a.asset_type))}</td><td>${esc(a.name)}</td>
     <td class="num">${fixed(a.flood_risk, 4)}</td><td class="num">${fixed(a.flood_probability, 3)}</td>
-    <td>${a.division || ""}</td></tr>`).join("");
+    <td>${esc(a.division || "")}</td></tr>`).join("");
   const cards = admin.units.map((u) => `
     <div class="card"><span class="tag">${u.mean_risk >= 0.3 ? "moderate" : "low"}</span>
-      <div style="font-weight:600;margin:6px 0 2px">${u.name}</div>
-      <div style="color:var(--dim);font-size:11px">${u.parent || ""}</div>
+      ${many ? `<span class="tag">${esc(REGION_SHORT[u.region] || u.region)}</span>` : ""}
+      <div style="font-weight:600;margin:6px 0 2px">${esc(u.name)}</div>
+      <div style="color:var(--dim);font-size:11px">${esc(u.parent || "")}</div>
       <div class="score" style="color:${riskColour(u.mean_risk || 0)}">${fixed(u.mean_risk)}</div>
       <div style="color:var(--muted);font-size:11px">${fmt(u.n_assets)} assets</div></div>`).join("");
   return `
-    <h3>Highest-scoring assets</h3>
-    <table><thead><tr><th class="num">Rank</th><th>Type</th><th>Name</th>
-      <th class="num">Score</th><th class="num">P(flood)</th><th>Division</th></tr></thead>
+    <h3>Highest-scoring assets${many ? " across all regions" : ""}</h3>
+    <table><thead><tr><th class="num">${many ? "#" : "Rank"}</th>${many ? "<th>Region</th>" : ""}<th>Type</th><th>Name</th>
+      <th class="num">Score</th><th class="num">P(flood)</th><th>District</th></tr></thead>
       <tbody>${table}</tbody></table>
+    ${many ? `<p style="color:var(--dim);font-size:11.5px">Scores come from a separate model for each region, so across regions they are ordered by score, not compared as equals.</p>` : ""}
     <h3>Union summaries</h3><div class="cards">${cards}</div>
     <h3>Download</h3>
     <p>Outputs may be reused with attribution, subject to the source licences.
-      <a href="${url(`api/region/${state.region}/export.csv`)}">Download ranked assets (CSV)</a></p>`;
+      <a href="${url(`api/region/${view}/export.csv`)}">Download ranked assets (CSV)</a></p>`;
 }
 
-function landslidePanel() {
-  const model = state.summary.metrics.landslide_model || {};
+function landslidePanel(model = {}) {
   const inventory = model.inventory || {};
   const validation = model.validation || {};
   const coefficients = model.standardised_coefficients || {};
   return `
     <h3>Landslide susceptibility model</h3>
     <p>A class-weighted logistic regression fitted to ${fmt(inventory.n_landslides)}
-      landslide locations from ${inventory.source || "the inventory"}, against
+      landslide locations from ${esc(inventory.source || "the inventory")}, against
       ${fmt(inventory.n_background)} background points drawn from
-      ${inventory.background_domain || "the mapped area"}. On held-out 10 km blocks
+      ${esc(inventory.background_domain || "the mapped area")}. On held-out 10 km blocks
       it reaches an AUC of ${fixed(validation.val_auc_roc)} and an average precision
       of ${fixed(validation.val_average_precision)}.</p>
     ${inventory.single_event ? `<p>Every point comes from one rainfall episode
-      (${(inventory.event_dates || []).join(", ")}), so the surface describes where
+      (${esc((inventory.event_dates || []).join(", "))}), so the surface describes where
       that storm triggered failures. It is a guide to susceptibility, not a
       complete record of where landslides can happen.</p>` : ""}
     <h3>Standardised coefficients</h3>
     <table><thead><tr><th>Predictor</th><th class="num">Coefficient</th></tr></thead><tbody>
       ${Object.entries(coefficients).map(([name, value]) =>
-        `<tr><td>${name}</td><td class="num">${fixed(value)}</td></tr>`).join("")}
+        `<tr><td>${esc(name)}</td><td class="num">${fixed(value)}</td></tr>`).join("")}
     </tbody></table>
-    <p style="color:var(--dim);font-size:11px">${inventory.citation || ""}</p>`;
+    <p style="color:var(--dim);font-size:11px">${esc(inventory.citation || "")}</p>`;
 }
 
 async function preparednessPanel() {
@@ -510,11 +748,56 @@ async function preparednessPanel() {
     </div>`;
 }
 
+const DATA_SOURCES = `
+  <h3>Data sources</h3>
+  <p>Infrastructure from OpenStreetMap (ODbL). Elevation from NASA SRTM.
+    Flood extents from Copernicus Sentinel-1 via Google Earth Engine.
+    Surface water from the EC Joint Research Centre. Population from WorldPop
+    (CC BY 4.0). Boundaries from geoBoundaries (CC BY 4.0). Landslide
+    locations from NASA COOLR.</p>
+  <p>Code: <a href="https://github.com/rakibhhridoy/rimes-mapathon" rel="noopener">github.com/rakibhhridoy/rimes-mapathon</a></p>`;
+
+function aboutAllPanel() {
+  const byRegion = state.summary.metrics_by_region || {};
+  const rows = assetRegions().map((id) => {
+    const m = byRegion[id] || {};
+    const { validation, observed } = regionValidation(m);
+    const benchmark = ((m.benchmark || {}).summary || {}).graph_vs_best_baseline || {};
+    const gap = ((m.label_comparison || {}).summary || {}).observed_minus_proxy || {};
+    return `<tr><td>${esc(regionName(id))}</td>
+      <td class="num">${fixed(validation.val_auc_roc)}</td>
+      <td class="num">${fixed(observed.auc_roc)}</td>
+      <td class="num">${observed.ap_lift != null ? `${fixed(observed.ap_lift, 1)}×` : "—"}</td>
+      <td class="num">${gap.mean != null ? `+${gap.mean.toFixed(3)}` : "—"}</td>
+      <td class="num">${benchmark.auc_difference_mean != null ? benchmark.auc_difference_mean.toFixed(3) : "—"}</td></tr>`;
+  }).join("");
+  const cht = byRegion.cht?.landslide_model;
+  return `
+    <p>Fermium Hazard Mapper estimates where flooding would hurt most in three
+      regions of Bangladesh, and where slopes in the Chittagong Hill Tracts are
+      prone to landslides. For every cell of a roughly 500 m grid it combines
+      hazard, which is how likely the ground is to flood, exposure, which is what
+      stands on it, and vulnerability, which is how hard it would be for the
+      people there to cope. Each region has its own model, trained on flood
+      extents Sentinel-1 radar observed there.</p>
+    <h3>How well the models do</h3>
+    <table><thead><tr><th>Region</th><th class="num">AUC, held-out blocks</th><th class="num">AUC vs observed floods</th>
+      <th class="num">Precision lift</th><th class="num">Radar labels gain</th><th class="num">Graph network minus best</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    <p style="color:var(--dim);font-size:11.5px">An AUC of 0.5 would be chance. "Radar labels gain" is how
+      much training on observed flood extents beats terrain-threshold labels; "graph network minus best"
+      is how far the graph neural network trailed the best ordinary model, over repeated block assignments.</p>
+    ${cht ? `<h3>Landslides in the Hill Tracts</h3>
+      <p>A model fitted to ${fmt((cht.inventory || {}).n_landslides)} mapped landslides reaches an AUC
+      of ${fixed((cht.validation || {}).val_auc_roc)} on held-out blocks. Every point comes from one
+      storm, so the surface shows where that storm triggered failures.</p>` : ""}
+    ${DATA_SOURCES}`;
+}
+
 async function aboutPanel() {
   const summary = state.summary;
-  const meta = summary.metrics.pipeline_metadata || {};
-  const validation = meta.gnn_validation || {};
-  const observed = ((summary.metrics.validation || {}).assets_vs_observed || {}).held_out_blocks || {};
+  if (!summary.region.has_assets) return landslidePanel(summary.metrics.landslide_model) + DATA_SOURCES;
+  const { validation, observed } = regionValidation(summary.metrics);
   const benchmark = (summary.metrics.benchmark || {}).summary || {};
   const labels = (summary.metrics.label_comparison || {}).summary || {};
   const gap = labels.observed_minus_proxy || {};
@@ -542,62 +825,54 @@ async function aboutPanel() {
       years it reached ${fixed(pastTest.with_past.auc_mean)}, against
       ${fixed(pastTest.past_only.auc_mean)} for the flood record alone and
       ${fixed(pastTest.without_past.auc_mean)} for the model without it.` : ""}
-      The scores therefore anticipate the next flood from the whole record, and
-      the figures above, which leave the record out, are the ones to compare
+      The figures above, which leave the record out, are the ones to compare
       with other studies.</p>` : ""}
     ${benchmark.graph_vs_best_baseline ? `<h3>Why this model</h3>
       <p>Over ${benchmark.graph_vs_best_baseline.n_seeds} block assignments the graph
-      neural network the project began with trailed the gradient-boosted tree by
+      neural network the project began with trailed the best ordinary model by
       ${Math.abs(benchmark.graph_vs_best_baseline.auc_difference_mean).toFixed(3)} in AUC,
-      so the tree is the model in use. The architecture is not what makes the
-      system work; the features and the training labels are.</p>` : ""}
+      so a gradient-boosted tree is the model in use.</p>` : ""}
     ${gap.mean ? `<h3>Why radar labels</h3>
       <p>Training on flood extents observed by radar beats terrain-threshold labels
       by ${gap.mean.toFixed(3)} in AUC, ahead on ${gap.seeds_observed_ahead} of
       ${gap.n_seeds} block assignments.</p>` : ""}
-    <h3>Data sources</h3>
-    <p>Infrastructure from OpenStreetMap (ODbL). Elevation from NASA SRTM.
-      Flood extents from Copernicus Sentinel-1 via Google Earth Engine.
-      Surface water from the EC Joint Research Centre. Population from WorldPop
-      (CC BY 4.0). Boundaries from geoBoundaries (CC BY 4.0). Landslide
-      locations from NASA COOLR.</p>
-    <p>Code: <a href="https://github.com/rakibhhridoy/rimes-mapathon" rel="noopener">github.com/rakibhhridoy/rimes-mapathon</a></p>`;
+    ${DATA_SOURCES}`;
 }
 
-/* ── Region switching ─────────────────────────────────────────────────── */
-async function selectRegion(id) {
-  showLoading(`Loading ${state.regions.find((r) => r.id === id)?.name || id}…`);
-  state.region = id;
-  state.selected = null;
+/* ── Views ────────────────────────────────────────────────────────────── */
+function framePadding() {
+  const collapsed = document.body.classList.contains("panel-collapsed") || window.innerWidth <= 860;
+  return { top: 120, bottom: 50, left: collapsed ? 50 : 370, right: window.innerWidth > 860 ? 230 : 30 };
+}
+
+async function selectView(id) {
+  showLoading(`Loading ${id === ALL ? "all regions" : regionName(id)}…`);
+  state.view = id;
   $("detail").hidden = true;
-
-  const summary = await getJSON(url(`api/region/${id}/summary`));
-  state.summary = summary;
-  const region = summary.region;
-
-  $("regionLine").textContent = `${region.name} — ${region.hazard}`;
   document.querySelectorAll("#regionChips button").forEach((button) =>
     button.setAttribute("aria-pressed", String(button.dataset.region === id)));
 
-  renderProvenance(summary);
-  renderCounters(summary);
-  renderLayerToggles();
-  renderTypeFilter(summary);
+  const summary = await getJSON(url(`api/region/${id}/summary`));
+  state.summary = summary;
+  // Region and district choices belong to the view; the rest carry over.
+  state.filters.regions.clear();
+  state.filters.districts.clear();
 
-  // Open on every mapped site; a region without assets opens on its box.
-  // The padding keeps the sites clear of the floating panels.
-  const frame = summary.extent || region.bbox;
-  if (frame) {
-    map.fitBounds([[frame[0], frame[1]], [frame[2], frame[3]]], {
-      padding: { top: 130, bottom: 50, left: 50, right: 230 }, duration: 0,
-    });
+  $("regionLine").textContent = id === ALL
+    ? `${summary.regions.length} regions · flood and landslide`
+    : `${summary.region.name} — ${summary.region.hazard}`;
+
+  removeRegionLayers();
+  assetRegions().forEach(addRegionLayers);
+  if (summary.extent) {
+    const [w, s, e, n] = summary.extent;
+    map.fitBounds([[w, s], [e, n]], { padding: framePadding(), duration: 0 });
   }
-  if (region.has_assets) addRegionLayers(id); else removeRegionLayers();
-  await addOverlays(id);
-  // the landslide surface is the point of a landslide region, so it starts on
-  if (!region.has_assets) state.layers.landslide = true;
+  buildFilters();
   renderLayerToggles();
+  renderProvenance();
   applyFilters();
+  await applyLayers();
   if (state.panel) $("sheetBody").innerHTML = await panelBody(state.panel);
   hideLoading();
 }
@@ -610,16 +885,17 @@ $("search").addEventListener("input", (event) => {
   if (query.length < 2) { $("searchResults").hidden = true; return; }
   searchTimer = setTimeout(async () => {
     const found = await getJSON(
-      url(`api/region/${state.region}/assets?q=${encodeURIComponent(query)}&limit=12`));
+      url(`api/region/${state.view}/assets?q=${encodeURIComponent(query)}&limit=12`));
     const list = $("searchResults");
-    list.innerHTML = found.assets.map((a) => `
-      <li data-id="${a.asset_id}">${a.name}
-        <span class="type">${a.asset_type} · ${fixed(a.flood_risk)}</span></li>`).join("")
+    list.innerHTML = found.assets.map((a, i) => `
+      <li data-index="${i}">${esc(a.name)}
+        <span class="type">${esc(typeLabel(a.asset_type))} · ${esc(a.division || "")}${state.view === ALL
+          ? ` · ${esc(REGION_SHORT[a.region] || a.region)}` : ""} · ${fixed(a.flood_risk)}</span></li>`).join("")
       || "<li>No assets match</li>";
     list.hidden = false;
-    list.querySelectorAll("li[data-id]").forEach((item) =>
-      item.addEventListener("click", async () => {
-        const asset = await getJSON(url(`api/region/${state.region}/asset/${item.dataset.id}`));
+    list.querySelectorAll("li[data-index]").forEach((item) =>
+      item.addEventListener("click", () => {
+        const asset = found.assets[Number(item.dataset.index)];
         map.flyTo({ center: [asset.lon, asset.lat], zoom: 13 });
         showDetail(asset);
         list.hidden = true;
@@ -628,50 +904,54 @@ $("search").addEventListener("input", (event) => {
 });
 
 /* ── Wiring ───────────────────────────────────────────────────────────── */
-$("minScore").addEventListener("input", (event) => {
-  state.minScore = Number(event.target.value);
-  $("minScoreOut").textContent = state.minScore.toFixed(2);
-  applyFilters();
-});
+function setPanelOpen(open) {
+  document.body.classList.toggle("panel-collapsed", !open);
+  $("panelOpen").hidden = open;
+}
+$("panelClose").addEventListener("click", () => setPanelOpen(false));
+$("panelOpen").addEventListener("click", () => setPanelOpen(true));
+$("resetFilters").addEventListener("click", resetFilters);
+document.querySelectorAll("#basemaps button").forEach((button) =>
+  button.addEventListener("click", () => setBasemap(button.dataset.basemap)));
 document.querySelectorAll("#panelButtons button").forEach((button) =>
   button.addEventListener("click", () => openPanel(button.dataset.panel)));
 $("sheetClose").addEventListener("click", closePanel);
-document.querySelectorAll("#basemaps button").forEach((button) =>
-  button.addEventListener("click", () => setBasemap(button.dataset.basemap)));
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && state.panel) closePanel();
+  if (event.key !== "Escape") return;
+  if (state.panel) closePanel();
+  document.querySelectorAll(".ms.open").forEach((open) => open.classList.remove("open"));
 });
 
-map.on("click", "assets-circle", async (event) => {
-  const feature = event.features && event.features[0];
+// One handler for every region's asset layer: the layer says which region
+// the clicked asset belongs to, and its rank finds the full row.
+map.on("click", async (event) => {
+  const layers = assetLayerIds();
+  if (!layers.length) return;
+  const [feature] = map.queryRenderedFeatures(event.point, { layers });
   if (!feature) return;
-  // The tile carries the asset's own properties, but the detail card shows
-  // the database row, which is the pipeline's output rather than a rounded
-  // copy of it.
-  const name = feature.properties.name;
-  const found = await getJSON(
-    url(`api/region/${state.region}/assets?q=${encodeURIComponent(name || "")}&limit=40`));
-  const match = found.assets.find((a) =>
-    Math.abs(a.lat - event.lngLat.lat) < 1e-4 && Math.abs(a.lon - event.lngLat.lng) < 1e-4)
-    || found.assets[0];
-  if (match) showDetail(match);
+  const region = feature.layer.id.slice("assets-".length);
+  const rank = feature.properties.risk_rank;
+  if (rank == null) return;
+  showDetail(await getJSON(url(`api/region/${region}/rank/${rank}`)));
 });
-map.on("mouseenter", "assets-circle", () => (map.getCanvas().style.cursor = "pointer"));
-map.on("mouseleave", "assets-circle", () => (map.getCanvas().style.cursor = ""));
+map.on("mousemove", (event) => {
+  const layers = assetLayerIds();
+  const hit = layers.length && map.queryRenderedFeatures(event.point, { layers }).length;
+  map.getCanvas().style.cursor = hit ? "pointer" : "";
+});
 
 (async function start() {
+  if (window.innerWidth <= 860) setPanelOpen(false);
   showLoading("Loading…");
   const { regions } = await getJSON(url("api/regions"));
   state.regions = regions;
-  $("regionChips").innerHTML = regions.map((region) => {
-    const short = { rangpur_rajshahi: "Rangpur", sylhet: "Sylhet",
-                    sw_coastal: "Coast", cht: "Hill Tracts" }[region.id] || region.name;
-    return `<button data-region="${region.id}" aria-pressed="false">${short}</button>`;
-  }).join("");
+  const chips = [{ id: ALL, name: "All" }, ...regions];
+  $("regionChips").innerHTML = chips.map((region) =>
+    `<button data-region="${esc(region.id)}" aria-pressed="false">${esc(region.id === ALL ? "All" : REGION_SHORT[region.id] || region.name)}</button>`).join("");
   document.querySelectorAll("#regionChips button").forEach((button) =>
-    button.addEventListener("click", () => selectRegion(button.dataset.region)));
+    button.addEventListener("click", () => selectView(button.dataset.region)));
 
   await mapReady;
   setBasemap(state.basemap);
-  await selectRegion(regions[0].id);
+  await selectView(ALL);
 })();

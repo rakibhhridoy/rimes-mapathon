@@ -37,19 +37,19 @@ DB_PATH = WEB / "hazmapper.sqlite"
 # reads the database, not the tile.
 TILE_LAYERS = {
     "assets": {
-        "source": "risk_ranked_assets.geojson", "zoom": (6, 14),
+        "source": "risk_ranked_assets.geojson", "zoom": (4, 14),
         "fields": ["name", "asset_type", "division", "flood_risk",
                    "flood_probability", "risk_rank"],
         "simplify": None,
     },
     "unions": {
-        "source": "union_risk_summary.geojson", "zoom": (5, 12),
+        "source": "union_risk_summary.geojson", "zoom": (4, 12),
         "fields": ["admin_name", "admin_label", "mean_risk", "max_risk",
                    "mean_risk_people", "n_high_risk", "n_cells"],
         "simplify": 0.0005,          # about 50 m, the display cache's tolerance
     },
     "hotspots": {
-        "source": "hotspot_clusters.geojson", "zoom": (6, 12),
+        "source": "hotspot_clusters.geojson", "zoom": (4, 12),
         "fields": ["hotspot_z", "composite_risk"], "simplify": 0.0005,
     },
 }
@@ -256,7 +256,44 @@ def build_tiles(region: str, paths: dict) -> float:
     return round(written, 1)
 
 
-def copy_overlays(region: str, paths: dict) -> int:
+def _clip_to_country(png: bytes, bounds, cfg: dict) -> bytes:
+    """Make the overlay transparent outside the country's land.
+
+    The pre-rendered rasters cover each region's whole bounding box, which
+    reaches into India and Myanmar and over the sea. A terrain surface means
+    nothing there, so every pixel outside the country polygon configured as
+    `aoi.country_boundary` is blanked. Assets use a looser rule
+    (pipeline/country.py) that keeps chars and coastal ground just outside the
+    polygon; an overlay does not need to.
+    """
+    import io
+
+    import geopandas as gpd
+    import numpy as np
+    from PIL import Image
+    from rasterio.features import rasterize
+    from rasterio.transform import from_bounds
+
+    boundary = (cfg.get("aoi") or {}).get("country_boundary")
+    if not boundary or not (ROOT / boundary).exists():
+        return png
+    image = Image.open(io.BytesIO(png)).convert("RGBA")
+    width, height = image.size
+    (south, west), (north, east) = bounds
+    home = gpd.read_file(ROOT / boundary).to_crs("EPSG:4326").geometry.union_all()
+    inside = rasterize([(home, 1)], out_shape=(height, width),
+                       transform=from_bounds(west, south, east, north, width, height),
+                       fill=0, dtype="uint8").astype(bool)
+    if inside.all():
+        return png
+    pixels = np.array(image)
+    pixels[~inside, 3] = 0
+    out = io.BytesIO()
+    Image.fromarray(pixels).save(out, format="PNG", optimize=True)
+    return out.getvalue()
+
+
+def copy_overlays(region: str, paths: dict, cfg: dict | None = None) -> int:
     """The raster layers the pipeline already pre-rendered for the dashboard."""
     out_dir = WEB / "overlays" / region
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -270,7 +307,10 @@ def copy_overlays(region: str, paths: dict) -> int:
         import base64
 
         name = source.stem.replace("raster_", "")
-        (out_dir / f"{name}.png").write_bytes(base64.b64decode(payload["image_base64"]))
+        png = base64.b64decode(payload["image_base64"])
+        if cfg and payload.get("bounds"):
+            png = _clip_to_country(png, payload["bounds"], cfg)
+        (out_dir / f"{name}.png").write_bytes(png)
         (out_dir / f"{name}.json").write_text(json.dumps(
             {"bounds": payload.get("bounds"), "name": name}))
         copied += 1
@@ -294,7 +334,7 @@ def build_region(conn: sqlite3.Connection, region: str) -> dict:
         "assets": load_assets(conn, region, paths),
         "admin": load_admin(conn, region, paths),
         "metrics": load_metrics(conn, region, paths),
-        "overlays": copy_overlays(region, paths),
+        "overlays": copy_overlays(region, paths, cfg),
     }
     counts["tiles_mb"] = build_tiles(region, paths)
 

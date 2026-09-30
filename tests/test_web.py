@@ -100,7 +100,7 @@ class TestAPI:
             "SELECT id FROM regions WHERE has_assets = 1 LIMIT 1").fetchone()["id"]
         response = client.get(f"/api/region/{region}/export.csv", params={"limit": 5})
         assert response.status_code == 200
-        assert response.text.splitlines()[0].startswith("risk_rank,name")
+        assert response.text.splitlines()[0].startswith("region,risk_rank,name")
 
     def test_tiles_are_served_and_traversal_is_refused(self, client, connection):
         region = connection.execute(
@@ -112,3 +112,38 @@ class TestAPI:
     def test_responses_are_cacheable(self, client):
         """Caching is the point: a visitor's second view should not recompute."""
         assert "max-age" in client.get("/api/regions").headers.get("cache-control", "")
+
+    def test_all_view_covers_every_region(self, client, connection):
+        stored = connection.execute("SELECT COUNT(*) FROM assets").fetchone()[0]
+        payload = client.get("/api/region/all/summary").json()
+        assert payload["counts"]["assets"] == stored
+        assert {r["id"] for r in payload["regions"]} == {
+            row["id"] for row in connection.execute("SELECT id FROM regions")}
+        # districts add up to the assets, and the frame spans every region
+        assert sum(d["n"] for d in payload["counts"]["by_district"]) == stored
+        west, south, east, north = payload["extent"]
+        assert west < east and south < north
+
+    def test_filtered_counts_match_the_database(self, client, connection):
+        region = connection.execute(
+            "SELECT id FROM regions WHERE has_assets = 1 LIMIT 1").fetchone()["id"]
+        expected = connection.execute(
+            "SELECT COUNT(*) FROM assets WHERE region = ? AND asset_type = 'school'"
+            " AND flood_risk >= 0.7", (region,)).fetchone()[0]
+        payload = client.get("/api/stats", params={
+            "regions": region, "types": "school", "classes": "very_high"}).json()
+        assert payload["assets"] == expected
+        unfiltered = client.get("/api/stats").json()
+        assert unfiltered["assets"] == connection.execute("SELECT COUNT(*) FROM assets").fetchone()[0]
+
+    def test_filters_refuse_unknown_values(self, client):
+        assert client.get("/api/stats", params={"classes": "extreme"}).status_code == 400
+        assert client.get("/api/stats", params={"regions": "atlantis"}).status_code == 404
+
+    def test_a_map_tile_rank_finds_its_asset(self, client, connection):
+        row = connection.execute(
+            "SELECT region, risk_rank, asset_id FROM assets LIMIT 1").fetchone()
+        asset = client.get(f"/api/region/{row['region']}/rank/{row['risk_rank']}").json()
+        assert asset["asset_id"] == row["asset_id"]
+        assert client.get(f"/api/region/{row['region']}/rank/0").status_code == 404
+

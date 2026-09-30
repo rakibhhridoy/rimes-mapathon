@@ -57,6 +57,35 @@ def cached(payload) -> JSONResponse:
     return JSONResponse(payload, headers=CACHE_HEADERS)
 
 
+# "all" stands for every region at once, the map's default view.
+ALL = "all"
+
+# The susceptibility classes the legend names, as score ranges.
+CLASSES = {"low": (0.0, 0.30), "moderate": (0.30, 0.50),
+           "high": (0.50, 0.70), "very_high": (0.70, 1.01)}
+
+
+def region_ids(region: str) -> list[str]:
+    """The regions a request covers: one, or every region for "all"."""
+    if region == ALL:
+        return [row["id"] for row in rows("SELECT id FROM regions ORDER BY rowid")]
+    if not one("SELECT 1 AS found FROM regions WHERE id = ?", (region,)):
+        raise HTTPException(404, "unknown region")
+    return [region]
+
+
+def placeholders(values: list) -> str:
+    return ",".join("?" * len(values))
+
+
+def overlays_of(region: str) -> list[str]:
+    """Raster layers pre-rendered for a region, by name."""
+    folder = DATA / "overlays" / region
+    if not folder.is_dir():
+        return []
+    return sorted(p.stem for p in folder.glob("*.json") if not p.name.startswith("._"))
+
+
 @app.get("/api/regions")
 def list_regions():
     """Every region the build found results for, with its map framing."""
@@ -67,37 +96,113 @@ def list_regions():
     return cached({"version": _version(), "regions": found})
 
 
+def _metrics(region: str) -> dict:
+    return {row["key"]: json.loads(row["payload"])
+            for row in rows("SELECT key, payload FROM metrics WHERE region = ?", (region,))}
+
+
+def _region_info(region: str) -> dict:
+    info = one("SELECT * FROM regions WHERE id = ?", (region,))
+    info["bbox"] = json.loads(info["bbox"]) if info["bbox"] else None
+    info["overlays"] = overlays_of(region)
+    return info
+
+
 @app.get("/api/region/{region}/summary")
 def region_summary(region: str):
-    """The counters, provenance and validation figures the panels quote."""
-    info = one("SELECT * FROM regions WHERE id = ?", (region,))
-    if not info:
-        raise HTTPException(404, "unknown region")
+    """The counters, provenance and validation figures the panels quote.
 
-    metrics = {row["key"]: json.loads(row["payload"])
-               for row in rows("SELECT key, payload FROM metrics WHERE region = ?",
-                               (region,))}
+    For "all" the counts cover every region's assets, the metrics come per
+    region, and the extent spans every region, the landslide one included.
+    """
+    ids = region_ids(region)
+    marks = placeholders(ids)
+
     counts = one(
         "SELECT COUNT(*) AS assets, SUM(is_high_risk) AS high,"
-        " AVG(flood_risk) AS mean_risk FROM assets WHERE region = ?", (region,))
+        f" AVG(flood_risk) AS mean_risk FROM assets WHERE region IN ({marks})", tuple(ids))
+    by_type = {row["asset_type"]: row["n"] for row in rows(
+        f"SELECT asset_type, COUNT(*) AS n FROM assets WHERE region IN ({marks})"
+        " GROUP BY asset_type", tuple(ids))}
+    by_district = rows(
+        f"SELECT region, division AS district, COUNT(*) AS n FROM assets"
+        f" WHERE region IN ({marks}) GROUP BY region, division ORDER BY region, division",
+        tuple(ids))
     # The extent of the mapped assets, so the map can open on every site
     # rather than on the configured bounding box.
-    extent = one("SELECT MIN(lon) AS west, MIN(lat) AS south, MAX(lon) AS east,"
-                 " MAX(lat) AS north FROM assets WHERE region = ?", (region,))
-    by_type = {row["asset_type"]: row["n"] for row in rows(
-        "SELECT asset_type, COUNT(*) AS n FROM assets WHERE region = ?"
-        " GROUP BY asset_type", (region,))}
+    extent = one(f"SELECT MIN(lon) AS west, MIN(lat) AS south, MAX(lon) AS east,"
+                 f" MAX(lat) AS north FROM assets WHERE region IN ({marks})", tuple(ids))
+    frame = ([extent["west"], extent["south"], extent["east"], extent["north"]]
+             if extent and extent["west"] is not None else None)
+    infos = [_region_info(r) for r in ids]
+    # A region without assets (the landslide one) still belongs in the frame.
+    for info in infos:
+        if not info["has_assets"] and info["bbox"]:
+            w, s_, e, n = info["bbox"]
+            frame = [w, s_, e, n] if frame is None else [
+                min(frame[0], w), min(frame[1], s_), max(frame[2], e), max(frame[3], n)]
+
+    if region == ALL:
+        head = {"id": ALL, "name": "All regions", "hazard": "Flood and landslide",
+                "has_assets": int(any(i["has_assets"] for i in infos)),
+                "has_landslide": int(any(i["has_landslide"] for i in infos)),
+                "bbox": frame, "overlays": []}
+        metrics = {}
+    else:
+        head, metrics = infos[0], _metrics(region)
 
     return cached({
-        "region": dict(info) | {"bbox": json.loads(info["bbox"]) if info["bbox"] else None},
+        "region": head,
+        "regions": infos,
         "counts": {"assets": counts["assets"] or 0,
                    "high_risk": int(counts["high"] or 0),
                    "mean_risk": counts["mean_risk"],
-                   "by_type": by_type},
-        "extent": ([extent["west"], extent["south"], extent["east"], extent["north"]]
-                   if extent and extent["west"] is not None else None),
+                   "by_type": by_type,
+                   "by_district": by_district},
+        "extent": frame,
         "metrics": metrics,
+        "metrics_by_region": {r: _metrics(r) for r in ids},
     })
+
+
+@app.get("/api/stats")
+def filtered_stats(regions: str = Query("", max_length=200),
+                   types: str = Query("", max_length=400),
+                   districts: str = Query("", max_length=2000),
+                   classes: str = Query("", max_length=80),
+                   min_score: float = Query(0.0, ge=0, le=1),
+                   max_score: float = Query(1.0, ge=0, le=1)):
+    """Counts for the assets the map's filters leave visible.
+
+    Every list is comma-separated and an empty one means no restriction, so
+    the counters beside the map always describe what the map is showing.
+    """
+    known = region_ids(ALL)
+    chosen = [r for r in regions.split(",") if r] or known
+    if any(r not in known for r in chosen):
+        raise HTTPException(404, "unknown region")
+    where = [f"region IN ({placeholders(chosen)})", "flood_risk >= ?", "flood_risk <= ?"]
+    params: list = [*chosen, min_score, max_score]
+    for column, text in (("asset_type", types), ("division", districts)):
+        values = [v for v in text.split(",") if v]
+        if values:
+            where.append(f"{column} IN ({placeholders(values)})")
+            params += values
+    picked = [c for c in classes.split(",") if c]
+    if any(c not in CLASSES for c in picked):
+        raise HTTPException(400, "unknown class")
+    if picked:
+        where.append("(" + " OR ".join("(flood_risk >= ? AND flood_risk < ?)" for _ in picked) + ")")
+        for c in picked:
+            params += CLASSES[c]
+    clause = " AND ".join(where)
+    counts = one("SELECT COUNT(*) AS assets, SUM(is_high_risk) AS high,"
+                 f" AVG(flood_risk) AS mean_risk FROM assets WHERE {clause}", tuple(params))
+    by_type = {row["asset_type"]: row["n"] for row in rows(
+        f"SELECT asset_type, COUNT(*) AS n FROM assets WHERE {clause} GROUP BY asset_type",
+        tuple(params))}
+    return cached({"assets": counts["assets"] or 0, "high_risk": int(counts["high"] or 0),
+                   "mean_risk": counts["mean_risk"], "by_type": by_type})
 
 
 @app.get("/api/region/{region}/assets")
@@ -108,18 +213,23 @@ def search_assets(region: str, q: str = Query("", max_length=80),
     Full-text search over name, type and division, so a visitor can look for
     "Kurigram bridge" as readily as a single word.
     """
+    ids = region_ids(region)
+    marks = placeholders(ids)
     if q.strip():
         # FTS5 prefix search, one term at a time, with the query escaped: a
-        # visitor's text is data, never syntax.
-        terms = " ".join(f'"{term}"*' for term in q.split() if term)
+        # visitor's text is data, never syntax. Quotes inside a term are
+        # doubled, as FTS5 string syntax requires.
+        terms = " ".join('"' + term.replace('"', '""') + '"*' for term in q.split() if term)
         found = rows(
             "SELECT a.* FROM assets_fts f JOIN assets a"
             "  ON a.region = f.region AND a.asset_id = f.asset_id"
-            " WHERE assets_fts MATCH ? AND f.region = ?"
-            " ORDER BY a.flood_risk DESC LIMIT ?", (terms, region, limit))
+            f" WHERE assets_fts MATCH ? AND f.region IN ({marks})"
+            " ORDER BY a.flood_risk DESC LIMIT ?", (terms, *ids, limit))
     else:
-        found = rows("SELECT * FROM assets WHERE region = ?"
-                     " ORDER BY risk_rank LIMIT ?", (region, limit))
+        # Ranks are per region, so across regions the score orders the list.
+        order = "risk_rank" if len(ids) == 1 else "flood_risk DESC"
+        found = rows(f"SELECT * FROM assets WHERE region IN ({marks})"
+                     f" ORDER BY {order} LIMIT ?", (*ids, limit))
     return cached({"count": len(found), "assets": found})
 
 
@@ -133,15 +243,25 @@ def asset_detail(region: str, asset_id: int):
     return cached(asset)
 
 
+@app.get("/api/region/{region}/rank/{rank}")
+def asset_by_rank(region: str, rank: int):
+    """One asset by its rank in its region, which is what a map tile carries."""
+    asset = one("SELECT * FROM assets WHERE region = ? AND risk_rank = ?", (region, rank))
+    if not asset:
+        raise HTTPException(404, "unknown asset")
+    return cached(asset)
+
+
 @app.get("/api/region/{region}/admin")
 def admin_summary(region: str, level: str = Query("union"),
                   limit: int = Query(60, le=500)):
     """Administrative summaries, highest mean risk first."""
+    ids = region_ids(region)
     found = rows(
-        "SELECT unit_id, name, parent, mean_risk, max_risk, mean_risk_people,"
+        "SELECT region, unit_id, name, parent, mean_risk, max_risk, mean_risk_people,"
         "       n_assets, has_data FROM admin_summary"
-        " WHERE region = ? AND level = ? AND has_data = 1"
-        " ORDER BY mean_risk DESC LIMIT ?", (region, level, limit))
+        f" WHERE region IN ({placeholders(ids)}) AND level = ? AND has_data = 1"
+        " ORDER BY mean_risk DESC LIMIT ?", (*ids, level, limit))
     return cached({"level": level, "units": found})
 
 
@@ -151,9 +271,12 @@ def export_csv(region: str, limit: int = Query(5000, le=100000)):
     import csv
     import io
 
-    found = rows("SELECT risk_rank, name, asset_type, division, lat, lon,"
+    ids = region_ids(region)
+    order = "risk_rank" if len(ids) == 1 else "flood_risk DESC"
+    found = rows("SELECT region, risk_rank, name, asset_type, division, lat, lon,"
                  " flood_risk, flood_probability FROM assets"
-                 " WHERE region = ? ORDER BY risk_rank LIMIT ?", (region, limit))
+                 f" WHERE region IN ({placeholders(ids)}) ORDER BY {order} LIMIT ?",
+                 (*ids, limit))
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=list(found[0].keys()) if found else [])
     writer.writeheader()

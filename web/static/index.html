@@ -19,98 +19,114 @@
 </head>
 <body>
 
-<!-- Sidebar: identity, provenance, layers, filters -->
-<aside id="sidebar">
-  <header class="brand">
-    <img src="fermium_dark.png" alt="Fermium Systems" height="30">
+<!-- The map fills the window; everything else floats over it. -->
+<div id="map"></div>
+
+<!-- Left panel: identity, basemap, filters, layers, provenance -->
+<aside id="panel" class="glass" aria-label="Map controls">
+  <header class="panel-head">
+    <img src="fermium_dark.png" alt="Fermium Systems" height="24">
+    <button id="panelClose" class="icon-button" aria-label="Hide panel" title="Hide panel">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
   </header>
 
-  <section class="identity">
-    <h1>FERMIUM HAZARD MAPPER</h1>
-    <p class="region-line" id="regionLine">Loading…</p>
-    <div class="warning">
-      <div class="warning-head">RESEARCH PROTOTYPE</div>
-      <div>Modelled susceptibility, not a forecast or an official warning.
-        For warnings use FFWC and BMD; in an emergency dial 999.</div>
-    </div>
+  <div class="panel-body">
+    <section class="identity">
+      <h1>Fermium Hazard Mapper</h1>
+      <p class="region-line" id="regionLine">Loading…</p>
+      <div class="warning">
+        <strong>Research prototype.</strong> Modelled susceptibility, not a forecast
+        or an official warning. For warnings use FFWC and BMD; in an emergency dial 999.
+      </div>
+    </section>
+
+    <section>
+      <h2>Basemap</h2>
+      <div id="basemaps" class="segmented" role="radiogroup" aria-label="Basemap">
+        <button data-basemap="satellite" role="radio">Satellite</button>
+        <button data-basemap="topo" role="radio">Relief</button>
+        <button data-basemap="hybrid" role="radio">Hybrid</button>
+      </div>
+    </section>
+
+    <section id="filterSection">
+      <div class="section-head">
+        <h2>Filters</h2>
+        <button id="resetFilters" class="link-button" hidden>Reset</button>
+      </div>
+      <div id="fRegion" class="ms"></div>
+      <div id="fDistrict" class="ms"></div>
+      <div id="fType" class="ms"></div>
+      <div id="fClass" class="ms"></div>
+      <div class="range-field">
+        <div class="range-label"><span>Score</span><output id="scoreOut">0.00 – 1.00</output></div>
+        <div class="range2" id="scoreRange">
+          <div class="range2-fill" id="scoreFill"></div>
+          <input type="range" id="scoreMin" min="0" max="1" step="0.01" value="0" aria-label="Minimum score">
+          <input type="range" id="scoreMax" min="0" max="1" step="0.01" value="1" aria-label="Maximum score">
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Map layers</h2>
+      <div id="layers" class="layers"></div>
+    </section>
+
+    <section>
+      <h2>Data &amp; model</h2>
+      <div id="provenance" class="stats"></div>
+    </section>
+
     <p class="credits">Imagery © Esri, Maxar, Earthstar Geographics · Relief from
       Mapzen terrain tiles (AWS Open Data) · Labels © Esri · Asset data © OpenStreetMap contributors</p>
-  </section>
-
-  <section>
-    <h2>Basemap</h2>
-    <div id="basemaps" class="segmented" role="radiogroup" aria-label="Basemap">
-      <button data-basemap="satellite" role="radio">Satellite</button>
-      <button data-basemap="topo" role="radio">Satellite + relief</button>
-      <button data-basemap="hybrid" role="radio">Hybrid</button>
-    </div>
-  </section>
-
-  <section>
-    <h2>Data &amp; model</h2>
-    <dl id="provenance" class="stats"></dl>
-    <div id="observed" class="observed" hidden></div>
-  </section>
-
-  <section>
-    <h2>Map layers</h2>
-    <div id="layers" class="layers"></div>
-  </section>
-
-  <section>
-    <h2>Filters</h2>
-    <label class="field">
-      <span>Minimum score</span>
-      <input type="range" id="minScore" min="0" max="1" step="0.05" value="0">
-      <output id="minScoreOut">0.00</output>
-    </label>
-    <div id="typeFilter" class="chips-small"></div>
-  </section>
+  </div>
 </aside>
 
-<!-- The map fills the rest of the window -->
-<main id="main">
-  <div id="map"></div>
+<button id="panelOpen" class="glass float-button" hidden aria-label="Show panel">
+  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  Filters
+</button>
 
-  <div class="float regions" id="regionChips"></div>
+<div class="glass float regions" id="regionChips" role="tablist" aria-label="Region"></div>
 
-  <div class="float search">
-    <input type="search" id="search" placeholder="Search assets by name or type…"
-           autocomplete="off" aria-label="Search assets">
-    <ul id="searchResults" class="results" hidden></ul>
-  </div>
+<div class="glass float search">
+  <input type="search" id="search" placeholder="Search assets by name, type or district…"
+         autocomplete="off" aria-label="Search assets">
+  <ul id="searchResults" class="results" hidden></ul>
+</div>
 
-  <div class="float counters" id="counters"></div>
+<div class="glass float counters" id="counters" aria-live="polite"></div>
 
-  <div class="float legend">
-    <div class="legend-title">Susceptibility</div>
-    <div><i style="background:#15803d"></i>Low (&lt;0.30)</div>
-    <div><i style="background:#a16207"></i>Moderate (0.30–0.50)</div>
-    <div><i style="background:#b45309"></i>High (0.50–0.70)</div>
-    <div><i style="background:#c62828"></i>Very high (≥0.70)</div>
-  </div>
+<div class="glass float legend">
+  <div class="legend-title">Susceptibility</div>
+  <div><i style="background:#15803d"></i>Low (&lt;0.30)</div>
+  <div><i style="background:#a16207"></i>Moderate (0.30–0.50)</div>
+  <div><i style="background:#b45309"></i>High (0.50–0.70)</div>
+  <div><i style="background:#c62828"></i>Very high (≥0.70)</div>
+</div>
 
-  <nav class="float panels" id="panelButtons">
-    <button data-panel="rankings">Rankings &amp; export</button>
-    <button data-panel="preparedness">Preparedness</button>
-    <button data-panel="about">About the data</button>
-  </nav>
+<nav class="glass float panels" id="panelButtons">
+  <button data-panel="rankings">Rankings &amp; export</button>
+  <button data-panel="preparedness">Preparedness</button>
+  <button data-panel="about">About the data</button>
+</nav>
 
-  <article class="float detail" id="detail" hidden></article>
+<article class="glass float detail" id="detail" hidden></article>
 
-  <section class="sheet" id="sheet" hidden>
-    <header>
-      <h2 id="sheetTitle"></h2>
-      <button id="sheetClose">Close</button>
-    </header>
-    <div id="sheetBody"></div>
-  </section>
+<section class="glass sheet" id="sheet" hidden>
+  <header>
+    <h2 id="sheetTitle"></h2>
+    <button id="sheetClose">Close</button>
+  </header>
+  <div id="sheetBody"></div>
+</section>
 
-  <div class="loading" id="loading">
-    <div class="spinner"></div>
-    <div class="loading-label" id="loadingLabel">Loading…</div>
-  </div>
-</main>
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-label" id="loadingLabel">Loading…</div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pmtiles@3.2.1/dist/pmtiles.js"></script>
