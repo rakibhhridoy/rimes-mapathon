@@ -121,6 +121,12 @@ const map = new maplibregl.Map({
 // and a listener attached then would wait for an event that already fired.
 const mapReady = new Promise((resolve) => map.once("load", resolve));
 
+// The credits are written out in the sidebar, so on the map they stay folded
+// into the ⓘ button, which Esri's terms still require to be on the map.
+// MapLibre opens a compact attribution on wide screens; close it once loaded.
+map.once("load", () =>
+  document.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show"));
+
 function setBasemap(name) {
   const choice = BASEMAPS[name] || BASEMAPS.topo;
   state.basemap = name;
@@ -131,7 +137,7 @@ function setBasemap(name) {
     button.setAttribute("aria-checked", String(button.dataset.basemap === name)));
 }
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: "metric" }), "bottom-right");
+map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: "metric" }), "bottom-left");
 
 /* ── Region layers ────────────────────────────────────────────────────── */
 function riskExpression() {

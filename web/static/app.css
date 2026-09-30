@@ -154,12 +154,12 @@ html, body {
 .counters .value { font-family: 'DM Mono', monospace; font-size: 1.05rem; font-weight: 700; }
 .counters .label { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; text-align: right; }
 
-.legend { bottom: 18px; left: 16px; padding: 9px 12px; font: 400 10px 'DM Mono', monospace; color: #475569; }
+.legend { bottom: 44px; left: 16px; padding: 9px 12px; font: 400 10px 'DM Mono', monospace; color: #475569; }
 .legend-title { color: var(--accent); font-weight: 700; margin-bottom: 4px; }
 .legend div { display: flex; align-items: center; gap: 6px; line-height: 1.6; }
 .legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 
-.panels { bottom: 18px; right: 16px; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
+.panels { bottom: 48px; right: 16px; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
 .panels button {
   width: 176px;
   text-align: left;
