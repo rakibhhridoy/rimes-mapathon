@@ -151,7 +151,7 @@ map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: "metric" }), "
 // and a listener attached then would wait for an event that already fired.
 const mapReady = new Promise((resolve) => map.once("load", resolve));
 
-// The credits are written out in the panel, so on the map they stay folded
+// The credits are written out in the left panel, so on the map they stay folded
 // into the ⓘ button, which Esri's terms still require to be on the map.
 // MapLibre opens a compact attribution on wide screens; close it once loaded.
 map.once("load", () =>
@@ -840,9 +840,16 @@ async function aboutPanel() {
 }
 
 /* ── Views ────────────────────────────────────────────────────────────── */
+const isPhone = () => window.innerWidth <= 860;
+
 function framePadding() {
-  const collapsed = document.body.classList.contains("panel-collapsed") || window.innerWidth <= 860;
-  return { top: 120, bottom: 50, left: collapsed ? 50 : 370, right: window.innerWidth > 860 ? 230 : 30 };
+  // Frame the regions in the part of the map the open panels leave visible.
+  const side = (name) => {
+    const panel = $(name === "left" ? "panelLeft" : "panelRight");
+    const open = !document.body.classList.contains(`${name}-collapsed`) && !isPhone();
+    return open ? panel.offsetWidth + 50 : 40;
+  };
+  return { top: 50, bottom: 50, left: side("left"), right: side("right") };
 }
 
 async function selectView(id) {
@@ -899,17 +906,27 @@ $("search").addEventListener("input", (event) => {
         map.flyTo({ center: [asset.lon, asset.lat], zoom: 13 });
         showDetail(asset);
         list.hidden = true;
+        if (isPhone()) setSide("left", false);
       }));
   }, 180);
 });
 
 /* ── Wiring ───────────────────────────────────────────────────────────── */
-function setPanelOpen(open) {
-  document.body.classList.toggle("panel-collapsed", !open);
-  $("panelOpen").hidden = open;
+/* Each side panel folds away on its own; on a phone, where either covers the
+ * map, opening one folds the other. */
+function setSide(side, open) {
+  document.body.classList.toggle(`${side}-collapsed`, !open);
+  document.querySelector(`[data-open="${side}"]`).hidden = open;
+  if (open && isPhone()) {
+    const other = side === "left" ? "right" : "left";
+    document.body.classList.add(`${other}-collapsed`);
+    document.querySelector(`[data-open="${other}"]`).hidden = false;
+  }
 }
-$("panelClose").addEventListener("click", () => setPanelOpen(false));
-$("panelOpen").addEventListener("click", () => setPanelOpen(true));
+document.querySelectorAll("[data-close]").forEach((button) =>
+  button.addEventListener("click", () => setSide(button.dataset.close, false)));
+document.querySelectorAll("[data-open]").forEach((button) =>
+  button.addEventListener("click", () => setSide(button.dataset.open, true)));
 $("resetFilters").addEventListener("click", resetFilters);
 document.querySelectorAll("#basemaps button").forEach((button) =>
   button.addEventListener("click", () => setBasemap(button.dataset.basemap)));
@@ -941,7 +958,7 @@ map.on("mousemove", (event) => {
 });
 
 (async function start() {
-  if (window.innerWidth <= 860) setPanelOpen(false);
+  if (isPhone()) { setSide("left", false); setSide("right", false); }
   showLoading("Loading…");
   const { regions } = await getJSON(url("api/regions"));
   state.regions = regions;
