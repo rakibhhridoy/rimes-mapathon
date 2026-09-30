@@ -1,6 +1,6 @@
 """
 Tests for scripts/build_database.py: every kind of pipeline file lands in
-the GeoPackage in a form a GIS or a query can read back.
+the SpatiaLite database in a form a GIS or a query can read back.
 """
 
 import io
@@ -31,6 +31,8 @@ def sources(tmp_path):
                      geometry=[Point(90, 24), Point(90.1, 24.1)],
                      crs="EPSG:4326").to_file(region / "assets.geojson")
     pd.DataFrame({"unit": ["x"], "mean_risk": [0.4]}).to_csv(region / "summary.csv", index=False)
+    # the pipeline writes some results both as a map layer and as a CSV
+    pd.DataFrame({"name": ["a", "b"]}).to_csv(region / "assets.csv", index=False)
     (region / "benchmark.json").write_text(json.dumps({"auc": 0.8}))
     np.save(region / "scores.npy", np.array([0.1, 0.9], dtype=np.float32))
     (region / "model.joblib").write_bytes(b"not really a model")
@@ -43,7 +45,7 @@ def sources(tmp_path):
 
 @pytest.fixture
 def db(tmp_path, sources):
-    path = tmp_path / "all.gpkg"
+    path = tmp_path / "all.sqlite"
     build(path, sources, log=lambda *_: None)
     return path
 
@@ -54,8 +56,16 @@ def test_vector_layers_keep_their_geometry_and_attributes(db):
     assert assets.crs.to_epsg() == 4326
 
 
-def test_float_rasters_keep_their_values(db):
-    with rasterio.open(f"GPKG:{db}:sylhet_hazard") as src:
+def test_float_rasters_keep_their_values_and_grid(db, tmp_path):
+    from build_database import extract_raster
+
+    conn = sqlite3.connect(db)
+    epsg, width, height, dtype = conn.execute(
+        "SELECT epsg, width, height, dtype FROM rasters WHERE name = 'sylhet_hazard'").fetchone()
+    assert (epsg, width, height, dtype) == (32646, 4, 3, "float32")
+    out = tmp_path / "back.tif"
+    extract_raster(db, "sylhet_hazard", out)
+    with rasterio.open(out) as src:
         assert src.read(1)[2, 3] == pytest.approx(11.0)
         assert src.crs.to_epsg() == 32646
 
@@ -77,10 +87,12 @@ def test_every_item_records_its_source_checksum_and_licence(db, sources):
     assert all(len(sha) == 64 and licence for _, sha, licence in rows)
 
 
-def test_attribute_tables_are_listed_for_gis_software(db):
+def test_it_is_spatialite_not_geopackage(db):
     conn = sqlite3.connect(db)
-    listed = {row[0] for row in conn.execute("SELECT table_name FROM gpkg_contents")}
-    assert {"metrics", "arrays", "files", "sources", "sylhet_assets", "sylhet_hazard"} <= listed
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert not any(t.startswith("gpkg_") for t in tables)
+    geometry = {row[0] for row in conn.execute("SELECT f_table_name FROM geometry_columns")}
+    assert geometry == {"sylhet_assets"}
 
 
 def test_names_are_sql_safe_and_unique():
@@ -89,3 +101,10 @@ def test_names_are_sql_safe_and_unique():
     second = table_name("sw_coastal", Path("s1-flood 2024.tif"), taken=taken, kind="processed")
     assert first == "sw_coastal_s1_flood_2024"
     assert second != first
+
+
+def test_a_map_layer_keeps_its_name_when_a_csv_shares_it(db):
+    assets = gpd.read_file(db, layer="sylhet_assets")
+    assert assets.geometry.notna().all()
+    conn = sqlite3.connect(db)
+    assert conn.execute("SELECT count(*) FROM sylhet_assets_table").fetchone()[0] == 2

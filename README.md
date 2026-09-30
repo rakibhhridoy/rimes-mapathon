@@ -405,23 +405,31 @@ observed flooding. Results land in `data/output/validation_metrics.json`.
 ### Everything in one database
 
 ```bash
-python scripts/build_database.py      # -> dist/hazmapper.gpkg
+python scripts/build_database.py      # -> dist/hazmapper.sqlite
 ```
 
 writes every input, intermediate and output of all four regions into one
-GeoPackage, which is SQLite with a standard layout for geometry and rasters,
-so QGIS, ArcGIS, GDAL and any SQLite client open it directly. Vector layers
-and tables are named `<region>_<file>` (national layers under `shared_`),
-rasters are raster tables, metrics sit in `metrics` as JSON that SQLite's
-JSON functions can query, NumPy arrays in `arrays`, and models and reports in
-`files`. The `sources` table gives each item's source file, SHA-256 and
-licence. The pipeline itself still works on files; the database is an export
-of them, rebuilt after each run.
+SQLite database with SpatiaLite spatial metadata, so any SQLite client reads
+it and QGIS opens its geometry tables as layers. Vector layers and tables are
+named `<region>_<file>` (national layers under `shared_`), metrics sit in
+`metrics` as JSON that SQLite's JSON functions can query, NumPy arrays in
+`arrays`, and models and reports in `files`. Rasters are rows of the
+`rasters` table, with the grid described in columns (EPSG code, size, data
+type, bounds, transform) and stored as losslessly compressed GeoTIFF bytes,
+because SpatiaLite's own raster support is no longer maintained. The
+`sources` table gives each item's source file, SHA-256 and licence. The
+pipeline itself still works on files; the database is an export of them,
+rebuilt after each run.
 
 ```sql
 -- the validation AUC of every region, straight from the metrics
 SELECT region, json_extract(json, '$.assets_vs_observed.held_out_blocks.auc_roc')
 FROM metrics WHERE name = 'validation_metrics';
+```
+
+```bash
+# a raster back out as a GeoTIFF, for QGIS or rasterio
+python scripts/build_database.py --extract-raster sylhet_dem_srtm_30m dem.tif
 ```
 
 ## Documentation

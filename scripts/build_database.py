@@ -1,29 +1,36 @@
 """
 One SQLite database holding everything the pipeline reads and writes.
 
-    python scripts/build_database.py                 # -> dist/hazmapper.gpkg
+    python scripts/build_database.py                           # -> dist/hazmapper.sqlite
+    python scripts/build_database.py --extract-raster sylhet_dem_srtm_30m dem.tif
 
-The database is a GeoPackage, which is SQLite with a standard layout for
-geometry and rasters, so QGIS, ArcGIS, GDAL and any SQLite client open it
-directly. It is an export: the pipeline still works on files, and this
-script collects them into one place for sharing and querying.
+The database is SpatiaLite, which is SQLite with spatial metadata, so any
+SQLite client reads its tables and QGIS opens the geometry tables as layers.
+It is an export: the pipeline still works on files, and this script collects
+them into one place for sharing and querying.
 
 Every item is stored in the form a GIS or a query can use:
 
-    vector layers (GeoPackage, GeoJSON)   geometry tables, one per region and file
-    tables (CSV, Parquet)                 attribute tables
-    rasters (GeoTIFF)                     raster tables; Float32 and Int16 grids
-                                          as GeoPackage gridded coverages
+    vector layers (GeoPackage, GeoJSON)   SpatiaLite geometry tables, one per
+                                          region and file, spatially indexed
+    tables (CSV, Parquet)                 plain tables
+    rasters (GeoTIFF)                     the `rasters` table: one row per raster,
+                                          its grid described in columns and the
+                                          grid itself as a compressed GeoTIFF
     metrics (JSON)                        the `metrics` table, one row per file,
                                           queryable with SQLite's JSON functions
     arrays (.npy, .npz)                   the `arrays` table, with dtype and shape
     anything else (models, reports)       the `files` table, as bytes
 
+SpatiaLite's own raster support (RasterLite2) is no longer maintained, so a
+raster is kept as GeoTIFF bytes, recompressed losslessly, which GDAL and
+rasterio read straight from memory and `--extract-raster` writes back out.
+
 Tables are named `<region>_<file>`, with the shared national layers under
-`shared_`. The `sources` table records, for every table and row, the file it
-came from, that file's SHA-256 and its licence. GADM files are left out
-because GADM's licence forbids redistribution, and the dashboard caches are
-left out because they are copies of the outputs.
+`shared_`. The `sources` table records, for every item, the file it came
+from, that file's SHA-256 and its licence. GADM files are left out because
+GADM's licence forbids redistribution, and the dashboard caches are left out
+because they are copies of the outputs.
 """
 
 import argparse
@@ -33,7 +40,7 @@ import re
 import sqlite3
 import subprocess
 import sys
-from datetime import datetime, timezone
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -57,6 +64,22 @@ SHARED_LICENCES = {
     "worldpop": "WorldPop, CC BY 4.0",
 }
 
+SCHEMA = """
+CREATE TABLE rasters (id INTEGER PRIMARY KEY, name TEXT UNIQUE, region TEXT,
+                      epsg INTEGER, crs_wkt TEXT, width INTEGER, height INTEGER,
+                      bands INTEGER, dtype TEXT, nodata REAL,
+                      transform TEXT, west REAL, south REAL, east REAL, north REAL,
+                      geotiff BLOB);
+CREATE TABLE metrics (id INTEGER PRIMARY KEY, region TEXT, kind TEXT, name TEXT,
+                      json TEXT);
+CREATE TABLE arrays (id INTEGER PRIMARY KEY, region TEXT, name TEXT, key TEXT,
+                     dtype TEXT, shape TEXT, npy BLOB);
+CREATE TABLE files (id INTEGER PRIMARY KEY, region TEXT, path TEXT, name TEXT,
+                    bytes BLOB);
+CREATE TABLE sources (id INTEGER PRIMARY KEY, table_name TEXT, row_key TEXT,
+                      region TEXT, source_path TEXT, sha256 TEXT, licence TEXT);
+"""
+
 
 def collect() -> list[tuple[str, str, Path]]:
     """(region, kind, path) for every file the database should hold."""
@@ -79,14 +102,26 @@ def collect() -> list[tuple[str, str, Path]]:
 
 def table_name(region: str, path: Path, layer: str | None = None,
                taken: set | None = None, kind: str = "") -> str:
-    """A lowercase SQL-safe name, unique within the database."""
+    """A lowercase SQL-safe name, unique within the database.
+
+    Map layers are built first and keep the plain name, so a CSV written
+    beside a GeoJSON of the same results becomes `<name>_table`.
+    """
     stem = path.stem if not layer or layer == path.stem else f"{path.stem}_{layer}"
-    name = re.sub(r"[^a-z0-9_]+", "_", f"{region}_{stem}".lower()).strip("_")
+    safe = lambda text: re.sub(r"[^a-z0-9_]+", "_", text.lower()).strip("_")
+    name = safe(f"{region}_{stem}")
+    if taken is not None and name in taken and path.suffix.lower() in TABLE:
+        name = safe(f"{region}_{stem}_table")
     if taken is not None and name in taken:
-        name = re.sub(r"[^a-z0-9_]+", "_", f"{region}_{kind}_{stem}".lower()).strip("_")
+        name = safe(f"{region}_{kind}_{stem}")
     if taken is not None:
         taken.add(name)
     return name
+
+
+def _order(entry: tuple[str, str, Path]) -> int:
+    """Map layers first, so they claim the plain table names."""
+    return 0 if entry[2].suffix.lower() in VECTOR else 1
 
 
 def licence(region: str, kind: str, path: Path) -> str:
@@ -106,71 +141,95 @@ def _layers(path: Path) -> list[str]:
     return [str(name) for name, _ in pyogrio.list_layers(path)]
 
 
-def _register(conn: sqlite3.Connection, table: str, description: str) -> None:
-    """List a plain SQLite table in gpkg_contents so GIS software shows it."""
-    conn.execute(
-        "INSERT OR REPLACE INTO gpkg_contents (table_name, data_type, identifier,"
-        " description, last_change) VALUES (?, 'attributes', ?, ?, ?)",
-        (table, table, description,
-         datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")))
+def _raster_row(path: Path, name: str, region: str) -> tuple:
+    """The raster's grid description and its bytes as a compressed GeoTIFF.
+
+    Recompressed with DEFLATE and a predictor, which is lossless, because some
+    pipeline rasters are written uncompressed and would bloat the database.
+    """
+    import rasterio
+
+    with rasterio.open(path) as src:
+        predictor = "3" if src.dtypes[0].startswith("float") else "2"
+        meta = (src.crs.to_epsg() if src.crs else None,
+                src.crs.to_wkt() if src.crs else None,
+                src.width, src.height, src.count, src.dtypes[0], src.nodata,
+                json.dumps(list(src.transform)[:6]), *src.bounds)
+    with tempfile.TemporaryDirectory() as tmp:
+        packed = Path(tmp) / "packed.tif"
+        _run(["gdal_translate", "-q", "-of", "GTiff", str(path), str(packed),
+              "-co", "COMPRESS=DEFLATE", "-co", f"PREDICTOR={predictor}",
+              "-co", "TILED=YES", "-co", "BIGTIFF=IF_SAFER"])
+        return (name, region, *meta, packed.read_bytes())
 
 
 def build(db: Path, entries: list[tuple[str, str, Path]], log=print) -> dict:
-    """Write every entry into the GeoPackage at `db`, replacing any old one."""
+    """Write every entry into the SpatiaLite database at `db`, replacing any old one."""
     import numpy as np
 
     db.parent.mkdir(parents=True, exist_ok=True)
     if db.exists():
         db.unlink()
+    # The spatial metadata comes from GDAL, which creates the database.
+    _run(["ogr2ogr", "-f", "SQLite", "-dsco", "SPATIALITE=YES", str(db),
+          str(entries_vector_seed()), "-nln", "_seed"])
+    _run(["ogrinfo", "-q", str(db), "-sql", "DELLAYER:_seed"])
+    conn = sqlite3.connect(db)
+    conn.executescript(SCHEMA)
+    conn.commit()
 
     taken: set = set()
-    sources: list[tuple] = []          # table, row key, region, source, sha256, licence
-    metrics, arrays, blobs = [], [], []
     counts = {"vector": 0, "table": 0, "raster": 0, "metrics": 0, "arrays": 0, "files": 0}
 
-    def exists() -> list[str]:
-        return ["-update"] if db.exists() else []
+    def source(table, key, region, rel, sha, lic):
+        conn.execute("INSERT INTO sources (table_name, row_key, region, source_path,"
+                     " sha256, licence) VALUES (?,?,?,?,?,?)",
+                     (table, key, region, rel, sha, lic))
 
-    for region, kind, path in entries:
+    for region, kind, path in sorted(entries, key=_order):
         suffix = path.suffix.lower()
-        rel = str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
-        sha, lic = _sha256(path), licence(region, kind, path)
         if suffix in SKIP:
             continue
+        rel = str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
+        sha, lic = _sha256(path), licence(region, kind, path)
 
-        if suffix in VECTOR:
-            for layer in _layers(path):
+        if suffix in VECTOR or suffix in TABLE:
+            layers = _layers(path) if suffix in VECTOR else [None]
+            for layer in layers:
                 name = table_name(region, path, layer, taken, kind)
-                _run(["ogr2ogr", "-f", "GPKG", *exists(), str(db), str(path), layer,
-                      "-nln", name, "-lco", "SPATIAL_INDEX=YES"])
-                sources.append((name, None, region, rel, sha, lic))
-                counts["vector"] += 1
-        elif suffix in TABLE:
-            name = table_name(region, path, None, taken, kind)
-            _run(["ogr2ogr", "-f", "GPKG", *exists(), str(db), str(path),
-                  "-nln", name, "-oo", "AUTODETECT_TYPE=YES"]
-                 if suffix == ".csv" else
-                 ["ogr2ogr", "-f", "GPKG", *exists(), str(db), str(path), "-nln", name])
-            sources.append((name, None, region, rel, sha, lic))
-            counts["table"] += 1
+                conn.commit()            # GDAL writes to the same file next
+                command = ["ogr2ogr", "-f", "SQLite", "-update", str(db), str(path)]
+                if layer:
+                    command.append(layer)
+                command += ["-nln", name]
+                if suffix in VECTOR:
+                    command += ["-lco", "SPATIAL_INDEX=YES", "-lco", "FORMAT=SPATIALITE"]
+                if suffix == ".csv":
+                    command += ["-oo", "AUTODETECT_TYPE=YES"]
+                _run(command)
+                source(name, None, region, rel, sha, lic)
+                counts["vector" if suffix in VECTOR else "table"] += 1
         elif suffix in RASTER:
             name = table_name(region, path, None, taken, kind)
-            _run(["gdal_translate", "-q", "-of", "GPKG", str(path), str(db),
-                  "-co", "APPEND_SUBDATASET=YES", "-co", f"RASTER_TABLE={name}",
-                  "-co", f"RASTER_DESCRIPTION={rel}"])
-            sources.append((name, None, region, rel, sha, lic))
+            conn.execute("INSERT INTO rasters (name, region, epsg, crs_wkt, width, height,"
+                         " bands, dtype, nodata, transform, west, south, east, north,"
+                         " geotiff) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                         _raster_row(path, name, region))
+            source("rasters", name, region, rel, sha, lic)
             counts["raster"] += 1
         elif suffix in METRICS:
             text = path.read_text()
             try:
                 json.loads(text)
             except ValueError:            # not JSON after all: keep the bytes
-                blobs.append((region, rel, path.name, path.read_bytes()))
-                sources.append(("files", rel, region, rel, sha, lic))
+                conn.execute("INSERT INTO files (region, path, name, bytes) VALUES (?,?,?,?)",
+                             (region, rel, path.name, path.read_bytes()))
+                source("files", rel, region, rel, sha, lic)
                 counts["files"] += 1
             else:
-                metrics.append((region, kind, path.stem, text))
-                sources.append(("metrics", f"{region}/{path.stem}", region, rel, sha, lic))
+                conn.execute("INSERT INTO metrics (region, kind, name, json) VALUES (?,?,?,?)",
+                             (region, kind, path.stem, text))
+                source("metrics", f"{region}/{path.stem}", region, rel, sha, lic)
                 counts["metrics"] += 1
         elif suffix in ARRAY:
             loaded = np.load(path, allow_pickle=False)
@@ -178,50 +237,52 @@ def build(db: Path, entries: list[tuple[str, str, Path]], log=print) -> dict:
             for key, value in items:
                 buffer = io.BytesIO()
                 np.save(buffer, value, allow_pickle=False)
-                arrays.append((region, path.stem, key, str(value.dtype),
-                               json.dumps(list(value.shape)), buffer.getvalue()))
+                conn.execute("INSERT INTO arrays (region, name, key, dtype, shape, npy)"
+                             " VALUES (?,?,?,?,?,?)",
+                             (region, path.stem, key, str(value.dtype),
+                              json.dumps(list(value.shape)), buffer.getvalue()))
                 counts["arrays"] += 1
-            sources.append(("arrays", f"{region}/{path.stem}", region, rel, sha, lic))
+            source("arrays", f"{region}/{path.stem}", region, rel, sha, lic)
         else:
-            blobs.append((region, rel, path.name, path.read_bytes()))
-            sources.append(("files", rel, region, rel, sha, lic))
+            conn.execute("INSERT INTO files (region, path, name, bytes) VALUES (?,?,?,?)",
+                         (region, rel, path.name, path.read_bytes()))
+            source("files", rel, region, rel, sha, lic)
             counts["files"] += 1
+        conn.commit()
         log(f"  {rel}")
 
-    conn = sqlite3.connect(db)
-    with conn:
-        conn.executescript("""
-            CREATE TABLE metrics (id INTEGER PRIMARY KEY, region TEXT, kind TEXT,
-                                  name TEXT, json TEXT);
-            CREATE TABLE arrays (id INTEGER PRIMARY KEY, region TEXT, name TEXT,
-                                 key TEXT, dtype TEXT, shape TEXT, npy BLOB);
-            CREATE TABLE files (id INTEGER PRIMARY KEY, region TEXT, path TEXT,
-                                name TEXT, bytes BLOB);
-            CREATE TABLE sources (id INTEGER PRIMARY KEY, table_name TEXT, row_key TEXT,
-                                  region TEXT, source_path TEXT, sha256 TEXT,
-                                  licence TEXT);
-        """)
-        conn.executemany("INSERT INTO metrics (region, kind, name, json) VALUES (?,?,?,?)",
-                         metrics)
-        conn.executemany("INSERT INTO arrays (region, name, key, dtype, shape, npy)"
-                         " VALUES (?,?,?,?,?,?)", arrays)
-        conn.executemany("INSERT INTO files (region, path, name, bytes) VALUES (?,?,?,?)",
-                         blobs)
-        conn.executemany("INSERT INTO sources (table_name, row_key, region, source_path,"
-                         " sha256, licence) VALUES (?,?,?,?,?,?)", sources)
-        _register(conn, "metrics", "Pipeline metrics, one JSON document per file")
-        _register(conn, "arrays", "NumPy arrays saved in .npy format, with dtype and shape")
-        _register(conn, "files", "Other pipeline files (models, reports), as bytes")
-        _register(conn, "sources", "Source file, SHA-256 and licence of every item")
     conn.close()
     return counts
 
 
+def entries_vector_seed() -> Path:
+    """A one-point GeoJSON that lets GDAL create the SpatiaLite metadata."""
+    seed = Path(tempfile.gettempdir()) / "hazmapper_seed.geojson"
+    seed.write_text('{"type":"FeatureCollection","features":[{"type":"Feature",'
+                    '"properties":{},"geometry":{"type":"Point","coordinates":[0,0]}}]}')
+    return seed
+
+
+def extract_raster(db: Path, name: str, out: Path) -> None:
+    """Write one stored raster back out as a GeoTIFF."""
+    conn = sqlite3.connect(db)
+    row = conn.execute("SELECT geotiff FROM rasters WHERE name = ?", (name,)).fetchone()
+    conn.close()
+    if row is None:
+        raise SystemExit(f"no raster named {name}")
+    out.write_bytes(row[0])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--out", default=str(ROOT / "dist" / "hazmapper.gpkg"))
+    parser.add_argument("--out", default=str(ROOT / "dist" / "hazmapper.sqlite"))
+    parser.add_argument("--extract-raster", nargs=2, metavar=("NAME", "OUT_TIF"),
+                        help="write one raster from the database to a GeoTIFF")
     args = parser.parse_args()
 
+    if args.extract_raster:
+        extract_raster(Path(args.out), args.extract_raster[0], Path(args.extract_raster[1]))
+        return
     entries = collect()
     print(f"Collecting {len(entries)} files into {args.out}")
     counts = build(Path(args.out), entries)
