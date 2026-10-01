@@ -22,25 +22,19 @@
 <!-- The map fills the window; the two panels float over it. -->
 <div id="map"></div>
 
-<!-- Left: the map itself — region, search, basemap, layers, legend, panels, provenance -->
-<aside id="panelLeft" class="glass side side-left" aria-label="Map">
+<!-- Left: every control — what to show and how to draw it -->
+<aside id="panelLeft" class="glass side side-left" aria-label="Filters">
   <header class="panel-head">
-    <img src="fermium_dark.png" alt="Fermium Systems" height="24">
-    <button class="icon-button" data-close="left" aria-label="Hide panel" title="Hide panel">
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
+    <h2 class="panel-title">Filters</h2>
+    <div class="head-actions">
+      <button id="resetFilters" class="link-button" hidden>Reset</button>
+      <button class="icon-button" data-close="left" aria-label="Hide filters" title="Hide filters">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
   </header>
 
   <div class="panel-body">
-    <section class="identity">
-      <h1>Fermium Hazard Mapper</h1>
-      <p class="region-line" id="regionLine">Loading…</p>
-      <div class="warning">
-        <strong>Research prototype.</strong> Modelled susceptibility, not a forecast
-        or an official warning. For warnings use FFWC and BMD; in an emergency dial 999.
-      </div>
-    </section>
-
     <section>
       <h2>Region</h2>
       <div class="pills" id="regionChips" role="tablist" aria-label="Region"></div>
@@ -51,6 +45,22 @@
       <input type="search" id="search" class="text-input" placeholder="Asset name, type or district…"
              autocomplete="off" aria-label="Search assets">
       <ul id="searchResults" class="results" hidden></ul>
+    </section>
+
+    <section id="filterSection">
+      <h2>Show</h2>
+      <div id="fRegion" class="ms"></div>
+      <div id="fDistrict" class="ms"></div>
+      <div id="fType" class="ms"></div>
+      <div id="fClass" class="ms"></div>
+      <div class="range-field">
+        <div class="range-label"><span>Score</span><output id="scoreOut">0.00 – 1.00</output></div>
+        <div class="range2" id="scoreRange">
+          <div class="range2-fill" id="scoreFill"></div>
+          <input type="range" id="scoreMin" min="0" max="1" step="0.01" value="0" aria-label="Minimum score">
+          <input type="range" id="scoreMax" min="0" max="1" step="0.01" value="1" aria-label="Maximum score">
+        </div>
+      </div>
     </section>
 
     <section>
@@ -65,6 +75,32 @@
     <section>
       <h2>Map layers</h2>
       <div id="layers" class="layers"></div>
+    </section>
+  </div>
+</aside>
+
+<!-- Right: everything to read — what this is, what is shown, how good it is -->
+<aside id="panelRight" class="glass side side-right" aria-label="About the map">
+  <header class="panel-head">
+    <img src="fermium_dark.png" alt="Fermium Systems" height="24">
+    <button class="icon-button" data-close="right" aria-label="Hide panel" title="Hide panel">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </header>
+
+  <div class="panel-body">
+    <section class="identity">
+      <h1>Fermium Hazard Mapper</h1>
+      <p class="region-line" id="regionLine">Loading…</p>
+      <div class="warning">
+        <strong>Research prototype.</strong> Modelled susceptibility, not a forecast
+        or an official warning. For warnings use FFWC and BMD; in an emergency dial 999.
+      </div>
+    </section>
+
+    <section>
+      <h2>Results</h2>
+      <div id="counters" class="counters" aria-live="polite"></div>
     </section>
 
     <section>
@@ -96,48 +132,13 @@
   </div>
 </aside>
 
-<!-- Right: what to show, and how much of it there is -->
-<aside id="panelRight" class="glass side side-right" aria-label="Filters">
-  <header class="panel-head">
-    <h2 class="panel-title">Filters</h2>
-    <div class="head-actions">
-      <button id="resetFilters" class="link-button" hidden>Reset</button>
-      <button class="icon-button" data-close="right" aria-label="Hide filters" title="Hide filters">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-    </div>
-  </header>
-
-  <div class="panel-body">
-    <section id="filterSection">
-      <div id="fRegion" class="ms"></div>
-      <div id="fDistrict" class="ms"></div>
-      <div id="fType" class="ms"></div>
-      <div id="fClass" class="ms"></div>
-      <div class="range-field">
-        <div class="range-label"><span>Score</span><output id="scoreOut">0.00 – 1.00</output></div>
-        <div class="range2" id="scoreRange">
-          <div class="range2-fill" id="scoreFill"></div>
-          <input type="range" id="scoreMin" min="0" max="1" step="0.01" value="0" aria-label="Minimum score">
-          <input type="range" id="scoreMax" min="0" max="1" step="0.01" value="1" aria-label="Maximum score">
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <h2>Results</h2>
-      <div id="counters" class="counters" aria-live="polite"></div>
-    </section>
-  </div>
-</aside>
-
-<button class="glass float-button float-left" data-open="left" hidden aria-label="Show map panel">
-  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-  Map
-</button>
-<button class="glass float-button float-right" data-open="right" hidden aria-label="Show filters">
+<button class="glass float-button float-left" data-open="left" hidden aria-label="Show filters">
   <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 6h16l-6 7v5l-4 2v-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
   Filters
+</button>
+<button class="glass float-button float-right" data-open="right" hidden aria-label="Show map information">
+  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  Info
 </button>
 
 <article class="glass float detail" id="detail" hidden></article>

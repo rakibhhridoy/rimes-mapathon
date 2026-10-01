@@ -1,7 +1,7 @@
 /* Fermium Hazard Mapper — frosted glass over a full-window map.
-   Two panels float over the map: the map itself on the left (region, search,
-   basemap, layers, legend, panels, provenance) and the filters with their
-   results on the right. Colours are defined once, here, and the risk
+   Two panels float over the map: every control on the left (region, search,
+   filters, basemap, layers) and everything to read on the right (title,
+   results, legend, panels, model figures). Colours are defined once, here, and the risk
    colours match the paper's figures. */
 
 :root {
@@ -21,8 +21,8 @@
   --shadow: 0 10px 34px rgba(15, 23, 42, 0.22);
   --radius: 14px;
 
-  --left-width: 318px;
-  --right-width: 300px;
+  --left-width: 312px;
+  --right-width: 312px;
   --gap: 14px;
   /* How far the map's own furniture sits from each edge: an open panel
      pushes it inwards, a folded one lets it reach the edge. */
@@ -359,14 +359,11 @@ body.right-collapsed .side-right { transform: translateX(calc(100% + var(--gap) 
 .maplibregl-ctrl-top-left, .maplibregl-ctrl-bottom-left { left: calc(var(--left-offset) - 10px); transition: left 0.25s ease; }
 .maplibregl-ctrl-top-right, .maplibregl-ctrl-bottom-right { right: calc(var(--right-offset) - 10px); transition: right 0.25s ease; }
 .maplibregl-ctrl-scale { background: var(--glass-strong); border-color: var(--muted); }
-/* a folded filter panel leaves its button where the zoom buttons were */
-body.right-collapsed .maplibregl-ctrl-top-right { top: 52px; }
 
 /* On a phone one panel at a time covers the map, and both start folded. */
 @media (max-width: 860px) {
   :root { --left-width: calc(100vw - 28px); --right-width: calc(100vw - 28px); }
   body { --left-offset: var(--gap); --right-offset: var(--gap); }
-  .maplibregl-ctrl-top-right { top: 52px; }
   /* an open panel covers the map, so the other panel's button steps aside */
   body:not(.left-collapsed) .float-right,
   body:not(.right-collapsed) .float-left { display: none; }

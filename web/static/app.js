@@ -144,14 +144,15 @@ const map = new maplibregl.Map({
   zoom: 6.3,
   attributionControl: { compact: true },
 });
-map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+// Bottom right, stacked just above the attribution button.
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
 map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: "metric" }), "bottom-left");
 
 // Captured at creation: the region list can arrive after the map has loaded,
 // and a listener attached then would wait for an event that already fired.
 const mapReady = new Promise((resolve) => map.once("load", resolve));
 
-// The credits are written out in the left panel, so on the map they stay folded
+// The credits are written out in the right panel, so on the map they stay folded
 // into the ⓘ button, which Esri's terms still require to be on the map.
 // MapLibre opens a compact attribution on wide screens; close it once loaded.
 map.once("load", () =>
