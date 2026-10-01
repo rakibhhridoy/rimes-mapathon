@@ -89,6 +89,76 @@ def _bbox_tiles(bbox, max_span_deg: float = 0.75):
     ]
 
 
+# A query that keeps failing is usually too heavy for the server to answer in
+# time (a dense tile of roads), so it is split into quarters, twice at most.
+MAX_SPLITS = 2
+
+
+def _fetch_query(tile, batch_name, priority, tags, endpoints, cache_dir: Path,
+                 label: str, depth: int = 0):
+    """One tag group over one tile: (frames, failures), cached as it arrives."""
+    import time
+
+    key = "_".join(f"{v:.4f}" for v in tile) + f"_{batch_name}"
+    cached = cache_dir / f"{key}.pkl"
+    if cached.exists():
+        gdf = pd.read_pickle(cached)
+        logger.info(f"  {label} {batch_name}: {len(gdf)} features (cached)")
+        return ([gdf] if len(gdf) else []), []
+
+    # A tile split on an earlier run goes straight to its quarters.
+    split_marker = cache_dir / f"{key}.split"
+    # osmnx 2.x takes (left, bottom, right, top). Each attempt cycles through
+    # the endpoints; pauses grow between rounds. A tile that may yet be split
+    # gets fewer rounds, since splitting is the likelier cure.
+    pauses = (0,) + (RETRY_PAUSES_S if depth == MAX_SPLITS else RETRY_PAUSES_S[:2])
+    if split_marker.exists():
+        pauses = ()
+    attempts = [(pause, endpoint) for pause in pauses for endpoint in endpoints]
+    for pause, endpoint in attempts:
+        if pause:
+            time.sleep(pause)
+        ox.settings.overpass_url = endpoint
+        try:
+            gdf = ox.features_from_bbox(bbox=tile, tags=tags)
+        except ox._errors.InsufficientResponseError:
+            # Nothing of this kind in this tile — not an error.
+            pd.to_pickle(gpd.GeoDataFrame(), cached)
+            logger.info(f"  {label} {batch_name}: none")
+            return [], []
+        except Exception as exc:
+            host = endpoint.split("//")[-1].split("/")[0]
+            logger.warning(f"  {label} {batch_name} via {host} failed: {type(exc).__name__}")
+            continue
+        if len(gdf):
+            # osmnx indexes features by (element, id); keep both as columns so
+            # features returned by two adjacent tiles can be recognised and so
+            # the OSM id travels with the asset for provenance.
+            gdf = gdf.reset_index()
+            gdf["priority"] = priority
+            gdf["source_tag"] = gdf.apply(lambda row: _detect_source_tag(row, tags), axis=1)
+        pd.to_pickle(gdf, cached)
+        logger.info(f"  {label} {batch_name}: {len(gdf)} features")
+        time.sleep(2)  # be polite between queries
+        return ([gdf] if len(gdf) else []), []
+
+    if depth >= MAX_SPLITS:
+        return [], [(tile, batch_name, "failed after retries")]
+    west, south, east, north = tile
+    mid_x, mid_y = (west + east) / 2, (south + north) / 2
+    quarters = [(west, south, mid_x, mid_y), (mid_x, south, east, mid_y),
+                (west, mid_y, mid_x, north), (mid_x, mid_y, east, north)]
+    split_marker.touch()
+    logger.info(f"  {label} {batch_name}: splitting into quarters")
+    frames, failures = [], []
+    for q, quarter in enumerate(quarters, start=1):
+        got, failed = _fetch_query(quarter, batch_name, priority, tags, endpoints,
+                                   cache_dir, f"{label}.{q}", depth + 1)
+        frames += got
+        failures += failed
+    return frames, failures
+
+
 def merge_tile_results(frames: list, bbox) -> gpd.GeoDataFrame:
     """Combine per-tile Overpass results into one clipped, de-duplicated frame.
 
@@ -158,53 +228,10 @@ def fetch_osm_infrastructure(cfg: dict, output_dir: Path) -> gpd.GeoDataFrame:
     all_gdfs, failures = [], []
     for i, tile in enumerate(tiles, start=1):
         for batch_name, priority, tags in TAG_BATCHES:
-            key = "_".join(f"{v:.4f}" for v in tile) + f"_{batch_name}"
-            cached = cache_dir / f"{key}.pkl"
-            if cached.exists():
-                gdf = pd.read_pickle(cached)
-                if len(gdf):
-                    all_gdfs.append(gdf)
-                logger.info(f"  tile {i}/{len(tiles)} {batch_name}: "
-                            f"{len(gdf)} features (cached)")
-                continue
-            # osmnx 2.x takes (left, bottom, right, top). Each attempt cycles
-            # through the endpoints; pauses grow between rounds.
-            attempts = [(pause, endpoint)
-                        for pause in (0,) + RETRY_PAUSES_S
-                        for endpoint in endpoints]
-            for attempt, (pause, endpoint) in enumerate(attempts):
-                if pause:
-                    time.sleep(pause)
-                ox.settings.overpass_url = endpoint
-                try:
-                    gdf = ox.features_from_bbox(bbox=tile, tags=tags)
-                    if len(gdf):
-                        # osmnx indexes features by (element, id); keep both
-                        # as columns so features returned by two adjacent
-                        # tiles can be recognised and so the OSM id travels
-                        # with the asset for provenance.
-                        gdf = gdf.reset_index()
-                        gdf["priority"] = priority
-                        gdf["source_tag"] = gdf.apply(
-                            lambda row: _detect_source_tag(row, tags), axis=1
-                        )
-                        all_gdfs.append(gdf)
-                    pd.to_pickle(gdf, cached)
-                    logger.info(f"  tile {i}/{len(tiles)} {batch_name}: "
-                                f"{len(gdf)} features")
-                    break
-                except ox._errors.InsufficientResponseError:
-                    # Nothing of this kind in this tile — not an error.
-                    pd.to_pickle(gpd.GeoDataFrame(), cached)
-                    logger.info(f"  tile {i}/{len(tiles)} {batch_name}: none")
-                    break
-                except Exception as exc:
-                    host = endpoint.split("//")[-1].split("/")[0]
-                    logger.warning(f"  tile {i}/{len(tiles)} {batch_name} via "
-                                   f"{host} failed: {type(exc).__name__}")
-                    if attempt == len(attempts) - 1:
-                        failures.append((tile, batch_name, str(exc)))
-            time.sleep(2)  # be polite between queries
+            frames, failed = _fetch_query(tile, batch_name, priority, tags, endpoints,
+                                          cache_dir, f"tile {i}/{len(tiles)}")
+            all_gdfs += frames
+            failures += failed
 
     if failures:
         # A region with a tile missing would read as a region with no assets
