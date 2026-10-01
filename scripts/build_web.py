@@ -82,6 +82,18 @@ CREATE TABLE IF NOT EXISTS admin_summary (
 CREATE INDEX IF NOT EXISTS admin_lookup ON admin_summary(region, level, mean_risk);
 CREATE TABLE IF NOT EXISTS metrics (region TEXT, key TEXT, payload TEXT,
     PRIMARY KEY (region, key));
+CREATE TABLE IF NOT EXISTS landslide_units (
+    region TEXT, unit_id TEXT, name TEXT, label TEXT, district TEXT,
+    susceptibility_mean REAL, susceptibility_max REAL, n_pixels INTEGER,
+    population INTEGER, n_landslides INTEGER, lat REAL, lon REAL,
+    PRIMARY KEY (region, unit_id)
+);
+CREATE TABLE IF NOT EXISTS landslides (
+    region TEXT, landslide_id INTEGER, event_date TEXT, title TEXT,
+    category TEXT, trigger TEXT, unit_id TEXT, upazila TEXT, district TEXT,
+    lat REAL, lon REAL, susceptibility REAL, unit_susceptibility REAL,
+    PRIMARY KEY (region, landslide_id)
+);
 """
 
 
@@ -317,6 +329,132 @@ def copy_overlays(region: str, paths: dict, cfg: dict | None = None) -> int:
     return copied
 
 
+def _write_pmtiles(gdf, target: Path, layer: str, zoom: tuple, simplify=None) -> float:
+    """One GeoDataFrame as a PMTiles layer, through a temporary GeoJSON."""
+    import tempfile
+
+    if target.exists():
+        target.unlink()
+    with tempfile.TemporaryDirectory() as tmp:
+        source = Path(tmp) / f"{layer}.geojson"
+        gdf.to_file(source, driver="GeoJSON")
+        command = ["ogr2ogr", "-f", "PMTiles", str(target), str(source), "-nln", layer,
+                   "-dsco", f"MINZOOM={zoom[0]}", "-dsco", f"MAXZOOM={zoom[1]}",
+                   "-dsco", "MAX_SIZE=5000000"]
+        if simplify:
+            command += ["-simplify", str(simplify)]
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"{target.name}: {result.stderr.strip()[:400]}")
+    return target.stat().st_size / 1e6
+
+
+def build_landslide(conn: sqlite3.Connection, region: str, paths: dict) -> dict:
+    """Upazila summaries and mapped landslides, as tables and vector tiles.
+
+    Each upazila carries the pipeline's mean and maximum susceptibility and
+    population, plus the number of mapped landslides inside it; each landslide
+    carries the modelled susceptibility of the ground where it happened, read
+    from the surface the map draws.
+    """
+    import geopandas as gpd
+    import numpy as np
+    import rasterio
+
+    summary = _read_json(paths["output"] / "landslide_upazila.json")
+    boundaries = paths["raw"] / "bgd_upazila.gpkg"
+    inventory = paths["raw"] / "coolr_landslides.geojson"
+    surface = paths["output"] / "landslide_susceptibility.tif"
+    if not (summary and boundaries.exists()):
+        return {"units": 0, "landslides": 0}
+
+    units = gpd.read_file(boundaries).to_crs("EPSG:4326")
+    figures = {row["admin_label"]: row for row in summary}
+    units = units[units["admin_label"].isin(figures)].copy()
+    for key in ("susceptibility_mean", "susceptibility_max", "n_pixels", "population"):
+        units[key] = units["admin_label"].map(lambda label, k=key: figures[label].get(k))
+
+    points = gpd.read_file(inventory).to_crs("EPSG:4326") if inventory.exists() else None
+    if points is not None and len(points):
+        points = points.reset_index(drop=True)
+        joined = gpd.sjoin(points[["geometry"]], units[["shapeID", "admin_name", "district_name",
+                                                       "susceptibility_mean", "geometry"]],
+                           how="left", predicate="within")
+        joined = joined[~joined.index.duplicated(keep="first")]
+        points["unit_id"] = joined["shapeID"].values
+        points["upazila"] = joined["admin_name"].values
+        points["district"] = joined["district_name"].values
+        points["unit_susceptibility"] = joined["susceptibility_mean"].values
+        points["susceptibility"] = np.nan
+        if surface.exists():
+            with rasterio.open(surface) as src:
+                xy = points.to_crs(src.crs).geometry
+                values = np.array([v[0] for v in src.sample(zip(xy.x, xy.y))], dtype=float)
+                if src.nodata is not None:
+                    values[values == src.nodata] = np.nan
+            points["susceptibility"] = values
+        dates = pd_dates(points["event_date"])
+        units["n_landslides"] = units["shapeID"].map(points["unit_id"].value_counts()).fillna(0).astype(int)
+    else:
+        units["n_landslides"] = 0
+
+    # a point inside each upazila, so a search can fly to it
+    inside = units.geometry.representative_point()
+    # A database built before the centre points were added lacks their
+    # columns; recreate the table then, and otherwise replace this region's rows.
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(landslide_units)")}
+    if "lat" not in columns:
+        conn.execute("DROP TABLE IF EXISTS landslide_units")
+        conn.executescript(SCHEMA)
+    conn.execute("DELETE FROM landslide_units WHERE region = ?", (region,))
+    conn.executemany(
+        "INSERT INTO landslide_units VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        [(region, r.shapeID, r.admin_name, r.admin_label, r.district_name,
+          _float(r.susceptibility_mean), _float(r.susceptibility_max),
+          int(r.n_pixels or 0), int(r.population or 0), int(r.n_landslides),
+          point.y, point.x)
+         for r, point in zip(units.itertuples(), inside)])
+    conn.execute("DELETE FROM landslides WHERE region = ?", (region,))
+    n_points = 0
+    if points is not None and len(points):
+        rows = []
+        for i, r in enumerate(points.itertuples()):
+            # COOLR gives one event id to a whole inventory, so rows are numbered
+            rows.append((region, i + 1, dates[i],
+                         getattr(r, "event_title", None), getattr(r, "landslide_category", None),
+                         getattr(r, "landslide_trigger", None), r.unit_id, r.upazila, r.district,
+                         r.geometry.y, r.geometry.x, _float(r.susceptibility),
+                         _float(r.unit_susceptibility)))
+        conn.executemany("INSERT INTO landslides VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+        n_points = len(rows)
+        points["landslide_id"] = [row[1] for row in rows]
+        points["event_date"] = dates
+
+    out_dir = WEB / "tiles" / region
+    out_dir.mkdir(parents=True, exist_ok=True)
+    unit_tiles = units.rename(columns={"shapeID": "unit_id", "admin_name": "name",
+                                       "district_name": "district"})[
+        ["unit_id", "name", "district", "susceptibility_mean", "susceptibility_max",
+         "population", "n_landslides", "geometry"]]
+    size = _write_pmtiles(unit_tiles, out_dir / "ls_upazilas.pmtiles", "ls_upazilas", (4, 12), 0.0005)
+    if n_points:
+        point_tiles = points[["landslide_id", "landslide_category", "event_date", "unit_id",
+                              "upazila", "district", "susceptibility", "unit_susceptibility",
+                              "geometry"]].rename(columns={"landslide_category": "category"})
+        size += _write_pmtiles(point_tiles, out_dir / "ls_points.pmtiles", "ls_points", (4, 14))
+    conn.commit()
+    return {"units": len(units), "landslides": n_points, "tiles_mb": round(size, 1)}
+
+
+def pd_dates(series) -> list:
+    """Event dates as ISO days, whatever form COOLR gave them in."""
+    import pandas as pd
+
+    parsed = pd.to_datetime(series, errors="coerce", unit="ms") \
+        if pd.api.types.is_numeric_dtype(series) else pd.to_datetime(series, errors="coerce")
+    return [d.strftime("%Y-%m-%d") if not pd.isna(d) else None for d in parsed]
+
+
 def build_region(conn: sqlite3.Connection, region: str) -> dict:
     paths = region_paths(region)
     name, hazard, config = REGION_CONFIGS[region]
@@ -337,6 +475,15 @@ def build_region(conn: sqlite3.Connection, region: str) -> dict:
         "overlays": copy_overlays(region, paths, cfg),
     }
     counts["tiles_mb"] = build_tiles(region, paths)
+    if landslide:
+        counts["landslide"] = build_landslide(conn, region, paths)
+        display = _read_json(paths["cache"] / "raster_landslide.json") or {}
+        if display:
+            # the colour scale the surface was drawn with, for the legend
+            conn.execute("INSERT OR REPLACE INTO metrics VALUES (?, ?, ?)",
+                         (region, "landslide_display", json.dumps(
+                             {"vmin": display.get("vmin"), "vmax": display.get("vmax"),
+                              "colormap": "OrRd"})))
 
     conn.execute(
         "INSERT OR REPLACE INTO regions VALUES (?,?,?,?,?,?,?,?,?,?)",
@@ -359,7 +506,10 @@ if __name__ == "__main__":
         result = build_region(connection, region_id)
         print(f"{region_id}: {result['assets']:,} assets, {result['admin']:,} admin rows, "
               f"{result['metrics']} metric files, {result['overlays']} overlays, "
-              f"{result['tiles_mb']} MB tiles")
+              f"{result['tiles_mb']} MB tiles"
+              + (f", {result['landslide']['units']} upazilas and "
+                 f"{result['landslide']['landslides']:,} landslides"
+                 if result.get("landslide") else ""))
     connection.execute("VACUUM")
     connection.close()
     print(f"\nDatabase: {DB_PATH} ({DB_PATH.stat().st_size / 1e6:.1f} MB)")

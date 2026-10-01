@@ -117,8 +117,9 @@ class TestAPI:
         stored = connection.execute("SELECT COUNT(*) FROM assets").fetchone()[0]
         payload = client.get("/api/region/all/summary").json()
         assert payload["counts"]["assets"] == stored
+        # "all" is the flood view: every region with scored assets, no other
         assert {r["id"] for r in payload["regions"]} == {
-            row["id"] for row in connection.execute("SELECT id FROM regions")}
+            row["id"] for row in connection.execute("SELECT id FROM regions WHERE has_assets = 1")}
         # districts add up to the assets, and the frame spans every region
         assert sum(d["n"] for d in payload["counts"]["by_district"]) == stored
         west, south, east, north = payload["extent"]
@@ -152,4 +153,40 @@ class TestAPI:
         assert response.headers.get("cache-control") == "no-cache"
         assert 'src="app.js?v=' in response.text
         assert 'href="app.css?v=' in response.text
+
+
+class TestLandslideAPI:
+    @pytest.fixture
+    def region(self, connection):
+        row = connection.execute("SELECT id FROM regions WHERE has_landslide = 1 LIMIT 1").fetchone()
+        if row is None:
+            pytest.skip("no landslide region in this build")
+        return row["id"]
+
+    def test_summary_lists_every_upazila(self, client, connection, region):
+        stored = connection.execute(
+            "SELECT COUNT(*) FROM landslide_units WHERE region = ?", (region,)).fetchone()[0]
+        payload = client.get(f"/api/landslide/{region}/summary").json()
+        assert len(payload["units"]) == stored > 0
+        assert payload["display"]["vmin"] < payload["display"]["vmax"]
+
+    def test_counts_follow_the_district_filter(self, client, connection, region):
+        district = connection.execute(
+            "SELECT district FROM landslide_units WHERE region = ? LIMIT 1", (region,)).fetchone()[0]
+        expected = connection.execute(
+            "SELECT COUNT(*), SUM(population), SUM(n_landslides) FROM landslide_units"
+            " WHERE region = ? AND district = ?", (region, district)).fetchone()
+        payload = client.get(f"/api/landslide/{region}/stats", params={"districts": district}).json()
+        assert (payload["upazilas"], payload["population"], payload["landslides"]) == tuple(expected)
+
+    def test_every_landslide_counts_once(self, client, connection, region):
+        mapped = connection.execute(
+            "SELECT COUNT(*) FROM landslides WHERE region = ?", (region,)).fetchone()[0]
+        assert client.get(f"/api/landslide/{region}/stats").json()["landslides"] == mapped
+
+    def test_a_flood_region_has_no_landslide_view(self, client, connection):
+        flood = connection.execute(
+            "SELECT id FROM regions WHERE has_landslide = 0 LIMIT 1").fetchone()
+        if flood:
+            assert client.get(f"/api/landslide/{flood['id']}/summary").status_code == 404
 

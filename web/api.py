@@ -67,9 +67,14 @@ CLASSES = {"low": (0.0, 0.30), "moderate": (0.30, 0.50),
 
 
 def region_ids(region: str) -> list[str]:
-    """The regions a request covers: one, or every region for "all"."""
+    """The regions a request covers: one, or every flood region for "all".
+
+    "all" is the flood view's combined map, so it takes the regions that have
+    scored assets; the landslide region has its own view and endpoints.
+    """
     if region == ALL:
-        return [row["id"] for row in rows("SELECT id FROM regions ORDER BY rowid")]
+        return [row["id"] for row in rows(
+            "SELECT id FROM regions WHERE has_assets = 1 ORDER BY rowid")]
     if not one("SELECT 1 AS found FROM regions WHERE id = ?", (region,)):
         raise HTTPException(404, "unknown region")
     return [region]
@@ -285,6 +290,98 @@ def export_csv(region: str, limit: int = Query(5000, le=100000)):
     return Response(
         buffer.getvalue(), media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{region}_assets.csv"'})
+
+
+# ── Landslide view ──────────────────────────────────────────────────────
+
+def landslide_region(region: str) -> str:
+    if not one("SELECT 1 AS found FROM regions WHERE id = ? AND has_landslide = 1", (region,)):
+        raise HTTPException(404, "no landslide model for this region")
+    return region
+
+
+def _unit_filter(region: str, districts: str, upazilas: str, min_s: float, max_s: float):
+    where = ["region = ?", "susceptibility_mean >= ?", "susceptibility_mean <= ?"]
+    params: list = [region, min_s, max_s]
+    for column, text in (("district", districts), ("unit_id", upazilas)):
+        values = [v for v in text.split(",") if v]
+        if values:
+            where.append(f"{column} IN ({placeholders(values)})")
+            params += values
+    return " AND ".join(where), params
+
+
+@app.get("/api/landslide/{region}/summary")
+def landslide_summary(region: str):
+    """Upazilas, landslide categories and the model, for the landslide view."""
+    landslide_region(region)
+    info = _region_info(region)
+    units = rows("SELECT unit_id, name, district, susceptibility_mean, susceptibility_max,"
+                 " population, n_landslides, lat, lon FROM landslide_units WHERE region = ?"
+                 " ORDER BY district, name", (region,))
+    categories = {row["category"] or "unknown": row["n"] for row in rows(
+        "SELECT category, COUNT(*) AS n FROM landslides WHERE region = ? GROUP BY category",
+        (region,))}
+    extent = one("SELECT MIN(lon) AS west, MIN(lat) AS south, MAX(lon) AS east,"
+                 " MAX(lat) AS north FROM landslides WHERE region = ?", (region,))
+    metrics = _metrics(region)
+    return cached({"region": info, "units": units, "categories": categories,
+                   "extent": info["bbox"] or ([extent["west"], extent["south"],
+                                               extent["east"], extent["north"]]
+                                              if extent and extent["west"] is not None else None),
+                   "model": metrics.get("landslide_model", {}),
+                   "display": metrics.get("landslide_display", {})})
+
+
+@app.get("/api/landslide/{region}/stats")
+def landslide_stats(region: str,
+                    districts: str = Query("", max_length=400),
+                    upazilas: str = Query("", max_length=4000),
+                    categories: str = Query("", max_length=400),
+                    min_score: float = Query(0.0, ge=0, le=1),
+                    max_score: float = Query(1.0, ge=0, le=1)):
+    """Counts for the upazilas and landslides the filters leave visible.
+
+    Mean susceptibility is weighted by each upazila's area in pixels, so a
+    large upazila counts for its size rather than as one unit.
+    """
+    landslide_region(region)
+    clause, params = _unit_filter(region, districts, upazilas, min_score, max_score)
+    units = one("SELECT COUNT(*) AS n, SUM(population) AS people,"
+                " SUM(susceptibility_mean * n_pixels) / NULLIF(SUM(n_pixels), 0) AS mean"
+                f" FROM landslide_units WHERE {clause}", tuple(params))
+    picked = [c for c in categories.split(",") if c]
+    point_clause = (f"region = ? AND unit_id IN (SELECT unit_id FROM landslide_units"
+                    f" WHERE {clause})")
+    point_params = [region, *params]
+    if picked:
+        point_clause += f" AND category IN ({placeholders(picked)})"
+        point_params += picked
+    points = one(f"SELECT COUNT(*) AS n, AVG(susceptibility) AS at_points FROM landslides"
+                 f" WHERE {point_clause}", tuple(point_params))
+    top = one(f"SELECT name, district, susceptibility_mean FROM landslide_units WHERE {clause}"
+              " ORDER BY susceptibility_mean DESC LIMIT 1", tuple(params))
+    return cached({"upazilas": units["n"] or 0, "population": int(units["people"] or 0),
+                   "mean_susceptibility": units["mean"], "landslides": points["n"] or 0,
+                   "susceptibility_at_landslides": points["at_points"], "highest": top})
+
+
+@app.get("/api/landslide/{region}/upazilas.csv")
+def landslide_csv(region: str):
+    """Every upazila's landslide figures, highest mean susceptibility first."""
+    import csv
+    import io
+
+    landslide_region(region)
+    found = rows("SELECT name, district, susceptibility_mean, susceptibility_max,"
+                 " population, n_landslides FROM landslide_units WHERE region = ?"
+                 " ORDER BY susceptibility_mean DESC", (region,))
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=list(found[0].keys()) if found else [])
+    writer.writeheader()
+    writer.writerows(found)
+    return Response(buffer.getvalue(), media_type="text/csv", headers={
+        "Content-Disposition": f'attachment; filename="{region}_landslide_upazilas.csv"'})
 
 
 @app.get("/tiles/{region}/{layer}.pmtiles")

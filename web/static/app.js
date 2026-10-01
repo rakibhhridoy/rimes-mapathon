@@ -42,13 +42,27 @@ const OVERLAYS = {
 
 const state = {
   regions: [],
+  hazard: "flood",
   view: ALL,
   summary: null,
   basemap: "topo",
   panel: null,
-  layers: { assets: true, unions: true, hotspots: true, landslide: true },
+  layers: {
+    assets: true, unions: true, hotspots: true,
+    landslide: true, ls_units: false, ls_lines: true, ls_points: true,
+  },
   filters: { regions: new Set(), districts: new Set(), types: new Set(), classes: new Set(), min: 0, max: 1 },
+  // The landslide view filters upazilas and mapped landslides, not assets.
+  ls: {
+    summary: null, stats: null,
+    filters: { districts: new Set(), units: new Set(), categories: new Set(), min: 0, max: 1 },
+  },
 };
+
+// The surface is drawn with matplotlib's OrRd; the upazilas use the same
+// ramp over the same range, so one legend serves both.
+const OR_RD = ["#fff7ec", "#fee8c8", "#fdd49e", "#fdbb84", "#fc8d59", "#ef6548", "#d7301f", "#b30000", "#7f0000"];
+const LANDSLIDE_POINT = "#3b0764";
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (n === null || n === undefined ? "—" : Number(n).toLocaleString());
@@ -169,7 +183,8 @@ function setBasemap(name) {
 }
 
 /* ── Regions in view ──────────────────────────────────────────────────── */
-const viewRegions = () => (state.view === ALL ? state.regions.map((r) => r.id) : [state.view]);
+const viewRegions = () => (state.view === ALL
+  ? state.regions.filter((r) => r.has_assets).map((r) => r.id) : [state.view]);
 const regionInfo = (id) => (state.summary?.regions || []).find((r) => r.id === id) || {};
 const assetRegions = () => viewRegions().filter((id) => regionInfo(id).has_assets);
 const regionShown = (id) => state.filters.regions.size === 0 || state.filters.regions.has(id);
@@ -177,7 +192,7 @@ const assetLayerIds = () => assetRegions().map((r) => `assets-${r}`).filter((id)
 
 /* ── Region layers ────────────────────────────────────────────────────── */
 function removeRegionLayers() {
-  const prefixes = ["assets-", "unions-", "hotspots-", "overlay-"];
+  const prefixes = ["assets-", "unions-", "hotspots-", "overlay-", "ls-"];
   (map.getStyle().layers || []).forEach((layer) => {
     if (prefixes.some((p) => layer.id.startsWith(p))) map.removeLayer(layer.id);
   });
@@ -249,7 +264,8 @@ async function ensureOverlay(name, region) {
     url: url(`overlays/${region}/${name}.png`),
     coordinates: [[west, north], [east, north], [east, south], [west, south]],
   });
-  const below = (map.getStyle().layers || []).find((l) => l.id.startsWith("unions-fill-"))?.id || "basemap-roads";
+  const below = (map.getStyle().layers || []).find((l) =>
+    l.id.startsWith("unions-fill-") || l.id.startsWith("ls-units"))?.id || "basemap-roads";
   map.addLayer({
     id, type: "raster", source: id,
     paint: { "raster-opacity": name === "landslide" ? 0.68 : 0.55 },
@@ -259,6 +275,18 @@ async function ensureOverlay(name, region) {
 
 async function applyLayers() {
   const show = (on) => (on ? "visible" : "none");
+  if (state.hazard === "landslide") {
+    [["ls-units-fill", "ls_units"], ["ls-units-line", "ls_lines"], ["ls-points", "ls_points"]]
+      .forEach(([id, key]) => map.getLayer(id) && map.setLayoutProperty(id, "visibility", show(state.layers[key])));
+    const region = state.view;
+    for (const name of state.ls.summary?.region?.overlays || []) {
+      const id = `overlay-${name}-${region}`;
+      const wanted = Boolean(state.layers[name]);
+      if (wanted && !map.getLayer(id)) await ensureOverlay(name, region);
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", show(wanted));
+    }
+    return;
+  }
   for (const region of viewRegions()) {
     const shown = regionShown(region);
     for (const [key, ids] of Object.entries({
@@ -291,12 +319,19 @@ function filterExpression() {
   return conditions;
 }
 
+const activeFilters = () => (state.hazard === "landslide" ? state.ls.filters : state.filters);
+
 const filtersActive = () => {
+  if (state.hazard === "landslide") {
+    const f = state.ls.filters;
+    return f.districts.size + f.units.size + f.categories.size > 0 || f.min > 0 || f.max < 1;
+  }
   const f = state.filters;
   return f.regions.size + f.districts.size + f.types.size + f.classes.size > 0 || f.min > 0 || f.max < 1;
 };
 
 function applyFilters() {
+  if (state.hazard === "landslide") { applyLandslideFilters(); return; }
   const expression = filterExpression();
   assetLayerIds().forEach((id) => map.setFilter(id, expression));
   $("resetFilters").hidden = !filtersActive();
@@ -424,6 +459,7 @@ function buildFilters() {
     onChange: () => { controls.district.setOptions(districtOptions()); applyFilters(); },
   });
   $("fRegion").hidden = state.view !== ALL;
+  $("fClass").hidden = false;              // the landslide view may have hidden it
 
   controls.district = multiSelect($("fDistrict"), {
     label: "District", selected: f.districts, searchable: true,
@@ -445,7 +481,7 @@ function buildFilters() {
 }
 
 function syncScoreSlider() {
-  const f = state.filters;
+  const f = activeFilters();
   $("scoreMin").value = f.min;
   $("scoreMax").value = f.max;
   $("scoreFill").style.left = `${f.min * 100}%`;
@@ -455,7 +491,7 @@ function syncScoreSlider() {
 
 const scoreChanged = debounce(applyFilters, 120);
 ["scoreMin", "scoreMax"].forEach((id) => $(id).addEventListener("input", (event) => {
-  const f = state.filters;
+  const f = activeFilters();
   let min = Number($("scoreMin").value);
   let max = Number($("scoreMax").value);
   // the handles may not cross: the one being dragged stops at the other
@@ -469,6 +505,15 @@ const scoreChanged = debounce(applyFilters, 120);
 }));
 
 function resetFilters() {
+  if (state.hazard === "landslide") {
+    const f = state.ls.filters;
+    [f.districts, f.units, f.categories].forEach((set) => set.clear());
+    f.min = 0;
+    f.max = 1;
+    buildLandslideFilters();
+    applyFilters();
+    return;
+  }
   const f = state.filters;
   [f.regions, f.districts, f.types, f.classes].forEach((set) => set.clear());
   f.min = 0;
@@ -479,6 +524,7 @@ function resetFilters() {
 
 /* ── Counters ─────────────────────────────────────────────────────────── */
 const refreshCounters = debounce(async () => {
+  if (state.hazard === "landslide") { await refreshLandslideCounters(); return; }
   const summary = state.summary;
   if (!summary) return;
   const cht = (summary.metrics_by_region?.cht || {}).landslide_model;
@@ -529,6 +575,18 @@ function renderCounters(rows, filtered) {
 
 /* ── Panel: layers and provenance ─────────────────────────────────────── */
 function renderLayerToggles() {
+  if (state.hazard === "landslide") {
+    const overlays = new Set(state.ls.summary?.region?.overlays || []);
+    const entries = [
+      ...(overlays.has("landslide") ? [["landslide", "Susceptibility surface"]] : []),
+      ["ls_units", "Upazilas by susceptibility"],
+      ["ls_lines", "Upazila boundaries"],
+      ["ls_points", "Mapped landslides"],
+      ...["hand", "slope", "dem"].filter((n) => overlays.has(n)).map((n) => [n, OVERLAYS[n]]),
+    ];
+    drawToggles(entries);
+    return;
+  }
   const available = new Set();
   viewRegions().forEach((id) => (regionInfo(id).overlays || []).forEach((name) => available.add(name)));
   const hasAssets = Boolean(state.summary?.region?.has_assets);
@@ -536,6 +594,10 @@ function renderLayerToggles() {
     ...(hasAssets ? [["assets", "Asset markers"], ["unions", "Union boundaries"], ["hotspots", "Hotspots (Gi*, 95%)"]] : []),
     ...Object.keys(OVERLAYS).filter((name) => available.has(name)).map((name) => [name, OVERLAYS[name]]),
   ];
+  drawToggles(entries);
+}
+
+function drawToggles(entries) {
   $("layers").innerHTML = entries.map(([key, label]) => `
     <label><span>${esc(label)}</span>
       <span class="switch"><input type="checkbox" data-layer="${key}" ${state.layers[key] ? "checked" : ""}><span></span></span>
@@ -558,6 +620,10 @@ const statRows = (rows) => rows.map(([label, value, note]) => `
   ${note ? `<div class="note">${note}</div>` : ""}`).join("");
 
 function renderProvenance() {
+  if (state.hazard === "landslide") {
+    $("provenance").innerHTML = landslideModelRows(state.ls.summary?.model || {});
+    return;
+  }
   const summary = state.summary;
   const box = $("provenance");
   const byRegion = summary.metrics_by_region || {};
@@ -665,8 +731,11 @@ function closePanel() {
 }
 
 async function panelBody(name) {
-  if (name === "rankings") return rankingsPanel();
   if (name === "preparedness") return preparednessPanel();
+  if (state.hazard === "landslide") {
+    return name === "rankings" ? landslideRankings() : landslidePanel(state.ls.summary?.model) + DATA_SOURCES;
+  }
+  if (name === "rankings") return rankingsPanel();
   return state.view === ALL ? aboutAllPanel() : aboutPanel();
 }
 
@@ -867,8 +936,11 @@ async function selectView(id) {
   state.filters.districts.clear();
 
   $("regionLine").textContent = id === ALL
-    ? `${summary.regions.length} regions · flood and landslide`
+    ? `${summary.regions.length} flood regions`
     : `${summary.region.name} — ${summary.region.hazard}`;
+  renderLegend();
+  $("rangeName").textContent = "Score";
+  $("search").placeholder = "Asset name, type or district…";
 
   removeRegionLayers();
   assetRegions().forEach(addRegionLayers);
@@ -885,12 +957,280 @@ async function selectView(id) {
   hideLoading();
 }
 
+/* ── Legend ───────────────────────────────────────────────────────── */
+function rampExpression(property, vmin, vmax) {
+  const stops = OR_RD.flatMap((colour, i) => [vmin + (vmax - vmin) * (i / (OR_RD.length - 1)), colour]);
+  return ["interpolate", ["linear"], ["coalesce", ["get", property], vmin], ...stops];
+}
+
+function renderLegend() {
+  if (state.hazard === "landslide") {
+    const display = state.ls.summary?.display || {};
+    const vmin = display.vmin ?? 0;
+    const vmax = display.vmax ?? 1;
+    const dates = (state.ls.summary?.model?.inventory || {}).event_dates || [];
+    $("legendTitle").textContent = "Landslide susceptibility";
+    $("legend").innerHTML = `
+      <div class="ramp" style="background:linear-gradient(to right, ${OR_RD.join(", ")})"></div>
+      <div class="ramp-labels"><span>${fixed(vmin, 2)} lower</span><span>higher ${fixed(vmax, 2)}</span></div>
+      <div style="margin-top:8px"><span class="point"></span>Mapped landslide${dates.length ? `<span>${esc(dates.join(", "))}</span>` : ""}</div>
+      <div class="note">The surface and the upazila colours share this scale. Upazilas are coloured by their mean.</div>`;
+    return;
+  }
+  $("legendTitle").textContent = "Flood susceptibility";
+  $("legend").innerHTML = CLASSES.map((c) =>
+    `<div><i style="background:${c.colour}"></i>${c.label}<span>${c.value === "low" ? "&lt; 0.30"
+      : c.value === "very_high" ? "≥ 0.70" : `${c.range[0].toFixed(2)} – ${c.range[1].toFixed(2)}`}</span></div>`).join("");
+}
+
+/* ── Landslide view ───────────────────────────────────────────────────── */
+function addLandslideLayers(region, display) {
+  const base = `pmtiles://${url(`tiles/${region}`)}`;
+  const vmin = display.vmin ?? 0;
+  const vmax = display.vmax ?? 1;
+  map.addSource("ls-units", { type: "vector", url: `${base}/ls_upazilas.pmtiles` });
+  map.addLayer({
+    id: "ls-units-fill", type: "fill", source: "ls-units", "source-layer": "ls_upazilas",
+    paint: { "fill-color": rampExpression("susceptibility_mean", vmin, vmax), "fill-opacity": 0.6 },
+  }, "basemap-roads");
+  map.addLayer({
+    id: "ls-units-line", type: "line", source: "ls-units", "source-layer": "ls_upazilas",
+    paint: {
+      "line-color": "#ffffff",
+      "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.6, 12, 1.6],
+      "line-opacity": 0.75,
+    },
+  }, "basemap-roads");
+  map.addSource("ls-points", { type: "vector", url: `${base}/ls_points.pmtiles` });
+  map.addLayer({
+    id: "ls-points", type: "circle", source: "ls-points", "source-layer": "ls_points",
+    paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 2, 10, 3.5, 14, 6],
+      "circle-color": LANDSLIDE_POINT,
+      "circle-stroke-color": "#ffffff",
+      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 8, 0.5, 13, 1.2],
+      "circle-opacity": 0.9,
+    },
+  }, "basemap-roads");
+}
+
+async function selectLandslide(region) {
+  showLoading(`Loading ${regionName(region)}…`);
+  state.view = region;
+  $("detail").hidden = true;
+  document.querySelectorAll("#regionChips button").forEach((button) =>
+    button.setAttribute("aria-pressed", String(button.dataset.region === region)));
+
+  const summary = await getJSON(url(`api/landslide/${region}/summary`));
+  state.ls.summary = summary;
+  state.summary = null;
+  const f = state.ls.filters;
+  [f.districts, f.units, f.categories].forEach((set) => set.clear());
+  f.min = 0;
+  f.max = 1;
+
+  $("regionLine").textContent = `${summary.region.name} — ${summary.region.hazard}`;
+  $("rangeName").textContent = "Mean susceptibility";
+  $("search").placeholder = "Upazila or district…";
+  renderLegend();
+
+  removeRegionLayers();
+  addLandslideLayers(region, summary.display || {});
+  if (summary.extent) {
+    const [w, s, e, n] = summary.extent;
+    map.fitBounds([[w, s], [e, n]], { padding: framePadding(), duration: 0 });
+  }
+  buildLandslideFilters();
+  renderLayerToggles();
+  renderProvenance();
+  applyFilters();
+  await applyLayers();
+  if (state.panel) $("sheetBody").innerHTML = await panelBody(state.panel);
+  hideLoading();
+}
+
+function upazilaOptions() {
+  const f = state.ls.filters;
+  return (state.ls.summary?.units || [])
+    .filter((u) => f.districts.size === 0 || f.districts.has(u.district))
+    .map((u) => ({ value: u.unit_id, label: u.name, count: u.n_landslides, group: u.district }));
+}
+
+function buildLandslideFilters() {
+  const summary = state.ls.summary;
+  const f = state.ls.filters;
+  $("filterSection").hidden = false;
+  $("fRegion").hidden = true;
+  const districts = {};
+  (summary.units || []).forEach((u) => (districts[u.district] = (districts[u.district] || 0) + 1));
+  controls.district = multiSelect($("fDistrict"), {
+    label: "District", selected: f.districts,
+    options: Object.keys(districts).sort().map((d) => ({ value: d, label: d, count: districts[d] })),
+    onChange: () => { controls.type.setOptions(upazilaOptions()); applyFilters(); },
+  });
+  controls.type = multiSelect($("fType"), {
+    label: "Upazila", selected: f.units, searchable: true,
+    options: upazilaOptions(), onChange: applyFilters,
+  });
+  // One survey of one storm has one category; the filter appears when an
+  // inventory holds several.
+  const categories = Object.entries(summary.categories || {});
+  $("fClass").hidden = categories.length < 2;
+  controls.class = multiSelect($("fClass"), {
+    label: "Category", selected: f.categories,
+    options: categories.map(([c, n]) => ({ value: c, label: c, count: n })),
+    onChange: applyFilters,
+  });
+  syncScoreSlider();
+}
+
+function landslideExpressions() {
+  const f = state.ls.filters;
+  const units = ["all",
+    [">=", ["coalesce", ["get", "susceptibility_mean"], 0], f.min],
+    ["<=", ["coalesce", ["get", "susceptibility_mean"], 0], f.max]];
+  const points = ["all",
+    [">=", ["coalesce", ["get", "unit_susceptibility"], 0], f.min],
+    ["<=", ["coalesce", ["get", "unit_susceptibility"], 0], f.max]];
+  if (f.districts.size) {
+    const test = ["in", ["get", "district"], ["literal", [...f.districts]]];
+    units.push(test);
+    points.push(test);
+  }
+  if (f.units.size) {
+    const test = ["in", ["get", "unit_id"], ["literal", [...f.units]]];
+    units.push(test);
+    points.push(test);
+  }
+  if (f.categories.size) points.push(["in", ["get", "category"], ["literal", [...f.categories]]]);
+  return { units, points };
+}
+
+function applyLandslideFilters() {
+  const { units, points } = landslideExpressions();
+  ["ls-units-fill", "ls-units-line"].forEach((id) => map.getLayer(id) && map.setFilter(id, units));
+  if (map.getLayer("ls-points")) map.setFilter("ls-points", points);
+  $("resetFilters").hidden = !filtersActive();
+  applyLayers();
+  refreshCounters();
+}
+
+async function refreshLandslideCounters() {
+  const f = state.ls.filters;
+  const params = new URLSearchParams({
+    districts: [...f.districts].join(","), upazilas: [...f.units].join(","),
+    categories: [...f.categories].join(","), min_score: f.min, max_score: f.max,
+  });
+  const stats = await getJSON(url(`api/landslide/${state.view}/stats?${params}`));
+  state.ls.stats = stats;
+  const top = stats.highest;
+  renderCounters([
+    [fmt(stats.upazilas), "Upazilas shown"],
+    [fixed(stats.mean_susceptibility), "Mean susceptibility"],
+    [fmt(stats.population), "People living there"],
+    [fmt(stats.landslides), "Landslides mapped"],
+    [fixed(stats.susceptibility_at_landslides), "Susceptibility where they struck"],
+    [top ? esc(top.name) : "—", top ? `Highest upazila, ${fixed(top.susceptibility_mean)}` : "Highest upazila"],
+  ], filtersActive());
+}
+
+function landslideModelRows(model) {
+  const inventory = model.inventory || {};
+  const validation = model.validation || {};
+  return statRows([
+    ["Landslides mapped", fmt(inventory.n_landslides)],
+    ["Background points", fmt(inventory.n_background)],
+    ["Validation AUC", fixed(validation.val_auc_roc), "held-out 10 km blocks"],
+    ["Average precision", fixed(validation.val_average_precision)],
+    ["Event dates", esc((inventory.event_dates || []).join(", ") || "—"),
+      inventory.single_event ? "one rainfall episode, so this maps that storm" : ""],
+  ]);
+}
+
+function landslideRankings() {
+  const units = [...(state.ls.summary?.units || [])]
+    .sort((a, b) => (b.susceptibility_mean || 0) - (a.susceptibility_mean || 0));
+  const table = units.map((u, i) => `
+    <tr><td class="num">${i + 1}</td><td>${esc(u.name)}</td><td>${esc(u.district)}</td>
+    <td class="num">${fixed(u.susceptibility_mean)}</td><td class="num">${fixed(u.susceptibility_max)}</td>
+    <td class="num">${fmt(u.population)}</td><td class="num">${fmt(u.n_landslides)}</td></tr>`).join("");
+  return `
+    <h3>Upazilas by mean landslide susceptibility</h3>
+    <table><thead><tr><th class="num">#</th><th>Upazila</th><th>District</th>
+      <th class="num">Mean</th><th class="num">Max</th><th class="num">People</th>
+      <th class="num">Landslides mapped</th></tr></thead><tbody>${table}</tbody></table>
+    <p style="color:var(--dim);font-size:11.5px">The mapped landslides all come from one storm, on
+      6 August 2023, so an upazila with none may simply not have been struck by it.</p>
+    <h3>Download</h3>
+    <p><a href="${url(`api/landslide/${state.view}/upazilas.csv`)}">Download upazila figures (CSV)</a></p>`;
+}
+
+function searchUpazilas(query) {
+  const q = query.toLowerCase();
+  const found = (state.ls.summary?.units || []).filter((u) =>
+    u.name.toLowerCase().includes(q) || (u.district || "").toLowerCase().includes(q)).slice(0, 12);
+  const list = $("searchResults");
+  list.innerHTML = found.map((u, i) => `
+    <li data-index="${i}">${esc(u.name)}
+      <span class="type">${esc(u.district)} · mean ${fixed(u.susceptibility_mean)} · ${fmt(u.n_landslides)} landslides</span></li>`).join("")
+    || "<li>No upazila matches</li>";
+  list.hidden = false;
+  list.querySelectorAll("li[data-index]").forEach((item) =>
+    item.addEventListener("click", () => {
+      const unit = found[Number(item.dataset.index)];
+      map.flyTo({ center: [unit.lon, unit.lat], zoom: 10 });
+      showUpazila(unit);
+      list.hidden = true;
+      if (isPhone()) setSide("left", false);
+    }));
+}
+
+function showCard(html) {
+  $("detail").innerHTML = `<button class="close" id="detailClose" aria-label="Close">×</button>${html}`;
+  $("detail").hidden = false;
+  $("detailClose").addEventListener("click", () => ($("detail").hidden = true));
+}
+
+function showUpazila(u) {
+  const display = state.ls.summary?.display || {};
+  const share = (v) => Math.max(0, Math.min(1, ((v ?? 0) - (display.vmin ?? 0)) / ((display.vmax ?? 1) - (display.vmin ?? 0))));
+  showCard(`
+    <span class="tag">Upazila</span><span class="tag">${esc(u.district)}</span>
+    <h3>${esc(u.name)}</h3>
+    <div class="meta">${fmt(u.population)} people · ${fmt(u.n_landslides)} landslides mapped on 6 August 2023</div>
+    ${[["Mean susceptibility", u.susceptibility_mean], ["Highest", u.susceptibility_max]].map(([label, v]) => `
+      <div class="factor"><span>${label}</span>
+        <span class="bar"><span style="width:${Math.round(share(v) * 100)}%;background:#d7301f"></span></span>
+        <span class="num">${fixed(v)}</span></div>`).join("")}`);
+}
+
+function landslideClick(event) {
+  const layers = ["ls-points", "ls-units-fill", "ls-units-line"].filter((id) => map.getLayer(id)
+    && map.getLayoutProperty(id, "visibility") !== "none");
+  const [feature] = map.queryRenderedFeatures(event.point, { layers });
+  if (!feature) return;
+  const p = feature.properties;
+  if (feature.layer.id === "ls-points") {
+    showCard(`
+      <span class="tag">Mapped landslide</span><span class="tag">${esc(p.category || "")}</span>
+      <h3>${esc(p.upazila || "Hill Tracts")}</h3>
+      <div class="meta">${esc(p.district || "")} · ${esc(p.event_date || "")}</div>
+      <div class="probability" style="color:#b30000">${fixed(p.susceptibility)}</div>
+      <div class="probability-note">modelled susceptibility of the 30 m cell where this landslide struck,
+        against ${fixed(p.unit_susceptibility)} for the upazila on average</div>`);
+    return;
+  }
+  const unit = (state.ls.summary?.units || []).find((u) => u.unit_id === p.unit_id);
+  if (unit) showUpazila(unit);
+}
+
 /* ── Search ───────────────────────────────────────────────────────────── */
 let searchTimer = null;
 $("search").addEventListener("input", (event) => {
   clearTimeout(searchTimer);
   const query = event.target.value.trim();
   if (query.length < 2) { $("searchResults").hidden = true; return; }
+  if (state.hazard === "landslide") { searchUpazilas(query); return; }
   searchTimer = setTimeout(async () => {
     const found = await getJSON(
       url(`api/region/${state.view}/assets?q=${encodeURIComponent(query)}&limit=12`));
@@ -943,6 +1283,7 @@ document.addEventListener("keydown", (event) => {
 // One handler for every region's asset layer: the layer says which region
 // the clicked asset belongs to, and its rank finds the full row.
 map.on("click", async (event) => {
+  if (state.hazard === "landslide") { landslideClick(event); return; }
   const layers = assetLayerIds();
   if (!layers.length) return;
   const [feature] = map.queryRenderedFeatures(event.point, { layers });
@@ -953,23 +1294,58 @@ map.on("click", async (event) => {
   showDetail(await getJSON(url(`api/region/${region}/rank/${rank}`)));
 });
 map.on("mousemove", (event) => {
-  const layers = assetLayerIds();
+  const layers = state.hazard === "landslide"
+    ? ["ls-points", "ls-units-fill", "ls-units-line"].filter((id) => map.getLayer(id)) : assetLayerIds();
   const hit = layers.length && map.queryRenderedFeatures(event.point, { layers }).length;
   map.getCanvas().style.cursor = hit ? "pointer" : "";
 });
+
+/* ── Hazard switch ────────────────────────────────────────────────────
+ * Flood and landslide are separate views: each has its own regions,
+ * filters, results, legend and model figures, so the two never mix. */
+const floodRegions = () => state.regions.filter((r) => r.has_assets);
+const landslideRegions = () => state.regions.filter((r) => r.has_landslide);
+
+function renderChips() {
+  const chips = state.hazard === "landslide"
+    ? landslideRegions()
+    : [{ id: ALL, name: "All" }, ...floodRegions()];
+  $("regionChips").innerHTML = chips.map((region) =>
+    `<button data-region="${esc(region.id)}" aria-pressed="${region.id === state.view}">${esc(region.id === ALL ? "All" : REGION_SHORT[region.id] || region.name)}</button>`).join("");
+  document.querySelectorAll("#regionChips button").forEach((button) =>
+    button.addEventListener("click", () => (state.hazard === "landslide"
+      ? selectLandslide(button.dataset.region) : selectView(button.dataset.region))));
+}
+
+async function setHazard(hazard) {
+  state.hazard = hazard;
+  document.querySelectorAll("#hazards button").forEach((button) =>
+    button.setAttribute("aria-checked", String(button.dataset.hazard === hazard)));
+  closePanel();
+  $("search").value = "";
+  $("searchResults").hidden = true;
+  if (hazard === "landslide") {
+    state.view = landslideRegions()[0]?.id;
+    renderChips();
+    if (state.view) await selectLandslide(state.view);
+  } else {
+    state.view = ALL;
+    renderChips();
+    await selectView(ALL);
+  }
+}
 
 (async function start() {
   if (isPhone()) { setSide("left", false); setSide("right", false); }
   showLoading("Loading…");
   const { regions } = await getJSON(url("api/regions"));
   state.regions = regions;
-  const chips = [{ id: ALL, name: "All" }, ...regions];
-  $("regionChips").innerHTML = chips.map((region) =>
-    `<button data-region="${esc(region.id)}" aria-pressed="false">${esc(region.id === ALL ? "All" : REGION_SHORT[region.id] || region.name)}</button>`).join("");
-  document.querySelectorAll("#regionChips button").forEach((button) =>
-    button.addEventListener("click", () => selectView(button.dataset.region)));
+  document.querySelectorAll("#hazards button").forEach((button) =>
+    button.addEventListener("click", () => setHazard(button.dataset.hazard)));
+  // with no landslide region the switch would lead nowhere
+  if (!landslideRegions().length) $("hazards").closest("section").hidden = true;
 
   await mapReady;
   setBasemap(state.basemap);
-  await selectView(ALL);
+  await setHazard("flood");
 })();

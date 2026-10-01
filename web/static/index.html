@@ -36,6 +36,14 @@
 
   <div class="panel-body">
     <section>
+      <h2>Hazard</h2>
+      <div id="hazards" class="segmented hazard-switch" role="radiogroup" aria-label="Hazard">
+        <button data-hazard="flood" role="radio">Flood</button>
+        <button data-hazard="landslide" role="radio">Landslide</button>
+      </div>
+    </section>
+
+    <section>
       <h2>Region</h2>
       <div class="pills" id="regionChips" role="tablist" aria-label="Region"></div>
     </section>
@@ -54,7 +62,7 @@
       <div id="fType" class="ms"></div>
       <div id="fClass" class="ms"></div>
       <div class="range-field">
-        <div class="range-label"><span>Score</span><output id="scoreOut">0.00 – 1.00</output></div>
+        <div class="range-label"><span id="rangeName">Score</span><output id="scoreOut">0.00 – 1.00</output></div>
         <div class="range2" id="scoreRange">
           <div class="range2-fill" id="scoreFill"></div>
           <input type="range" id="scoreMin" min="0" max="1" step="0.01" value="0" aria-label="Minimum score">
@@ -104,13 +112,8 @@
     </section>
 
     <section>
-      <h2>Susceptibility</h2>
-      <div class="legend">
-        <div><i style="background:#15803d"></i>Low<span>&lt; 0.30</span></div>
-        <div><i style="background:#a16207"></i>Moderate<span>0.30 – 0.50</span></div>
-        <div><i style="background:#b45309"></i>High<span>0.50 – 0.70</span></div>
-        <div><i style="background:#c62828"></i>Very high<span>≥ 0.70</span></div>
-      </div>
+      <h2 id="legendTitle">Susceptibility</h2>
+      <div class="legend" id="legend"></div>
     </section>
 
     <section>
