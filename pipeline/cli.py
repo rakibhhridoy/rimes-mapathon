@@ -624,7 +624,14 @@ def benchmark(ctx, seeds):
                                   _infra_path(cfg), seeds=chosen)
     run_feature_importance(cfg, _dir(cfg, "processed"), _dir(cfg, "output"),
                            _infra_path(cfg), seeds=chosen)
-    if (cfg.get("data", {}).get("labels", {}) or {}).get("source") == "observed":
+    years = sorted({int(e["start"][:4]) for e in (cfg.get("sentinel1", {}) or {}).get("events", [])})
+    spans_cutoff = bool(years) and years[0] <= 2022 < years[-1]
+    if (cfg.get("data", {}).get("labels", {}) or {}).get("source") == "observed" and not spans_cutoff:
+        # Training on floods up to 2022 and testing on later ones needs events
+        # on both sides; a region mapped only after 2022 is validated in space.
+        logger.warning("Flood events do not span 2022 (%s), so the temporal test and the "
+                       "past-flooding test are skipped for this region.", years)
+    if (cfg.get("data", {}).get("labels", {}) or {}).get("source") == "observed" and spans_cutoff:
         temporal = run_temporal_holdout(cfg, _dir(cfg, "processed"), _dir(cfg, "raw"),
                                         _dir(cfg, "output"), _infra_path(cfg),
                                         seeds=chosen)

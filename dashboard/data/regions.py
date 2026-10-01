@@ -20,6 +20,8 @@ REGION_CONFIGS = {
     "sylhet": ("Sylhet", "Flash flood", "configs/sylhet.yaml"),
     "sw_coastal": ("South-west coast", "Coastal & tidal flooding",
                    "configs/sw_coastal.yaml"),
+    "eastern_plains": ("Eastern plains", "Flash flood, surge & waterlogging",
+                       "configs/eastern_plains.yaml"),
     "cht": ("Chittagong Hill Tracts", "Rainfall-triggered landslide",
             "configs/cht.yaml"),
 }

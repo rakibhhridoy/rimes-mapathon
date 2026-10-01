@@ -21,8 +21,13 @@ Configured under `aoi`:
 
     country_boundary: data/shared/geoboundaries/BGD_ADM2.geojson
     neighbours: data/shared/naturalearth/ne_10m_admin_0_countries.geojson
+    districts: [Comilla, Feni, Noakhali, Lakshmipur]      # optional
 
-Without both keys nothing is dropped, so a region elsewhere keeps working.
+Without both boundary keys nothing is dropped, so a region elsewhere keeps
+working. A region may also name its districts, as the regions added for
+national coverage do: anything more than about 1 km outside them is then
+dropped too, so neighbouring regions do not hold the same assets twice. The
+names are those of the country boundary file's `shapeName` field.
 """
 
 import logging
@@ -36,7 +41,8 @@ logger = logging.getLogger("sgmdi.country")
 
 
 @lru_cache(maxsize=8)
-def _foreign(country_path: str, neighbours_path: str, iso3: str, bbox: tuple):
+def _foreign(country_path: str, neighbours_path: str, iso3: str, bbox: tuple,
+             districts: tuple = ()):
     from shapely.geometry import box
 
     area = box(*bbox).buffer(0.5)
@@ -56,6 +62,12 @@ def _foreign(country_path: str, neighbours_path: str, iso3: str, bbox: tuple):
     foreign = land.difference(margin)
     if not others.empty:
         foreign = foreign.union(others.geometry.union_all().intersection(area).difference(home))
+    if districts:
+        named = country[country["shapeName"].isin(districts)]
+        missing = set(districts) - set(named["shapeName"])
+        if missing:
+            raise ValueError(f"districts not in {country_path}: {sorted(missing)}")
+        foreign = foreign.union(area.difference(named.geometry.union_all().buffer(0.01)))
     return foreign
 
 
@@ -71,7 +83,8 @@ def foreign_geometry(cfg: dict):
                 f"{path} is configured as a country boundary but is missing; "
                 "without it assets across the border would be kept silently")
     return _foreign(str(country_path), str(neighbours_path),
-                    aoi.get("iso3", "BGD"), tuple(aoi["bbox"]))
+                    aoi.get("iso3", "BGD"), tuple(aoi["bbox"]),
+                    tuple(aoi.get("districts") or ()))
 
 
 def drop_foreign(gdf: gpd.GeoDataFrame, cfg: dict, what: str = "features") -> gpd.GeoDataFrame:

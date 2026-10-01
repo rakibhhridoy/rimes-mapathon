@@ -22,7 +22,8 @@ const CLASSES = [
 ];
 
 const REGION_SHORT = {
-  rangpur_rajshahi: "Rangpur", sylhet: "Sylhet", sw_coastal: "Coast", cht: "Hill Tracts",
+  rangpur_rajshahi: "Rangpur", sylhet: "Sylhet", sw_coastal: "Coast", eastern_plains: "Eastern",
+  cht: "Hill Tracts",
 };
 
 const TYPE_LABELS = {
