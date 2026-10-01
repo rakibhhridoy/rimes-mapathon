@@ -125,8 +125,13 @@ and place labels, and it opens fitted to every mapped asset of the region.
 # Code comes from git; the database and tiles are built locally and copied.
 python scripts/build_web.py
 ssh root@server 'cd /var/www/hazmapper && git pull'
-rsync -a --delete --exclude '._*' web/data/ root@server:/var/www/hazmapper/web/data/
-ssh root@server 'chown -R root:hazmapper /var/www/hazmapper && systemctl restart hazmapper'
+# The SSD stores files readable by their owner only, so the upload sets the
+# owner, group and modes the hazmapper service needs instead of copying them.
+rsync -a --delete --exclude '._*' --no-owner --no-group --chmod=Du=rwx,Dg=rx,Do=,Fu=rw,Fg=r,Fo= \
+  web/data/ root@server:/var/www/hazmapper/web/data/
+ssh root@server 'chown -R root:hazmapper /var/www/hazmapper \
+  && chmod -R u=rwX,g=rX,o= /var/www/hazmapper && restorecon -R /var/www/hazmapper \
+  && systemctl restart hazmapper'
 ```
 
 The Streamlit dashboard in `dashboard/` still runs locally
