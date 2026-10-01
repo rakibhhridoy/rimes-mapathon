@@ -53,7 +53,7 @@ the window, before a run.
 |---|---|
 | Central | August 2017 Jamuna flood; July 2019; July–August 2020, long and severe in Faridpur, Manikganj and Munshiganj |
 | West-central | Few river floods; waterlogging after heavy rain in Jessore and the Bhabadah area in 2023–2024. May not yield enough flooded pixels to train on |
-| Eastern plains | August 2024 eastern flash floods (Feni, Comilla, Noakhali, Lakshmipur); Cyclone Remal, May 2024 |
+| Eastern plains | **Verified 2026-10-01** (`eastern_plains_events.md`): August 2024 eastern floods and Cyclone Remal strong; Feni July 2024 small; Cyclone Sitrang 2022 too late a pass to use |
 | Chattogram coast | August 2023 Chattogram and Cox's Bazar floods, the storm behind the landslide inventory; Cyclone Mocha, May 2023; Cyclone Hamoon, October 2023 |
 
 ## Risks
