@@ -150,9 +150,23 @@ def fetch_osm_infrastructure(cfg: dict, output_dir: Path) -> gpd.GeoDataFrame:
 
     endpoints = cfg["data"]["osm"].get("overpass_endpoints") or OVERPASS_ENDPOINTS
 
+    # Each query's answer is kept as it arrives, so a rerun after the public
+    # servers refuse (they rate-limit) fetches only what is still missing.
+    cache_dir = output_dir / "osm_tiles"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
     all_gdfs, failures = [], []
     for i, tile in enumerate(tiles, start=1):
         for batch_name, priority, tags in TAG_BATCHES:
+            key = "_".join(f"{v:.4f}" for v in tile) + f"_{batch_name}"
+            cached = cache_dir / f"{key}.pkl"
+            if cached.exists():
+                gdf = pd.read_pickle(cached)
+                if len(gdf):
+                    all_gdfs.append(gdf)
+                logger.info(f"  tile {i}/{len(tiles)} {batch_name}: "
+                            f"{len(gdf)} features (cached)")
+                continue
             # osmnx 2.x takes (left, bottom, right, top). Each attempt cycles
             # through the endpoints; pauses grow between rounds.
             attempts = [(pause, endpoint)
@@ -175,11 +189,13 @@ def fetch_osm_infrastructure(cfg: dict, output_dir: Path) -> gpd.GeoDataFrame:
                             lambda row: _detect_source_tag(row, tags), axis=1
                         )
                         all_gdfs.append(gdf)
+                    pd.to_pickle(gdf, cached)
                     logger.info(f"  tile {i}/{len(tiles)} {batch_name}: "
                                 f"{len(gdf)} features")
                     break
                 except ox._errors.InsufficientResponseError:
                     # Nothing of this kind in this tile — not an error.
+                    pd.to_pickle(gpd.GeoDataFrame(), cached)
                     logger.info(f"  tile {i}/{len(tiles)} {batch_name}: none")
                     break
                 except Exception as exc:
@@ -190,13 +206,18 @@ def fetch_osm_infrastructure(cfg: dict, output_dir: Path) -> gpd.GeoDataFrame:
                         failures.append((tile, batch_name, str(exc)))
             time.sleep(2)  # be polite between queries
 
+    if failures:
+        # A region with a tile missing would read as a region with no assets
+        # there, so stop; the queries that succeeded are cached for the rerun.
+        raise RuntimeError(
+            f"{len(failures)} of {len(tiles) * len(TAG_BATCHES)} OpenStreetMap queries "
+            f"failed after retries ({', '.join(sorted({b for _, b, _ in failures}))}). "
+            "The others are cached in " f"{cache_dir}; rerun `ingest` later to fetch "
+            "only the missing ones.")
     if not all_gdfs:
         raise RuntimeError(
             "No OSM features fetched — check the connection and Overpass status."
         )
-    if failures:
-        logger.warning(f"{len(failures)} tile/tag queries failed after retries; "
-                       "coverage may be incomplete")
 
     infra = merge_tile_results(all_gdfs, bbox)
 
