@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Fermium, element 100: a periodic-table tile, as the logo's 10² hints -->
+  <defs><clipPath id="t"><rect width="64" height="64" rx="10"/></clipPath></defs>
+  <g clip-path="url(#t)">
+    <rect width="64" height="64" fill="#ffffff"/>
+    <rect y="57" width="64" height="7" fill="#9b1c1c"/>
+  </g>
+  <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="9.5" fill="none" stroke="#d6dce6" stroke-width="1.5"/>
+  <text x="8" y="16" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="11" fill="#9b1c1c">100</text>
+  <text x="32" y="45" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="30" fill="#121a2e">Fm</text>
+</svg>
