@@ -194,6 +194,48 @@ def _pbf_path(cfg: dict) -> Path:
     return path
 
 
+def _asset_extract(pbf: Path) -> Path:
+    """The asset features of a national extract, converted once and indexed.
+
+    Reading a whole-country OpenStreetMap file assembles every area in it and
+    needs about a gigabyte of memory, so several regions read at once exhaust
+    an 8 GB machine. The file is converted once into a GeoPackage holding only
+    the features some asset group asks for, with a spatial index, and every
+    region then reads its box from that in seconds.
+    """
+    import os
+    import subprocess
+
+    out = pbf.with_name(pbf.name.replace(".osm.pbf", "_assets.gpkg"))
+    if out.exists():
+        return out
+    clauses = []
+    for _, _, tags in TAG_BATCHES:
+        for key, wanted in tags.items():
+            if wanted is True:
+                clauses.append(f"{key} IS NOT NULL")
+            elif isinstance(wanted, list):
+                clauses.append(f"{key} IN ({', '.join(repr(v) for v in wanted)})")
+            else:
+                clauses.append(f"{key} = {wanted!r}")
+    where = " OR ".join(sorted(set(clauses)))
+    env = dict(os.environ, OSM_CONFIG_FILE=str(Path(__file__).with_name("osmconf.ini")),
+               OSM_MAX_TMPFILE_SIZE="1024")
+    partial = out.with_suffix(".partial.gpkg")
+    partial.unlink(missing_ok=True)
+    logger.info(f"Converting {pbf.name} to an indexed asset extract (once)…")
+    for i, layer in enumerate(("points", "lines", "multilinestrings", "multipolygons")):
+        command = ["ogr2ogr", "-f", "GPKG", str(partial), str(pbf), layer,
+                   "-where", where, "-nln", layer, "-lco", "SPATIAL_INDEX=YES"]
+        if i:
+            command.insert(3, "-update")
+        result = subprocess.run(command, capture_output=True, text=True, env=env)
+        if result.returncode != 0:
+            raise RuntimeError(f"converting {layer}: {result.stderr.strip()[:400]}")
+    partial.rename(out)
+    return out
+
+
 def _features_from_pbf(cfg: dict, bbox) -> list:
     """The asset groups' features from a national OpenStreetMap extract.
 
@@ -201,17 +243,15 @@ def _features_from_pbf(cfg: dict, bbox) -> list:
     like the Overpass results (element and id columns, one column per tag key,
     priority and source tag), so everything downstream is shared.
     """
-    import os
-
     import pyogrio
 
-    path = _pbf_path(cfg)
-    os.environ["OSM_CONFIG_FILE"] = str(Path(__file__).with_name("osmconf.ini"))
-    os.environ.setdefault("OSM_MAX_TMPFILE_SIZE", "1024")
+    path = _asset_extract(_pbf_path(cfg))
     keys = sorted({k for _, _, tags in TAG_BATCHES for k in tags})
     frames = []
     for layer, element in (("points", "node"), ("lines", "way"),
                            ("multilinestrings", "relation"), ("multipolygons", None)):
+        if layer not in {name for name, _ in pyogrio.list_layers(path)}:
+            continue
         gdf = pyogrio.read_dataframe(path, layer=layer, bbox=tuple(bbox))
         if gdf.empty:
             continue
