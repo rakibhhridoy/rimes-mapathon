@@ -14,6 +14,14 @@ authors:
     affiliation: "Department of Soil, Water and Environment, University of Dhaka; Fermium Systems"
     email: rakibhhridoy@fermium.systems
 version: "3.0.0"
+doi: "10.5281/zenodo.23108192"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.23108191"
+    description: "All versions of the software (concept DOI)"
+  - type: doi
+    value: "10.5281/zenodo.23108192"
+    description: "This version, 3.0.0"
 date-released: "2026-10-02"
 license: MIT
 repository-code: "https://github.com/rakibhhridoy/rimes-mapathon"
