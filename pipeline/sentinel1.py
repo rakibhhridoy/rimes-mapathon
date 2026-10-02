@@ -141,7 +141,44 @@ def flood_frequency(ee, cfg: dict, aoi, events: list[dict]):
     return frequency, masks, diagnostics
 
 
-def download_image(ee, image, aoi, scale: int, out_path: Path) -> Path:
+def download_image(ee, image, aoi, scale: int, out_path: Path, depth: int = 0) -> Path:
+    """Download an image, splitting the area into quarters if Earth Engine
+    refuses it as too large or too heavy to compute, and stitching the
+    quarters back together. The largest national regions need this."""
+    try:
+        return _download_once(ee, image, aoi, scale, out_path)
+    except requests.HTTPError as exc:
+        if depth >= 2 or exc.response is None or exc.response.status_code != 400:
+            raise
+        detail = exc.response.text[:200].replace("\n", " ")
+        logger.warning(f"{out_path.name}: Earth Engine refused the request ({detail}); "
+                       "splitting it into quarters")
+    import rasterio
+    from rasterio.merge import merge
+
+    corners = aoi.bounds().coordinates().get(0).getInfo()
+    (west, south), (east, north) = corners[0], corners[2]
+    mid_x, mid_y = (west + east) / 2, (south + north) / 2
+    parts = []
+    for i, (w, s_, e, n) in enumerate([(west, south, mid_x, mid_y), (mid_x, south, east, mid_y),
+                                        (west, mid_y, mid_x, north), (mid_x, mid_y, east, north)]):
+        part = out_path.with_name(f"{out_path.stem}.part{depth}{i}.tif")
+        parts.append(download_image(ee, image, ee.Geometry.Rectangle([w, s_, e, n]), scale,
+                                    part, depth + 1))
+    sources = [rasterio.open(p) for p in parts]
+    mosaic, transform = merge(sources)
+    profile = sources[0].profile | {"height": mosaic.shape[1], "width": mosaic.shape[2],
+                                    "transform": transform}
+    for src in sources:
+        src.close()
+    with rasterio.open(out_path, "w", **profile) as dst:
+        dst.write(mosaic)
+    for p in parts:
+        p.unlink()
+    return out_path
+
+
+def _download_once(ee, image, aoi, scale: int, out_path: Path) -> Path:
     """Download an ee.Image over the AOI to a local GeoTIFF.
 
     Uses getDownloadURL, which caps the request at roughly 50 million pixels,
