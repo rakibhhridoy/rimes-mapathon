@@ -241,11 +241,11 @@ const AREA_ZOOM = {
 const LEVEL_LABEL = { division: "Division", district: "District", upazila: "Upazila", union: "Union" };
 const LINE_WIDTH = { division: 2.2, district: 1.5, upazila: 0.9, union: 0.5 };
 // Flood areas are coloured by the share of their assets in the High or Very
-// high class, on the magma palette from pale yellow (few) to near black
-// (many): mean scores sit below 0.30 almost everywhere, so they would paint
-// every division the same.
-const SHARE_STOPS = [[0, "#fcfdbf"], [0.02, "#fec287"], [0.05, "#fc8961"], [0.10, "#b73779"],
-  [0.20, "#51127c"], [0.40, "#000004"]];
+// high class, from sandy brown (few) through coral and amaranth to night
+// bordeaux (many): mean scores sit below 0.30 almost everywhere, so they
+// would paint every division the same.
+const SHARE_STOPS = [[0, "#ff9b54"], [0.02, "#ff7f51"], [0.05, "#ce4257"], [0.10, "#720026"],
+  [0.25, "#4f000b"]];
 // An area with no mapped assets keeps only its outline.
 const NO_DATA = "rgba(0, 0, 0, 0)";
 const FILL_OPACITY = { flood: 0.62, landslide: 0.62 };
@@ -456,7 +456,7 @@ function showAreaCard(d) {
       ["Bridges", d.n_bridge], ["Flood shelters", d.n_shelter]];
     body = `
       <div class="meta">${people} · ${fmt(d.n_assets)} assets · ${esc(regionName(d.region))}${(d.regions || "").includes(",") ? " and others" : ""}</div>
-      <div class="probability" style="color:#51127c">${pct(d.share_high)}</div>
+      <div class="probability" style="color:#720026">${pct(d.share_high)}</div>
       <div class="probability-note">of its assets score High or Very high (0.50 and above), ${fmt(d.n_high)} in all</div>
       <div class="factor"><span>Mean score</span>
         <span class="bar"><span style="width:${Math.round((d.mean_score || 0) * 100)}%;background:${riskColour(d.mean_score || 0)}"></span></span>
@@ -1236,7 +1236,7 @@ function renderLegend() {
       : c.value === "very_high" ? "≥ 0.70" : `${c.range[0].toFixed(2)} – ${c.range[1].toFixed(2)}`}</span></div>`).join("")
     + `<div class="note" style="margin-top:10px">Areas: share of their assets scoring High or Very high</div>
       <div class="ramp" style="background:linear-gradient(to right, ${SHARE_STOPS.map(([, c]) => c).join(", ")})"></div>
-      <div class="ramp-labels">${SHARE_STOPS.map(([v]) => `<span>${Math.round(v * 100)}${v === 0.4 ? "+" : ""}</span>`).join("")}</div>
+      <div class="ramp-labels">${SHARE_STOPS.map(([v]) => `<span>${Math.round(v * 100)}${v === SHARE_STOPS.at(-1)[0] ? "+" : ""}</span>`).join("")}</div>
       <div><i style="background:transparent;border-radius:3px;box-shadow:inset 0 0 0 1.5px #94a3b8"></i>No assets mapped (outline only)</div>
       <div class="note">Divisions show when zoomed out, then districts, upazilas and unions as you zoom in. Click an area to open it.</div>`;
 }
