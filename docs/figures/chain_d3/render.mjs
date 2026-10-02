@@ -9,11 +9,15 @@ const dom = new JSDOM("<!DOCTYPE html><body></body>", { pretendToBeVisual: true 
 globalThis.document = dom.window.document;
 eval(fs.readFileSync(new URL("./chain.js", import.meta.url), "utf8"));
 
-const counts = JSON.parse(fs.readFileSync(new URL("./counts.json", import.meta.url), "utf8"));
+// --national draws the national partition's counts (counts_national.json),
+// for the SoftwareX article; the default counts are the validation regions'.
+const national = process.argv.includes("--national");
+const counts = JSON.parse(fs.readFileSync(
+  new URL(national ? "./counts_national.json" : "./counts.json", import.meta.url), "utf8"));
 // --flood-only drops the landslide inventory, for the flood paper's version.
 const floodOnly = process.argv.includes("--flood-only");
 if (floodOnly) counts.landslides = null;
-const outName = floodOnly ? "./chain_flood.svg" : "./chain.svg";
+const outName = floodOnly ? "./chain_flood.svg" : national ? "./chain_national.svg" : "./chain.svg";
 const svg = d3.select(dom.window.document.body).append("svg")
   .attr("xmlns", "http://www.w3.org/2000/svg");
 globalThis.drawChain(svg, d3, counts);

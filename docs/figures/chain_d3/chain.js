@@ -93,7 +93,7 @@ function drawChain(svg, d3, n) {
   const srcs = [
     ["OpenStreetMap", `${fmt(n.assets)} assets`],
     ["SRTM", `${n.srtm_m} m elevation`],
-    ["Sentinel-1", `${n.events} flood events`],
+    ["Sentinel-1", n.events_label || `${n.events} flood events`],
     ["JRC GSW", `${n.jrc_m} m water`],
     ["WorldPop", `${n.worldpop_m} m population`],
     ["geoBoundaries", `${fmt(n.unions)} unions`],

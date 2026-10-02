@@ -35,8 +35,8 @@ keywords:
   - Bangladesh
 references:
   - type: dataset
-    title: "Fermium Hazard Mapper: input data and outputs for flood and landslide susceptibility in Bangladesh (version 2)"
+    title: "Fermium Hazard Mapper: input data and outputs for flood and landslide susceptibility in Bangladesh (version 3)"
     authors:
       - family-names: Hasan
         given-names: Md Rakib
-    doi: "10.5281/zenodo.22978729"
+    doi: "10.5281/zenodo.23108572"

@@ -1,4 +1,4 @@
-\begin{thebibliography}{19}
+\begin{thebibliography}{21}
 \expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
 \providecommand{\url}[1]{\texttt{#1}}
 \providecommand{\href}[2]{#2}
@@ -176,10 +176,17 @@
   (\bibinfo{year}{2021}) \bibinfo{pages}{80--86}.
   \DOIprefix\doi{10.1038/s41586-021-03695-w}.
 %Type = Misc
-\bibitem[{Hasan(2026)}]{hasan2026data}
+\bibitem[{Hasan(2026{\natexlab{a}})}]{hasan2026datav2}
 \bibinfo{author}{M.~R. Hasan}, \bibinfo{title}{Fermium hazard mapper: input
   data and outputs for flood and landslide susceptibility in {B}angladesh
-  (version 2)}, \bibinfo{year}{2026}. \DOIprefix\doi{10.5281/zenodo.22978729}.
+  (version 2)}, \bibinfo{year}{2026}{\natexlab{a}}.
+  \DOIprefix\doi{10.5281/zenodo.22978729}.
+%Type = Misc
+\bibitem[{Hasan(2026{\natexlab{b}})}]{hasan2026data}
+\bibinfo{author}{M.~R. Hasan}, \bibinfo{title}{Fermium hazard mapper: input
+  data and outputs for flood and landslide susceptibility in {B}angladesh
+  (version 3)}, \bibinfo{year}{2026}{\natexlab{b}}.
+  \DOIprefix\doi{10.5281/zenodo.23108572}.
 %Type = Article
 \bibitem[{Herfort et~al.(2023)Herfort, Lautenbach, Porto~de Albuquerque,
   Anderson, and Zipf}]{herfort2023}
@@ -199,5 +206,11 @@
   Areas, Bangladesh}},
 \newblock \bibinfo{journal}{Data} \bibinfo{volume}{5} (\bibinfo{year}{2019})
   \bibinfo{pages}{4}. \DOIprefix\doi{10.3390/data5010004}.
+%Type = Misc
+\bibitem[{Hasan(2026)}]{hasan2026software}
+\bibinfo{author}{M.~R. Hasan}, \bibinfo{title}{Fermium hazard mapper},
+  \bibinfo{year}{2026}. \URLprefix
+  \url{https://github.com/rakibhhridoy/rimes-mapathon}.
+  \DOIprefix\doi{10.5281/zenodo.23108192}.
 
 \end{thebibliography}

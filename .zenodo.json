@@ -13,7 +13,7 @@
   "license": "MIT",
   "keywords": ["flood susceptibility", "landslide susceptibility", "Sentinel-1", "spatial cross-validation", "risk mapping", "Bangladesh"],
   "related_identifiers": [
-    {"identifier": "10.5281/zenodo.22978729", "relation": "references", "resource_type": "dataset"},
+    {"identifier": "10.5281/zenodo.23108572", "relation": "references", "resource_type": "dataset"},
     {"identifier": "https://fermium.systems/hazmapper", "relation": "isDocumentedBy", "resource_type": "other"}
   ]
 }

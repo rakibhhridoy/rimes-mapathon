@@ -33,6 +33,9 @@
 % The Zenodo archive of the v3.0.0 release.
 \newcommand{\SoftwareDOI}{\url{https://doi.org/10.5281/zenodo.23108192}}
 
+% a little room to stretch, so compounds such as radar-observed never overrun
+\setlength{\emergencystretch}{1.5em}
+
 \journal{SoftwareX}
 
 \begin{document}
@@ -54,7 +57,7 @@
   city={Dhaka}, postcode={1207}, country={Bangladesh}}
 
 \begin{abstract}
-Flood susceptibility maps for Bangladesh are usually trained on a few hundred surveyed points and scored on a random share of the same points, so their accuracy says little about unmapped ground. Fermium Hazard Mapper is an open Python pipeline and web application that trains flood models on extents mapped from Sentinel-1 radar, scores every model on whole areas held out from training, and publishes asset-level and grid-level risk with the evidence behind it. One configuration file per region drives a chain of command-line stages from data download to calibrated scores, composite risk, administrative summaries and a validation suite that compares models, label sources and time periods on identical spatial blocks. A national partition of Bangladesh into \NatRegions{} flood regions, each holding one flood regime, covers all \NatDistricts{} lowland districts and \NatAssets{} mapped assets, and a landslide region covers the Chittagong Hill Tracts. The results are served openly at \url{https://fermium.systems/hazmapper}, from the division down to the union, and a suite of 159 tests guards each defect found in an audit of the first release.
+Flood susceptibility maps for Bangladesh are usually trained on a few hundred surveyed points and scored on a random share of the same points, so their accuracy says little about unmapped ground. Fermium Hazard Mapper is an open Python pipeline and web application that trains flood models on extents mapped from Sentinel-1 radar, scores every model on whole areas held out from training, and publishes risk for each mapped asset and administrative unit. One configuration file drives each region. A national partition of \NatRegions{} flood regions covers all \NatDistricts{} lowland districts and \NatAssets{} assets, served openly at \url{https://fermium.systems/hazmapper}.
 \end{abstract}
 
 \begin{keyword}
@@ -64,7 +67,7 @@ flood susceptibility \sep Sentinel-1 \sep spatial cross-validation \sep risk map
 \end{frontmatter}
 
 %% ── Code metadata (SoftwareX Table 1; excluded from the word count) ─────
-\section*{Code metadata}
+\section*{Metadata}
 
 \begin{table}[H]
 \small
@@ -107,8 +110,8 @@ and any stage can be rerun alone after a change to its settings. Because stages 
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=\textwidth,height=0.72\textheight,keepaspectratio]{figures/fig_chain.pdf}
-\caption{The processing chain, top to bottom. Each asset enters the models as a vector of terrain, population, access-distance and asset-type features, with a label from the Sentinel-1 flood frequency. Every model trains on the same spatial blocks, and dashed connectors mark what the validation scores on the test blocks. In the landslide region a model fitted to a mapped inventory takes the place of the flood labels.}
+\includegraphics[width=\textwidth,height=0.72\textheight,keepaspectratio]{figures/fig_chain_national.pdf}
+\caption{The processing chain, top to bottom, with the counts of the national run. Each asset enters the models as a vector of terrain, population, access-distance and asset-type features, with a label from the Sentinel-1 flood frequency. Every model trains on the same spatial blocks, and dashed connectors mark what the validation scores on the test blocks. In the landslide region a model fitted to a mapped inventory takes the place of the flood labels.}
 \label{fig:chain}
 \end{figure}
 
@@ -155,7 +158,7 @@ The first release of the system contained a coordinate-system error that sampled
 The audit found seventeen defects and a later review an eighteenth, assets across the border in India, and each one that was a computation is now guarded by a test in a suite of 159, which also fails if the dashboard reintroduces mock data or random values. No figure in the documentation is typed by hand, because a build script reads each region's outputs and writes one LaTeX macro per value. A value the pipeline has not produced renders as a visible marker, and a test checks that every macro used in the documentation exists. Rerunning the pipeline and rebuilding a document therefore updates its text and its results together.
 
 %% ─────────────────────────────────────────────────────────────────────
-\section{Illustrative example}
+\section{Illustrative examples}
 
 The pipeline was developed on three bounding-box regions, Rangpur and Rajshahi for riverine flooding, Sylhet for flash flooding and the south-west coast for cyclone surge, and then pointed at the whole country. The national partition assigns each of the \NatDistricts{} lowland districts to one of \NatRegions{} regions by flood regime, and each region needed only a configuration file listing its districts and its flood events, every event checked against a situation report and against Sentinel-1 coverage of its window before the run. The same commands scored \NatAssets{} mapped assets (Table~\ref{tab:national}), and the web build placed them in the national administrative hierarchy (Fig.~\ref{fig:dashboard}).
 
@@ -190,18 +193,20 @@ The same run reports what a user should not take from the maps. In the riverine 
 
 The system changes what a flood susceptibility result for Bangladesh can be checked against. Its comparisons of models, label sources and time periods run on identical blocks and are repeated over many block assignments, so a claim such as ``the graph network helps'' or ``radar labels help'' becomes a number with a spread that another researcher can reproduce with one command. That design is what showed the graph architecture adding nothing over a gradient-boosted tree, and what showed the flood record outranking the model on the next riverine floods. A new model enters the same comparisons once it is added to the asset-model module as another configurable type.
 
-For planners and responders, the public dashboard at \url{https://fermium.systems/hazmapper} gives division-, district-, upazila- and union-level figures for the whole country without a sign-in, beside the official scenario maps, and a link or an image of any view can be passed on. Every figure on it can be traced to a pipeline output, and units without mapped assets are shown as missing rather than as safe, which matters in rural areas where OpenStreetMap is thin. The dashboard names the Flood Forecasting and Warning Centre and the Bangladesh Meteorological Department as the sources for warnings, since the maps describe typical monsoon conditions and not a forecast.
+Its first version was entered in the RIMES Mapathon in March 2026, and the version 2 data archive of its validation regions had been downloaded 31 times by October 2026 \citep{hasan2026datav2}. For planners and responders, the public dashboard at \url{https://fermium.systems/hazmapper} gives division-, district-, upazila- and union-level figures for the whole country without a sign-in, beside the official scenario maps, and a link or an image of any view can be passed on. Every figure on it can be traced to a pipeline output, and units without mapped assets are shown as missing rather than as safe, which matters in rural areas where OpenStreetMap is thin. The dashboard names the Flood Forecasting and Warning Centre and the Bangladesh Meteorological Department as the sources for warnings, since the maps describe typical monsoon conditions and not a forecast.
 
 The pipeline is not tied to Bangladesh's regions, since a new region needs only a configuration file with a bounding box or a list of districts, a country code, a projected coordinate system and a list of flood events with their dates. The same commands then download the data, map the events, and train and score the models. All inputs other than the Sentinel-1 stage come from global open datasets, and that stage needs only a noncommercial Earth Engine project. The parts that remain specific to Bangladesh are the event lists and the asset weights, both of which are set in the configuration files and not in the code. The input data and outputs of the three validation regions and the landslide region are archived with checksums and licences \citep{hasan2026data}.
 
 %% ─────────────────────────────────────────────────────────────────────
-\section{Limitations and conclusions}
+\section{Conclusions}
 
-Four limitations bound what the software can currently deliver. Exposure depends on OpenStreetMap, whose completeness varies widely \citep{herfort2023} and has not been measured for rural Bangladesh, so composite risk describes mapped exposure. Vulnerability uses population density and three access distances and leaves out income, housing and age structure. The terrain hazard surface is close to or below chance wherever embankments, tides or flash floods decide where water lies, from the south-west coast to the Jamuna east bank, and a model there would need embankment and tide data the pipeline does not yet ingest. Regions with few mapped floods, such as West-central, need more events before their scores can be ranked with confidence. Retraining the landslide model on the multi-year inventory of \citet{rabby2019} is the most direct improvement to the fourth region.
+Four limitations bound what the software can currently deliver. Exposure depends on OpenStreetMap, whose completeness varies widely \citep{herfort2023} and has not been measured for rural Bangladesh, so composite risk describes mapped exposure. Vulnerability uses population density and three access distances and leaves out income, housing and age structure. The terrain hazard surface is close to or below chance wherever embankments, tides or flash floods decide where water lies, from the south-west coast to the Jamuna east bank, and a model there would need embankment and tide data the pipeline does not yet ingest. Regions with few mapped floods, such as West-central, need more events before their scores can be ranked with confidence. Retraining the landslide model on the multi-year inventory of \citet{rabby2019} is the most direct improvement to the landslide region.
 
 Fermium Hazard Mapper joins radar-observed flood labels, spatially blocked validation and a public dashboard in one open and reproducible chain. Its main contribution is a validation suite that runs every comparison on identical held-out areas and reports it with its spread, together with a design that stops on the kinds of silent error that invalidated its own first release.
 
 %% ── Declarations ─────────────────────────────────────────────────────
+% Long role names and URLs set without running into the margin.
+\sloppy
 \section*{CRediT authorship contribution statement}
 \textbf{Md Rakib Hasan:} Conceptualization, Methodology, Software, Validation, Formal analysis, Data curation, Visualization, Writing -- original draft, Writing -- review \& editing. \textbf{Shoumik Zubyer:} Conceptualization, Writing -- review \& editing.
 
@@ -209,7 +214,7 @@ Fermium Hazard Mapper joins radar-observed flood labels, spatially blocked valid
 Md Rakib Hasan is affiliated with Fermium Systems, which hosts the public dashboard. The software is released under the MIT licence and the dashboard is free to use. The authors declare no other competing interests.
 
 \section*{Data availability}
-The code is at \url{https://github.com/rakibhhridoy/rimes-mapathon}, and the release this article describes is archived at \SoftwareDOI{}. Input data and outputs for the three validation regions and the landslide region are archived at \url{https://doi.org/10.5281/zenodo.22978729}, and the national partition is reproduced by the configuration files in the repository.
+The code is at \url{https://github.com/rakibhhridoy/rimes-mapathon}, and the release this article describes is archived at \SoftwareDOI{} \citep{hasan2026software}. Input data and outputs for the three validation regions and the landslide region are archived at \url{https://doi.org/10.5281/zenodo.23108572} \citep{hasan2026data}, and the national partition is reproduced by the configuration files in the repository.
 
 \section*{Acknowledgements}
 Infrastructure data are \copyright{} OpenStreetMap contributors, under the Open Database Licence. Population data are from WorldPop, University of Southampton, CC BY 4.0. Administrative boundaries are from geoBoundaries, William \& Mary geoLab, CC BY 4.0. Sentinel-1 data are Copernicus Sentinel data, processed in Google Earth Engine. Landslide locations are from NASA's Cooperative Open Online Landslide Repository. The scenario maps shown beside the results are the Department of Disaster Management's Multi-hazard Risk and Vulnerability Assessment, served by the United Nations Satellite Centre (UNOSAT), and the basemap relief is from Esri.

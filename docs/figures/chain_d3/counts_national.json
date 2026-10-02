@@ -1,0 +1,21 @@
+{
+  "regions": 8,
+  "assets": 114569,
+  "events": 24,
+  "unions": 5160,
+  "landslides": 1810,
+  "srtm_m": 30,
+  "jrc_m": 30,
+  "worldpop_m": 90,
+  "grid_m": 500,
+  "k": 6,
+  "max_edge_km": 5.0,
+  "block_km": 10.0,
+  "train_pct": 80,
+  "hidden": 64,
+  "dropout": 0.3,
+  "model": "gradient_boosting",
+  "boost_iterations": 300,
+  "boost_lr": 0.1,
+  "events_label": "24 event windows"
+}

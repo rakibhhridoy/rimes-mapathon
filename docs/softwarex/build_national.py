@@ -6,6 +6,11 @@ hand: each row reads a region's validation, benchmark and label-comparison
 files, so rerunning a region and this script updates the table.
 
     python docs/softwarex/build_national.py     # -> docs/softwarex/national.tex
+                                                #    and the chain figure's counts
+
+The chain figure's national counts (docs/figures/chain_d3/counts_national.json)
+are written here too; render them with `node render.mjs --national` and
+`rsvg-convert -f pdf -o ../fig_chain_national.pdf chain_national.svg`.
 """
 
 import json
@@ -17,10 +22,36 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from dashboard.data.regions import region_paths  # noqa: E402
+from dashboard.data.regions import REGION_CONFIGS, region_paths  # noqa: E402
 
 OUT = Path(__file__).with_name("national.tex")
 PARTITION = ROOT / "configs" / "national" / "partition.yaml"
+CHAIN = ROOT / "docs" / "figures" / "chain_d3"
+UNIONS = ROOT / "data" / "shared" / "geoboundaries" / "BGD_ADM4.geojson"
+
+
+def event_windows(partition: dict) -> int:
+    """Distinct Sentinel-1 event windows over every region of the partition."""
+    from pipeline.cli import _load_config
+
+    windows = set()
+    for region in partition:
+        _, _, config = REGION_CONFIGS[region]
+        for event in _load_config(str(ROOT / config))["sentinel1"]["events"]:
+            windows.add((event["start"], event["end"]))
+    return len(windows)
+
+
+def write_chain_counts(partition: dict, assets: int) -> None:
+    """The chain figure's counts for the national partition."""
+    counts = json.loads((CHAIN / "counts.json").read_text())
+    n_windows = event_windows(partition)
+    counts.update({
+        "regions": len(partition), "assets": assets, "events": n_windows,
+        "events_label": f"{n_windows} event windows",
+        "unions": len(_json(UNIONS)["features"]),
+    })
+    (CHAIN / "counts_national.json").write_text(json.dumps(counts, indent=2) + "\n")
 
 
 def _json(path: Path) -> dict:
@@ -68,6 +99,7 @@ def main() -> None:
         f"\\newcommand{{\\NatTableRows}}{{{body}}}",
     ]
     OUT.write_text("\n".join(lines) + "\n")
+    write_chain_counts(partition, total)
     print(f"{OUT}: {len(rows)} regions, {n_districts} districts, {total:,} assets")
 
 
