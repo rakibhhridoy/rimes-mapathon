@@ -1,0 +1,42 @@
+# National partition of Bangladesh into hazard regions, by flood type.
+# Every one of the 64 districts belongs to exactly one region. The district
+# names are those of geoBoundaries ADM2 (`shapeName`). Each region's own
+# configuration lists the same districts under aoi.districts.
+#
+# The three original regions (config.yaml, configs/sylhet.yaml,
+# configs/sw_coastal.yaml) are bounding boxes kept unchanged for the JFRM
+# paper; the website shows this partition instead.
+flood:
+  north_west:          # Teesta, Brahmaputra-Jamuna and Padma right bank
+    name: "North-west rivers"
+    districts: [Panchagarh, Thakurgaon, Dinajpur, Nilphamari, Rangpur, Lalmonirhat,
+                Kurigram, Gaibandha, Joypurhat, Bogra, Naogaon, Nawabganj, Rajshahi,
+                Natore, Sirajganj, Pabna]
+  jamuna_east:         # Old Brahmaputra and the Jamuna's left bank
+    name: "Jamuna east bank"
+    districts: [Sherpur, Jamalpur, Mymensingh, Tangail]
+  haor:                # flash floods from the Meghalaya hills into the haor basin
+    name: "Sylhet haor"
+    districts: [Sylhet, Sunamganj, Maulvibazar, Habiganj, Netrakona, Kishoreganj,
+                Brahamanbaria]
+  central:             # Padma-Meghna confluence and Dhaka
+    name: "Central"
+    districts: [Dhaka, Gazipur, Narsingdi, Narayanganj, Munshiganj, Manikganj,
+                Faridpur, Rajbari, Madaripur, Shariatpur, Gopalganj, Chandpur]
+  west_central:        # moribund Ganges delta; waterlogging more than river floods
+    name: "West-central"
+    districts: [Kushtia, Chuadanga, Meherpur, Jhenaidah, Magura, Jessore, Narail]
+  south_west:          # Sundarbans and Barisal coast; cyclone surge and tides
+    name: "South-west coast"
+    districts: [Satkhira, Khulna, Bagerhat, Pirojpur, Jhalokati, Barisal, Barguna,
+                Patuakhali, Bhola]
+  eastern_plains:      # built 2026-10-02
+    name: "Eastern plains"
+    districts: [Comilla, Feni, Noakhali, Lakshmipur]
+  chattogram_coast:    # cyclone surge, hill-fed flash floods, urban waterlogging
+    name: "Chattogram coast"
+    districts: [Chittagong, "Cox's Bazar"]
+landslide:
+  cht:
+    name: "Chittagong Hill Tracts"
+    districts: [Bandarban, Khagrachhari, Rangamati]
