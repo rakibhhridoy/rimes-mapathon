@@ -17,7 +17,6 @@
 \usepackage{listings}
 \usepackage{float}
 \usepackage{xcolor}
-\usepackage{makecell}
 
 % Code, file names, URLs and the command listing use the body font, not a
 % typewriter face, so the text reads in one typeface throughout.
@@ -160,22 +159,7 @@ Each of these checks, and the clipping of every region to the country, is guarde
 %% ─────────────────────────────────────────────────────────────────────
 \section{Illustrative examples}
 
-The pipeline was developed on three bounding-box regions, Rangpur and Rajshahi for riverine flooding, Sylhet for flash flooding and the south-west coast for cyclone surge, and then pointed at the whole country. The national partition assigns each of the \NatDistricts{} lowland districts to one of \NatRegions{} regions by flood regime, and each region needed only a configuration file listing its districts and its flood events, every event checked against a situation report and against Sentinel-1 coverage of its window before the run. The same commands scored \NatAssets{} mapped assets (Table~\ref{tab:national}), and the web build placed them in the national administrative hierarchy (Fig.~\ref{fig:dashboard}).
-
-\begin{table}[t]
-\centering
-\footnotesize
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}lrrccc@{}}
-\toprule
-Region & Assets & \makecell{Flood-\\prone (\%)} & \makecell{AUC, held-out\\blocks} & \makecell{AUC vs\\observed} & \makecell{Radar-label\\gain} \\
-\midrule
-\NatTableRows
-\bottomrule
-\end{tabular}
-\caption{The national partition. AUC on held-out 10\,km blocks is the gradient-boosted model's mean $\pm$ standard deviation over 20 block assignments; AUC against observed floods is scored on the held-out blocks of one assignment; the radar-label gain is the AUC won by training on radar-observed flooding instead of terrain-threshold labels, with the number of assignments in which radar labels came out ahead.}
-\label{tab:national}
-\end{table}
+The pipeline was developed on three bounding-box regions, Rangpur and Rajshahi for riverine flooding, Sylhet for flash flooding and the south-west coast for cyclone surge, and then pointed at the whole country. The national partition assigns each of the \NatDistricts{} lowland districts to one of \NatRegions{} regions by flood regime, and each region needed only a configuration file listing its districts and its flood events, every event checked against a situation report and against Sentinel-1 coverage of its window before the run. The same commands scored \NatAssets{} mapped assets (Fig.~\ref{fig:national}), and the web build placed them in the national administrative hierarchy (Fig.~\ref{fig:dashboard}).
 
 \begin{figure}[!htbp]
 \centering
@@ -184,7 +168,14 @@ Region & Assets & \makecell{Flood-\\prone (\%)} & \makecell{AUC, held-out\\block
 \label{fig:dashboard}
 \end{figure}
 
-The table carries the evidence a user needs before trusting a region. Training on radar-observed flooding beats training on terrain thresholds in every region, but in West-central, whose two waterlogging events were documented only in newspapers, by a margin within noise, and its skill varies widely between block assignments, so the dashboard marks it as low-data. The graph network the system was first built around trails the best ordinary model in every region, by \NatGraphGapMin{} to \NatGraphGapMax{} in AUC, which is why gradient boosting is the default, and the comparison stays in the pipeline so that a future model has to beat it on the same blocks.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_national.pdf}
+\caption{The national partition. (a) The \NatRegions{} flood regions, numbered as in (b) and (c), and the Hill Tracts landslide region. (b) AUC of the gradient-boosted model on held-out 10\,km blocks, as mean and standard deviation over 20 block assignments, and on the held-out blocks of one assignment scored against observed floods; mapped assets in brackets. (c) AUC won by training on radar-observed flooding instead of terrain-threshold labels, with the number of assignments in which radar labels came out ahead.}
+\label{fig:national}
+\end{figure}
+
+The figure carries the evidence a user needs before trusting a region. Training on radar-observed flooding beats training on terrain thresholds in every region, but in West-central, whose two waterlogging events were documented only in newspapers, by a margin within noise, and its skill varies widely between block assignments, so the dashboard marks it as low-data. The graph network the system was first built around trails the best ordinary model in every region, by \NatGraphGapMin{} to \NatGraphGapMax{} in AUC, which is why gradient boosting is the default, and the comparison stays in the pipeline so that a future model has to beat it on the same blocks.
 
 The same run reports what a user should not take from the maps. In the riverine validation regions, a model trained only on floods up to 2022 ranks the ground the 2024 floods reached at \RRTempAUC{} and \SylhetTempAUC{}, but the radar record of earlier flooding ranks it better, at \RRTempPastAUC{} and \SylhetTempPastAUC{}. On the south-west coast both hazard surfaces are close to chance across the grid, at \CoastalSurfaceTerrainObsAUC{} for the terrain surface, because surge flooding follows embankments and tides that terrain does not describe. The dashboard states each of these limits beside the map it qualifies, and the landslide model, at an AUC of \CHTLSAUC{} from \CHTLandslides{} landslides mapped after a single storm, carries its single-event caveat above the map.
 
