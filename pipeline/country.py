@@ -77,6 +77,49 @@ def _foreign(country_path: str, neighbours_path: str, iso3: str, bbox: tuple,
     return foreign
 
 
+# Where the two border files come from when they are missing.
+_GEOBOUNDARIES_ADM = "https://www.geoboundaries.org/api/current/gbOpen/{iso}/{level}/"
+_NATURAL_EARTH = ("https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
+                  "master/geojson/ne_10m_admin_0_countries.geojson")
+
+
+def ensure_country_files(cfg: dict) -> list[str]:
+    """Download the configured country boundary and neighbours if missing.
+
+    The country boundary is geoBoundaries' district file (gbOpen, CC BY 4.0)
+    and the neighbours are Natural Earth's countries (public domain). Both are
+    shared by every region, so each is fetched once. Returns the paths it
+    wrote; a failed download raises, because the border clip cannot run
+    without them.
+    """
+    import requests
+
+    aoi = cfg.get("aoi") or {}
+    wanted = []
+    if aoi.get("country_boundary"):
+        level = "ADM2" if "ADM2" in aoi["country_boundary"] else "ADM0"
+        wanted.append((Path(aoi["country_boundary"]), "geoboundaries", level))
+    if aoi.get("neighbours"):
+        wanted.append((Path(aoi["neighbours"]), "naturalearth", None))
+    written = []
+    for path, source, level in wanted:
+        if path.exists():
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if source == "geoboundaries":
+            meta = requests.get(_GEOBOUNDARIES_ADM.format(iso=aoi.get("iso3", "BGD"), level=level),
+                                timeout=120).json()
+            url = (meta[0] if isinstance(meta, list) else meta)["gjDownloadURL"]
+        else:
+            url = _NATURAL_EARTH
+        logger.info(f"Downloading {path.name} from {url}")
+        response = requests.get(url, timeout=600)
+        response.raise_for_status()
+        path.write_bytes(response.content)
+        written.append(str(path))
+    return written
+
+
 def foreign_geometry(cfg: dict):
     """Neighbouring countries' ground near the region, or None if unconfigured."""
     aoi = cfg.get("aoi") or {}

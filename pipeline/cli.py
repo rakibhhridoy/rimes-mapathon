@@ -125,6 +125,9 @@ def download(ctx):
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("=== Step 0: Data Download ===")
+    from pipeline.country import ensure_country_files
+
+    ensure_country_files(cfg)
     results = download_all(cfg, raw_dir)
     succeeded = sum(1 for v in results.values() if v)
     click.echo(f"Downloaded {succeeded}/{len(results)} datasets.")
