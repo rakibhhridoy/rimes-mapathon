@@ -19,6 +19,11 @@
 \usepackage{xcolor}
 \usepackage{makecell}
 
+% Code, file names, URLs and the command listing use the body font, not a
+% typewriter face, so the text reads in one typeface throughout.
+\renewcommand{\ttdefault}{\rmdefault}
+\urlstyle{same}
+
 \lstset{basicstyle=\footnotesize\ttfamily, breaklines=true,
         columns=fullflexible, frame=tb, framerule=0.3pt}
 
