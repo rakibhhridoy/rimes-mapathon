@@ -12,12 +12,14 @@
   --accent-soft: rgba(37, 99, 235, 0.12);
   --chip: #9b1c1c;
 
-  --glass: rgba(255, 255, 255, 0.58);
-  --glass-strong: rgba(255, 255, 255, 0.8);
-  --glass-control: rgba(255, 255, 255, 0.62);
-  --glass-border: rgba(255, 255, 255, 0.55);
+  /* Moderate frosting: the map shows through softly, its colours only
+     lightly boosted, so a red or pink area does not tint the panels. */
+  --glass: rgba(255, 255, 255, 0.5);
+  --glass-strong: rgba(255, 255, 255, 0.76);
+  --glass-control: rgba(255, 255, 255, 0.58);
+  --glass-border: rgba(255, 255, 255, 0.7);
   --hairline: rgba(15, 23, 42, 0.09);
-  --blur: blur(18px) saturate(170%);
+  --blur: blur(11px) saturate(120%);
   --shadow: 0 10px 34px rgba(15, 23, 42, 0.22);
   --radius: 14px;
 
@@ -48,11 +50,13 @@ html, body {
 /* ── Glass ──────────────────────────────────────────────────────────── */
 .glass {
   background: var(--glass);
+  /* a faint sheen from the top-left corner, as light across a pane */
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.04) 60%);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 .float { position: absolute; z-index: 5; }
 
