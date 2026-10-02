@@ -28,6 +28,19 @@ const REGION_SHORT = {
   cht: "Hill Tracts",
 };
 
+// Regions whose results are too weak to read like the others.
+const REGION_CAUTION = {
+  west_central: "Low data. Few floods were mapped here, the model's skill varies widely " +
+    "between held-out blocks (AUC 0.72 ± 0.19) and its scores agree only weakly with observed " +
+    "floods (0.57). Read them as indicative, not as a ranking to act on.",
+};
+
+function showCaution(id) {
+  const box = $("regionCaution");
+  box.textContent = REGION_CAUTION[id] || "";
+  box.hidden = !REGION_CAUTION[id];
+}
+
 const TYPE_LABELS = {
   bridge: "Bridge", cropland: "Cropland", embankment: "Embankment", fishpond: "Fish pond",
   flood_shelter: "Flood shelter", hospital: "Hospital & clinic", irrigation: "Irrigation channel",
@@ -941,6 +954,7 @@ async function selectView(id) {
   $("regionLine").textContent = id === ALL
     ? `${summary.regions.length} flood regions`
     : `${summary.region.name} — ${summary.region.hazard}`;
+  showCaution(id);
   renderLegend();
   $("rangeName").textContent = "Score";
   $("search").placeholder = "Asset name, type or district…";
@@ -1033,6 +1047,7 @@ async function selectLandslide(region) {
   f.max = 1;
 
   $("regionLine").textContent = `${summary.region.name} — ${summary.region.hazard}`;
+  showCaution(region);
   $("rangeName").textContent = "Mean susceptibility";
   $("search").placeholder = "Upazila or district…";
   renderLegend();

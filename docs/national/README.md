@@ -1,147 +1,112 @@
-# National flood coverage: scope
+# National flood coverage
 
-Status: proposal, 2026-10-01. Nothing here has been run. The JFRM paper keeps
-its three regions; this is the next phase of the system and the website.
+Status: built 2026-10-02. All 64 districts of Bangladesh belong to one of eight
+flood regions or to the Chittagong Hill Tracts landslide region
+(`configs/national/partition.yaml`). The website shows this partition. The
+JFRM paper keeps its three bounding-box regions (`config.yaml`,
+`configs/sylhet.yaml`, `configs/sw_coastal.yaml`), whose outputs are unchanged.
 
-![Proposed regions](proposed_regions.png)
+![National partition](partition.png)
 
-## Progress
+## Regions
 
-**Eastern plains: built 2026-10-02** (`configs/eastern_plains.yaml`). 9,461
-assets in Comilla, Feni, Noakhali and Lakshmipur, from Geofabrik's national
-OpenStreetMap extract of 30 September 2026 after the public Overpass servers
-throttled the region's queries. Three 2024 events, one-event labelling rule;
-4.3 % of assets flood-prone.
+Each region holds one flood regime, because the model learns one regime well
+and a mixture badly. Regions are defined by their districts (`aoi.districts`),
+so assets, grid cells and validation outside them are dropped
+(`pipeline/country.py`), and no asset is counted in two regions.
 
-| Measure | Result |
-|---|---|
-| AUC over 20 held-out block assignments | 0.743 ± 0.122 (random forest 0.750) |
-| AUC against observed floods, published split | 0.854, precision lift 5.5 |
-| Radar labels over terrain-threshold labels | +0.181, ahead on 17 of 20 |
-| Graph network against the best model | −0.088 |
-| Terrain hazard surface across the grid | 0.546, near chance |
-| Temporal test | not possible: every usable event is from 2024 |
+| Region | Districts | Regime | Events | Rule | Assets |
+|---|---|---|---|---|---|
+| North-west rivers | 16, Panchagarh to Pabna | Teesta and Brahmaputra–Jamuna riverine | Aug 2017, Jul 2019, Jul 2020, Jul 2024, Oct 2024 | 2 events | 21,893 |
+| Jamuna east bank | Sherpur, Jamalpur, Mymensingh, Tangail | riverine and Garo-hills flash floods | Aug 2017, Jul 2019, Jul 2020, Oct 2024 | 2 events | 5,415 |
+| Sylhet haor | 7, Sylhet to Brahmanbaria | flash floods into the haor basin | Apr 2017, Jun 2022, Jun 2024, Aug 2024 | 2 events | 13,402 |
+| Central | 12, Dhaka to Chandpur | Padma–Meghna confluence, Dhaka | Aug 2017, Jul 2019, Jul 2020 | 2 events | 20,218 |
+| West-central | 7, Kushtia to Narail | waterlogging in the moribund delta | Sep 2024 Jessore, Jul–Aug 2025 Bhabodah | 1 event | 4,398 |
+| South-west coast | 9, Satkhira to Bhola | cyclone surge and tides | Amphan 2020, Yaas 2021, Sitrang 2022, Remal 2024 | 1 event | 26,039 |
+| Eastern plains | Comilla, Feni, Noakhali, Lakshmipur | flash floods and surge | Aug 2024, Remal 2024, Feni Jul 2024 | 1 event | 9,461 |
+| Chattogram coast | Chittagong, Cox's Bazar | hill-fed flash floods and surge | Aug 2023, Aug 2024, Remal 2024 | 1 event | 13,743 |
 
-The wide spread comes from a small region with about 400 flood-prone assets,
-so some held-out blocks hold few or none. The hazard surface is near chance,
-as on the south-west coast: surge and flash floods follow embankments, tides
-and hill runoff that terrain does not describe.
+That is 114,569 flood-mapped assets, from Geofabrik's national OpenStreetMap
+extract of 30 September 2026 (`data.osm.source: pbf`).
 
-Built along the way: district-defined regions, assets read from the national
-extract (`data.osm.source: pbf`), a resumable Overpass fetch that splits a
-query the server cannot answer, and a fix to the flood threshold, which with
-three events had made the one-event rule act as a two-event rule. The papers'
-numbers are unchanged by all of it.
+Every event was checked twice before a run: a humanitarian report or national
+newspaper confirms flooding in the region's districts with dates, and
+Sentinel-1 imaged the region during the flood and in that year's dry-season
+baseline (`scripts/check_s1_events.py`). The sources sit beside each event in
+`configs/national/events/` and in the region files; the Eastern plains check
+is written up in `eastern_plains_events.md`. Events dropped at this step:
+Cyclone Sitrang for the Eastern plains and Cyclone Mocha for the Chattogram
+coast (first pass four days or more after landfall), and Cyclone Hamoon
+(54 % of the coast imaged).
 
-## Where coverage stands
+## Results
 
-The three flood regions reach 44 of Bangladesh's 64 districts, measured by
-where their mapped assets fall. Twenty districts are not covered, 41,662 km²
-or 30 % of the country. Three of them (Bandarban, Khagrachhari, Rangamati) are
-the Hill Tracts, which belong to the landslide model, so national flood
-coverage needs 17 more districts, about 28,500 km².
+Validation is on held-out 10 km blocks, repeated over 20 block assignments.
 
-| Region | Districts | Area | Assets now | Assets per km² |
-|---|---|---|---|---|
-| Rangpur & Rajshahi | 19 | 41,685 km² | 23,016 | 0.55 |
-| Sylhet | 10 | 27,002 km² | 13,374 | 0.50 |
-| South-west coast | 15 | 29,702 km² | 29,545 | 0.99 |
-| Hill Tracts (landslide) | 3 | 13,205 km² | — | — |
+| Region | Flood-prone | AUC, 20 assignments | AUC vs observed floods | Radar labels over terrain labels | Graph network minus best | Terrain hazard surface |
+|---|---|---|---|---|---|---|
+| North-west rivers | 6.2 % | 0.821 ± 0.049 | 0.878 | +0.103 (19 of 20) | −0.036 | 0.735 |
+| Jamuna east bank | 6.4 % | 0.815 ± 0.074 | 0.726 | +0.156 (19 of 20) | −0.022 | 0.365 |
+| Sylhet haor | 14.9 % | 0.835 ± 0.049 | 0.840 | +0.079 (19 of 20) | −0.005 | 0.814 |
+| Central | 3.0 % | 0.914 ± 0.042 | 0.939 | +0.118 (19 of 20) | −0.019 | 0.605 |
+| West-central | 3.2 % | 0.724 ± 0.186 | 0.574 | +0.024 (12 of 20) | −0.076 | 0.657 |
+| South-west coast | 5.0 % | 0.799 ± 0.058 | 0.802 | +0.070 (16 of 20) | −0.005 | 0.617 |
+| Eastern plains | 4.3 % | 0.743 ± 0.122 | 0.854 | +0.181 (17 of 20) | −0.088 | 0.546 |
+| Chattogram coast | 3.5 % | 0.832 ± 0.118 | 0.637 | +0.084 (15 of 19) | −0.023 | 0.839 |
 
-District areas are whole districts; the existing regions are bounding boxes
-and cover some districts only in part.
+AUC over 20 assignments is the gradient-boosting model's. The graph network
+trails the best tabular model in every region, as in the paper's regions.
 
-## Proposed regions
+Four regions have floods both before and after 2022, so a model trained to
+2022 could be scored on the 2024 floods:
 
-Each region is chosen for one flood regime, because the model learns one
-regime well and a mixture badly: the south-west coast, where surge and
-riverine flooding meet, is where the hazard surface is weakest.
-
-| New region | Districts | Area | Flood regime |
+| Region | Scored on | Trained to 2022 | Flood record as a predictor |
 |---|---|---|---|
-| Central: Padma–Jamuna and Dhaka | Dhaka, Narayanganj, Munshiganj, Manikganj, Faridpur, Rajbari | 7,681 km² | riverine at the confluence, urban waterlogging in Dhaka |
-| West-central: Gorai–Kumar delta | Chuadanga, Meherpur, Jhenaidah, Magura | 4,908 km² | moribund delta; seasonal waterlogging, little river flooding |
-| Eastern plains: Meghna–Feni | Comilla, Feni, Noakhali, Lakshmipur | 7,918 km² | flash floods from the Tripura hills, estuarine and surge flooding |
-| Chattogram coast | Chittagong, Cox's Bazar | 6,621 km² | cyclone surge, hill-fed flash floods, urban waterlogging |
-| Sherpur | Sherpur | 1,328 km² | Garo-hills flash floods; too small alone, see decisions |
+| North-west rivers | Jul and Oct 2024 | 0.799 | 0.899 |
+| Jamuna east bank | Oct 2024 | 0.677 | 0.901 |
+| Sylhet haor | Jun and Aug 2024 | 0.785 | 0.858 |
+| South-west coast | Remal 2024 | 0.770 | 0.662 |
 
-With these, the website's "All" view becomes all of Bangladesh: seven flood
-regions and the landslide region.
+As in the paper, the past flood record predicts the next riverine and haor
+floods better than the model does, and on the surge coast the model is ahead.
+Central's events all fall before 2022, and the West-central, Eastern plains
+and Chattogram coast events all fall after it, so those four regions are
+validated on held-out blocks only.
 
-## Flood events each region needs
+## Reading the results
 
-The labelling rule needs at least two mapped floods per region (a pixel is
-flood-prone where it flooded in at least two events), or one for a surge
-coast. The candidates below come from memory of the flood record and have
-**not** been checked; each must be confirmed against ReliefWeb situation
-reports, as the existing events were, and against Sentinel-1 coverage of
-the window, before a run.
+1. **Radar labels help everywhere, least in West-central.** Training on mapped
+   floods beats training on terrain-derived labels in every region, by
+   0.07 to 0.18 AUC, but in West-central by only 0.024 and in 12 of 20
+   assignments.
+2. **West-central is low-data and is marked so on the website.** Its two
+   waterlogging events are documented only in newspapers, its skill swings
+   widely between block assignments (± 0.186), and its scores agree weakly
+   with observed floods (0.574). Its scores are indicative only.
+3. **The terrain hazard surface fails where water does not follow terrain.**
+   It is near or below chance in the Jamuna east bank (0.365) and the Eastern
+   plains (0.546), where embankments, flash floods and standing water decide
+   where flooding lies, and strongest in the haor (0.814) and the Chattogram
+   coast (0.839). Embankment and tide data remain the largest gap.
+4. **Dhaka's urban flooding is under-recorded.** Buildings return radar
+   signal, so flooded streets rarely read as water. Central's high AUC
+   describes the rural confluence more than the city.
+5. **Small regions are noisy.** The Eastern plains and Chattogram coast hold a
+   few hundred flood-prone assets each, so some held-out blocks hold few
+   or none, which is where their wide spreads come from.
 
-| Region | Candidate events (to verify) |
-|---|---|
-| Central | August 2017 Jamuna flood; July 2019; July–August 2020, long and severe in Faridpur, Manikganj and Munshiganj |
-| West-central | Few river floods; waterlogging after heavy rain in Jessore and the Bhabadah area in 2023–2024. May not yield enough flooded pixels to train on |
-| Eastern plains | **Verified 2026-10-01** (`eastern_plains_events.md`): August 2024 eastern floods and Cyclone Remal strong; Feni July 2024 small; Cyclone Sitrang 2022 too late a pass to use |
-| Chattogram coast | August 2023 Chattogram and Cox's Bazar floods, the storm behind the landslide inventory; Cyclone Mocha, May 2023; Cyclone Hamoon, October 2023 |
+## What was built
 
-## Risks
-
-1. **West-central may not train.** Waterlogging is patchy and slow, and the
-   region may hold too few flooded pixels for the two-event rule. It may need
-   the one-event rule the coast uses, or be reported as untrained.
-2. **Dhaka's urban flooding is hard for radar.** Buildings scatter the signal
-   back, so flooded streets rarely read as open water, and the Central labels
-   will under-record the city. Its results should be read for the rural
-   confluence, not for urban waterlogging.
-3. **The coastal weakness spreads.** The Eastern plains and Chattogram coast
-   are surge-exposed, and the terrain predictors do not describe embankments
-   or tides. Expect hazard surfaces near chance there until embankment and
-   tide data are added, which is the largest gap in the system.
-4. **Regions overlap.** The existing regions are bounding boxes; the Sylhet
-   box already reaches into Gazipur and Narsingdi. New regions should be
-   defined by district lists (a small pipeline change, below), and the web
-   build should keep each mapped asset once where boxes overlap.
-
-## What has to be built
-
-1. **District-defined regions.** A configuration key listing a region's
-   districts, applied the way the border clip is (`pipeline/country.py`):
-   assets, grid cells and grid-level validation outside the listed districts
-   are dropped. Existing regions keep their boxes, so the paper's numbers do
-   not move.
-2. **One asset per place in the national view.** The web build drops an
-   asset already held by an earlier region (same OpenStreetMap id).
-3. **Four region configurations**, each with its events and their ReliefWeb
-   sources.
-4. **The website**, which needs no change beyond the new regions: the
-   region buttons, filters and "All" view are already data-driven.
-
-## Time and space
-
-Measured on the existing regions: rerunning three regions from features to
-the 20-assignment benchmark took about 18 minutes with the three in
-parallel. Terrain preprocessing takes minutes per region. The new regions
-are smaller than the existing ones (5,000–8,000 km² against 27,000–42,000),
-so each should be quicker.
-
-| Step | Estimate for the four new regions |
-|---|---|
-| OpenStreetMap download | 1–3 hours, rate-limited by the public servers |
-| Sentinel-1 mapping in Earth Engine | minutes per event, about 10 events |
-| Terrain preprocessing | under 30 minutes in all |
-| Models, validation, benchmark | under an hour |
-| Assets | about 20,000–40,000 more; Dhaka and Chittagong are denser than the current average |
-| Disk | about 4–6 GB more; the SSD has 37 GB free |
-
-## Decisions needed
-
-1. **Sherpur.** Join Rangpur & Rajshahi (which already holds neighbouring
-   Jamalpur) or Sylhet, or stay uncovered. Joining changes an existing region,
-   so its numbers would move; doing it after the paper is accepted avoids that.
-2. **West-central.** Attempt it with a one-event rule, or leave it out until
-   a waterlogging-specific label exists.
-3. **Order.** Suggested: Eastern plains first (the August 2024 floods are
-   well documented), then Central, Chattogram coast, West-central last.
-4. **Existing regions.** Keep their boxes (the paper's numbers stay fixed) or
-   redefine them by districts too, for a clean national partition, after the
-   paper.
+- District-defined regions (`aoi.districts`), applied with the border clip in
+  `pipeline/country.py`.
+- Assets from the national extract, converted once into an indexed file
+  (`data/shared/osm/`), after the public Overpass servers throttled the
+  queries. The Overpass fetch also became resumable, splitting a query the
+  server cannot answer.
+- Sentinel-1 downloads split into quarters when Earth Engine refuses a large
+  region.
+- A fix to the flood threshold, which with three events had made the
+  one-event rule act as a two-event rule. The papers' numbers are unchanged.
+- Region configurations generated from the partition
+  (`scripts/make_region_config.py`), and a web build that shows the
+  partition and leaves the paper's box regions off the website.
