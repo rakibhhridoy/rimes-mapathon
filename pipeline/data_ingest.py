@@ -159,6 +159,77 @@ def _fetch_query(tile, batch_name, priority, tags, endpoints, cache_dir: Path,
     return frames, failures
 
 
+def _matches(column: pd.Series, wanted) -> pd.Series:
+    """osmnx's tag semantics: a list of values, one value, or True for any."""
+    if wanted is True:
+        return column.notna()
+    if isinstance(wanted, list):
+        return column.isin(wanted)
+    return column == wanted
+
+
+def _pbf_path(cfg: dict) -> Path:
+    """The national extract, downloaded once into the shared cache."""
+    osm = cfg["data"]["osm"]
+    path = Path(osm.get("pbf_path", "data/shared/osm/bangladesh-latest.osm.pbf"))
+    if not path.exists():
+        url = osm.get("pbf_url", "https://download.geofabrik.de/asia/bangladesh-latest.osm.pbf")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        from pipeline.data_download import _download_file
+        if not _download_file(url, path, "OpenStreetMap extract"):
+            raise RuntimeError(f"Could not download {url}")
+    return path
+
+
+def _features_from_pbf(cfg: dict, bbox) -> list:
+    """The asset groups' features from a national OpenStreetMap extract.
+
+    Read with GDAL's OSM driver, restricted to the region's box, and shaped
+    like the Overpass results (element and id columns, one column per tag key,
+    priority and source tag), so everything downstream is shared.
+    """
+    import os
+
+    import pyogrio
+
+    path = _pbf_path(cfg)
+    os.environ["OSM_CONFIG_FILE"] = str(Path(__file__).with_name("osmconf.ini"))
+    os.environ.setdefault("OSM_MAX_TMPFILE_SIZE", "1024")
+    keys = sorted({k for _, _, tags in TAG_BATCHES for k in tags})
+    frames = []
+    for layer, element in (("points", "node"), ("lines", "way"),
+                           ("multilinestrings", "relation"), ("multipolygons", None)):
+        gdf = pyogrio.read_dataframe(path, layer=layer, bbox=tuple(bbox))
+        if gdf.empty:
+            continue
+        for key in keys + ["name"]:
+            if key not in gdf.columns:
+                gdf[key] = None
+        if element is None:
+            # an area from a closed way carries osm_way_id, one from a relation osm_id
+            way = gdf.get("osm_way_id")
+            gdf["element"] = np.where(way.notna(), "way", "relation") if way is not None else "relation"
+            gdf["id"] = way.where(way.notna(), gdf["osm_id"]) if way is not None else gdf["osm_id"]
+        else:
+            gdf["element"] = element
+            gdf["id"] = gdf["osm_id"]
+        gdf["id"] = pd.to_numeric(gdf["id"], errors="coerce").astype("Int64")
+        for batch_name, priority, tags in TAG_BATCHES:
+            hit = pd.Series(False, index=gdf.index)
+            for key, wanted in tags.items():
+                hit |= _matches(gdf[key], wanted)
+            if not hit.any():
+                continue
+            batch = gdf.loc[hit, ["element", "id", "name", *tags.keys(), "geometry"]].copy()
+            batch["priority"] = priority
+            batch["source_tag"] = batch.apply(lambda row: _detect_source_tag(row, tags), axis=1)
+            frames.append(batch)
+            logger.info(f"  {layer} {batch_name}: {len(batch)} features from {path.name}")
+    if not frames:
+        raise RuntimeError(f"No assets found in {path} for the box {bbox}")
+    return frames
+
+
 def merge_tile_results(frames: list, bbox) -> gpd.GeoDataFrame:
     """Combine per-tile Overpass results into one clipped, de-duplicated frame.
 
@@ -226,12 +297,16 @@ def fetch_osm_infrastructure(cfg: dict, output_dir: Path) -> gpd.GeoDataFrame:
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     all_gdfs, failures = [], []
-    for i, tile in enumerate(tiles, start=1):
-        for batch_name, priority, tags in TAG_BATCHES:
-            frames, failed = _fetch_query(tile, batch_name, priority, tags, endpoints,
-                                          cache_dir, f"tile {i}/{len(tiles)}")
-            all_gdfs += frames
-            failures += failed
+    if (cfg["data"]["osm"].get("source") or "overpass") == "pbf":
+        # A national extract read locally: no rate limits, one dated snapshot.
+        all_gdfs = _features_from_pbf(cfg, bbox)
+    else:
+        for i, tile in enumerate(tiles, start=1):
+            for batch_name, priority, tags in TAG_BATCHES:
+                frames, failed = _fetch_query(tile, batch_name, priority, tags, endpoints,
+                                              cache_dir, f"tile {i}/{len(tiles)}")
+                all_gdfs += frames
+                failures += failed
 
     if failures:
         # A region with a tile missing would read as a region with no assets

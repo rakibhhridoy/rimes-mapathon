@@ -29,6 +29,12 @@ asset_model:
   past_flooding: false
 
 data:
+  # Assets come from Geofabrik's national OpenStreetMap extract of 30 Sep 2026,
+  # read locally, because the public Overpass servers throttled this region's
+  # queries (2026-10-01). The first three regions used Overpass in September.
+  osm:
+    source: "pbf"
+    pbf_path: "data/shared/osm/bangladesh-2026-09-30.osm.pbf"
   labels:
     # Flash floods inland and surge on the coast overlap little, so ground
     # counts as flood-prone if any mapped event flooded it, as on the

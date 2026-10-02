@@ -25,8 +25,9 @@ Configured under `aoi`:
 
 Without both boundary keys nothing is dropped, so a region elsewhere keeps
 working. A region may also name its districts, as the regions added for
-national coverage do: anything more than about 1 km outside them is then
-dropped too, so neighbouring regions do not hold the same assets twice. The
+national coverage do: anything in another district, or more than about 1 km
+outside the named ones, is then dropped too, so neighbouring regions do not
+hold the same assets twice. The
 names are those of the country boundary file's `shapeName` field.
 """
 
@@ -67,7 +68,12 @@ def _foreign(country_path: str, neighbours_path: str, iso3: str, bbox: tuple,
         missing = set(districts) - set(named["shapeName"])
         if missing:
             raise ValueError(f"districts not in {country_path}: {sorted(missing)}")
+        # Another district belongs to another region, margin or not; the 1 km
+        # margin only keeps ground outside every district, on chars and the coast.
+        others_in_country = country[~country["shapeName"].isin(districts)]
         foreign = foreign.union(area.difference(named.geometry.union_all().buffer(0.01)))
+        if not others_in_country.empty:
+            foreign = foreign.union(others_in_country.geometry.union_all().intersection(area))
     return foreign
 
 
@@ -96,7 +102,7 @@ def drop_foreign(gdf: gpd.GeoDataFrame, cfg: dict, what: str = "features") -> gp
     inside = points.within(foreign).to_numpy()
     if inside.any():
         logger.info(f"Dropped {int(inside.sum())} of {len(gdf)} {what} "
-                    "that lie in a neighbouring country")
+                    "outside the region (a neighbouring country or another region's districts)")
     return gdf[~inside]
 
 

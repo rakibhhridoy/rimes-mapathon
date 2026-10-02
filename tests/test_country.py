@@ -86,15 +86,17 @@ def test_a_region_named_by_districts_drops_the_rest(tmp_path):
     country = gpd.GeoDataFrame({"shapeName": ["West", "East"]},
                                geometry=[box(0, 0, 1, 1), box(1, 0, 2, 1)], crs="EPSG:4326")
     world = gpd.GeoDataFrame({"ADM0_A3": ["HOM"]}, geometry=[box(0, 0, 2, 1)], crs="EPSG:4326")
+    # (the sea north of y = 1 lies in no district and no country)
     country.to_file(tmp_path / "adm2.geojson")
     world.to_file(tmp_path / "ne.geojson")
     _foreign.cache_clear()
-    cfg = {"aoi": {"bbox": [0, 0, 2, 1], "iso3": "HOM", "districts": ["West"],
+    cfg = {"aoi": {"bbox": [0, 0, 2, 2], "iso3": "HOM", "districts": ["West"],
                    "country_boundary": str(tmp_path / "adm2.geojson"),
                    "neighbours": str(tmp_path / "ne.geojson")}}
-    kept = drop_foreign(points((0.5, 0.5), (1.005, 0.5), (1.5, 0.5)), cfg)
-    # the named district and its 1 km margin stay; the other district goes
-    assert [round(p.x, 3) for p in kept.geometry] == [0.5, 1.005]
+    kept = drop_foreign(points((0.5, 0.5), (1.005, 0.5), (1.5, 0.5), (0.5, 1.005)), cfg)
+    # the named district stays, and so does ground just outside every district
+    # (a char or the coast); the other district goes even within the margin
+    assert [(round(p.x, 3), round(p.y, 3)) for p in kept.geometry] == [(0.5, 0.5), (0.5, 1.005)]
 
 
 def test_an_unknown_district_name_stops_the_run(tmp_path):

@@ -90,10 +90,13 @@ data:
   osm:
     # Overpass answers small areas reliably; a whole division times out.
     tile_span_deg: 0.75
-    # Failed queries are retried with a growing pause. Public mirrors hung or
-    # refused connections when tested (2026-09-22), so only the main endpoint
-    # is listed; add a reliable mirror here if one is available.
+    # Failed queries are retried with a growing pause, cycling through these.
+    # overpass-api.de is two servers, lambert and gall, behind one name; on
+    # 2026-10-01 gall refused every connection while lambert answered, so
+    # lambert is asked by name first and the shared name kept as a fallback.
+    # Third-party mirrors hung or refused connections when tested (2026-09-22).
     overpass_endpoints:
+      - "https://lambert.openstreetmap.de/api"
       - "https://overpass-api.de/api"
     # Priority 1 — Lifeline Infrastructure
     lifeline_tags:
