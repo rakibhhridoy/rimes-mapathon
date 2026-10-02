@@ -96,8 +96,20 @@ writes:
 | Output | What it holds |
 |---|---|
 | `web/data/hazmapper.sqlite` | assets, administrative summaries, every metrics file, and an FTS5 search index |
-| `web/data/tiles/<region>/*.pmtiles` | assets, union boundaries and hotspots as vector tiles |
+| `web/data/tiles/<region>/*.pmtiles` | assets and hotspots as vector tiles |
+| `web/data/tiles/admin/<hazard>_<level>.pmtiles` | divisions, districts, upazilas and unions with each hazard's figures |
 | `web/data/overlays/<region>/*.png` | the raster layers the pipeline pre-rendered |
+
+The map draws one administrative level at a time, chosen by zoom: divisions
+for the whole country, then districts, upazilas and unions. Flood areas are
+coloured by the share of their assets scoring High or Very high (0.50 and
+above), summed over every flood region; landslide areas by their mean
+susceptibility. Clicking an area, or choosing it in the Division, District,
+Upazila and Union pickers, frames it and narrows the assets and counters to
+it. geoBoundaries publishes no divisions and no parent links, so
+`scripts/admin_areas.py` dissolves divisions from their districts and places
+every unit in its parent. After changing only that step,
+`python scripts/build_web.py --areas-only` rebuilds the areas in a minute.
 
 Tiles are PMTiles, read by the browser over HTTP range requests, so no tile
 server is needed: nginx serving the file is enough. Tiles carry only the

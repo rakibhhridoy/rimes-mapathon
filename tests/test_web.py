@@ -190,3 +190,51 @@ class TestLandslideAPI:
         if flood:
             assert client.get(f"/api/landslide/{flood['id']}/summary").status_code == 404
 
+
+
+class TestAreas:
+    """Divisions, districts, upazilas and unions, and their figures."""
+
+    def test_flood_levels_add_up(self, connection):
+        # every asset sits in one union, so each level counts every asset once
+        total = connection.execute("SELECT COUNT(*) FROM assets").fetchone()[0]
+        for level in ("division", "district", "upazila", "union"):
+            summed = connection.execute(
+                "SELECT SUM(n_assets) FROM admin_units WHERE hazard = 'flood' AND level = ?",
+                (level,)).fetchone()[0]
+            assert summed == total, f"{level}: {summed} of {total} assets"
+
+    def test_every_unit_knows_its_parent(self, connection):
+        orphans = connection.execute(
+            "SELECT COUNT(*) FROM admin_units WHERE level != 'division' AND parent IS NULL"
+            " AND NOT (hazard = 'landslide' AND level = 'district')").fetchone()[0]
+        assert orphans == 0
+
+    def test_share_high_matches_the_assets(self, connection):
+        row = connection.execute(
+            "SELECT id, n_assets, n_high, share_high FROM admin_units"
+            " WHERE hazard = 'flood' AND level = 'district' AND n_assets > 0 LIMIT 1").fetchone()
+        high = connection.execute(
+            "SELECT COUNT(*) FROM assets WHERE adm_district = ? AND flood_risk >= 0.5",
+            (row["id"],)).fetchone()[0]
+        assert high == row["n_high"]
+        assert row["share_high"] == pytest.approx(high / row["n_assets"])
+
+    def test_pickers_list_children_of_a_parent(self, client):
+        divisions = client.get("/api/areas/flood?levels=division").json()["areas"]
+        assert len(divisions) == 8
+        upazila = client.get("/api/areas/flood?levels=upazila").json()["areas"][0]
+        unions = client.get(f"/api/areas/flood?levels=union&parent={upazila['id']}").json()["areas"]
+        assert unions and all(u["upazila"] == upazila["id"] for u in unions)
+
+    def test_area_filter_narrows_the_counters(self, client):
+        district = client.get("/api/area/flood/district/Kurigram").json()
+        stats = client.get("/api/stats?area=district:Kurigram").json()
+        assert stats["assets"] == district["n_assets"]
+        assert client.get("/api/stats").json()["assets"] > stats["assets"]
+
+    def test_area_filter_is_validated(self, client):
+        assert client.get("/api/stats?area=province:Kurigram").status_code == 400
+        assert client.get("/api/stats?area=district").status_code == 400
+        assert client.get("/api/area/flood/district/Nowhere").status_code == 404
+        assert client.get("/api/areas/flood?levels=province").status_code == 400

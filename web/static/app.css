@@ -220,6 +220,39 @@ body.right-collapsed .side-right { transform: translateX(calc(100% + var(--gap) 
 .panel-links button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 .panel-links button[aria-pressed="true"]::after { color: #fff; }
 
+/* ── Area picker: division, district, upazila, union ─────────────────── */
+.area-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin-bottom: 8px; }
+.area-row {
+  display: flex; align-items: center; gap: 8px; position: relative; min-width: 0;
+  border: 1px solid var(--hairline); border-radius: 10px;
+  background: var(--glass-control); padding: 0 10px;
+}
+.area-row:hover, .area-row:focus-within { background: #fff; border-color: rgba(37, 99, 235, 0.35); }
+.area-row.active select { color: var(--accent); font-weight: 600; }
+.area-row label { color: var(--dim); font-size: 11px; font-weight: 600; min-width: 70px; }
+.area-row select {
+  flex: 1; min-width: 0; appearance: none; -webkit-appearance: none; border: none;
+  background: transparent; padding: 8px 18px 8px 0; cursor: pointer;
+  font: 500 12.5px Inter, sans-serif; color: var(--text); text-overflow: ellipsis;
+}
+.area-row select:disabled { color: var(--dim); cursor: default; }
+.area-row::after {
+  content: ""; position: absolute; right: 12px; top: 50%; width: 6px; height: 6px;
+  border-right: 2px solid var(--dim); border-bottom: 2px solid var(--dim);
+  transform: translateY(-70%) rotate(45deg); pointer-events: none;
+}
+.area-tip .maplibregl-popup-content {
+  padding: 6px 9px; border-radius: 8px; font: 500 11.5px Inter, sans-serif;
+  background: rgba(255, 255, 255, 0.94); box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+}
+.area-tip .maplibregl-popup-tip { display: none; }
+.area-tip b { font-weight: 700; }
+.area-tip span { color: var(--dim); }
+.detail .children { margin-top: 10px; font-size: 11.5px; }
+.detail .children div { display: flex; justify-content: space-between; padding: 2px 0; }
+.detail .children .num { color: var(--muted); }
+.detail .children-head { color: var(--dim); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+
 /* ── Multi-select dropdown ──────────────────────────────────────────── */
 .ms { margin-bottom: 8px; }
 .ms[hidden] { display: none; }

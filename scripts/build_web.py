@@ -11,7 +11,10 @@ geometry, both built here, once, from the same pipeline outputs.
 
 Outputs:
     web/data/hazmapper.sqlite      assets, summaries, metrics, search index
-    web/data/tiles/<region>.pmtiles  assets, unions and hotspots as tiles
+    web/data/tiles/<region>.pmtiles  assets and hotspots as tiles
+    web/data/tiles/admin/<hazard>_<level>.pmtiles  divisions, districts,
+                                     upazilas and unions with each hazard's
+                                     figures (scripts/admin_areas.py)
     web/data/overlays/<region>/*.png  pre-rendered raster layers
 """
 
@@ -28,6 +31,23 @@ sys.path.insert(0, str(ROOT))
 
 from dashboard.data.regions import (PAPER_REGIONS, REGION_CONFIGS, has_results,  # noqa: E402
                                     region_paths)
+
+sys.path.insert(0, str(ROOT / "scripts"))
+import admin_areas  # noqa: E402
+
+_LEVELS = None
+
+
+def levels() -> dict:
+    """The administrative hierarchy, read once per build."""
+    global _LEVELS
+    if _LEVELS is None:
+        _LEVELS = admin_areas.hierarchy()
+    return _LEVELS
+
+# The area columns every asset carries, so the map and the API can filter by
+# division, district, upazila or union.
+AREA_COLUMNS = ["adm_division", "adm_district", "adm_upazila", "adm_union"]
 
 # The website's regions, north to south, then the landslide region. The three
 # original box regions are kept for the paper and left off the website.
@@ -70,14 +90,8 @@ TILE_LAYERS = {
     "assets": {
         "source": "risk_ranked_assets.geojson", "zoom": (4, 14),
         "fields": ["name", "asset_type", "division", "flood_risk",
-                   "flood_probability", "risk_rank"],
+                   "flood_probability", "risk_rank", *AREA_COLUMNS],
         "simplify": None,
-    },
-    "unions": {
-        "source": "union_risk_summary.geojson", "zoom": (4, 12),
-        "fields": ["admin_name", "admin_label", "mean_risk", "max_risk",
-                   "mean_risk_people", "n_high_risk", "n_cells"],
-        "simplify": 0.0005,          # about 50 m, the display cache's tolerance
     },
     "hotspots": {
         "source": "hotspot_clusters.geojson", "zoom": (4, 12),
@@ -97,8 +111,11 @@ CREATE TABLE IF NOT EXISTS assets (
     risk_rank INTEGER, is_high_risk INTEGER,
     cell_hazard REAL, cell_exposure REAL, cell_vulnerability REAL,
     cell_composite_risk REAL,
+    adm_division TEXT, adm_district TEXT, adm_upazila TEXT, adm_union TEXT,
     PRIMARY KEY (region, asset_id)
 );
+CREATE INDEX IF NOT EXISTS assets_union ON assets(adm_union);
+CREATE INDEX IF NOT EXISTS assets_upazila ON assets(adm_upazila);
 CREATE INDEX IF NOT EXISTS assets_rank ON assets(region, risk_rank);
 CREATE INDEX IF NOT EXISTS assets_type ON assets(region, asset_type);
 CREATE VIRTUAL TABLE IF NOT EXISTS assets_fts USING fts5(
@@ -119,6 +136,17 @@ CREATE TABLE IF NOT EXISTS landslide_units (
     population INTEGER, n_landslides INTEGER, lat REAL, lon REAL,
     PRIMARY KEY (region, unit_id)
 );
+CREATE TABLE IF NOT EXISTS admin_units (
+    hazard TEXT, level TEXT, id TEXT, name TEXT, parent TEXT,
+    division TEXT, district TEXT, upazila TEXT, region TEXT, regions TEXT,
+    west REAL, south REAL, east REAL, north REAL, lat REAL, lon REAL,
+    population INTEGER, n_assets INTEGER, n_high INTEGER, share_high REAL,
+    mean_score REAL, n_hospital INTEGER, n_school INTEGER, n_bridge INTEGER,
+    n_shelter INTEGER, n_cropland INTEGER,
+    susceptibility_mean REAL, susceptibility_max REAL, n_landslides INTEGER,
+    PRIMARY KEY (hazard, level, id)
+);
+CREATE INDEX IF NOT EXISTS admin_units_parent ON admin_units(hazard, parent);
 CREATE TABLE IF NOT EXISTS landslides (
     region TEXT, landslide_id INTEGER, event_date TEXT, title TEXT,
     category TEXT, trigger TEXT, unit_id TEXT, upazila TEXT, district TEXT,
@@ -131,6 +159,11 @@ CREATE TABLE IF NOT EXISTS landslides (
 def _connect() -> sqlite3.Connection:
     WEB.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
+    # A database built before assets carried their areas lacks the columns;
+    # every region's assets are reloaded by a full build, so start it afresh.
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(assets)")}
+    if columns and "adm_union" not in columns:
+        conn.execute("DROP TABLE assets")
     conn.executescript(SCHEMA)
     return conn
 
@@ -152,6 +185,10 @@ def _float(value):
     return out if out == out else None      # NaN is not a number worth storing
 
 
+# Each region's asset areas by rank, for the asset tiles written after the rows.
+_AREAS_BY_RANK: dict = {}
+
+
 def load_assets(conn: sqlite3.Connection, region: str, paths: dict) -> int:
     """Asset rows and the search index, from the display cache."""
     import geopandas as gpd
@@ -168,6 +205,12 @@ def load_assets(conn: sqlite3.Connection, region: str, paths: dict) -> int:
     if "lon" not in frame.columns or "lat" not in frame.columns:
         points = frame.geometry.representative_point()
         frame = frame.assign(lon=points.x, lat=points.y)
+    frame = frame.reset_index(drop=True)
+    points = gpd.GeoDataFrame(geometry=gpd.points_from_xy(frame["lon"], frame["lat"]),
+                              crs="EPSG:4326")
+    areas = admin_areas.assign(points, levels())
+    for column, level in zip(AREA_COLUMNS, ("division", "district", "upazila", "union")):
+        frame[column] = areas[level].values
 
     conn.execute("DELETE FROM assets WHERE region = ?", (region,))
     conn.execute("DELETE FROM assets_fts WHERE region = ?", (region,))
@@ -185,10 +228,12 @@ def load_assets(conn: sqlite3.Connection, region: str, paths: dict) -> int:
             int(get("risk_rank") or 0), int(bool(get("is_high_risk"))),
             _float(get("cell_hazard")), _float(get("cell_exposure")),
             _float(get("cell_vulnerability")), _float(get("cell_composite_risk")),
+            *[get(column) if isinstance(get(column), str) else None for column in AREA_COLUMNS],
         ))
         search.append((name, asset_type, division, region, asset_id))
+    _AREAS_BY_RANK[region] = frame.set_index("risk_rank")[AREA_COLUMNS]
 
-    conn.executemany("INSERT OR REPLACE INTO assets VALUES (" + ",".join("?" * 15) + ")", rows)
+    conn.executemany("INSERT OR REPLACE INTO assets VALUES (" + ",".join("?" * 19) + ")", rows)
     conn.executemany(
         "INSERT INTO assets_fts (name, asset_type, division, region, asset_id) "
         "VALUES (?, ?, ?, ?, ?)", search)
@@ -279,6 +324,15 @@ def build_tiles(region: str, paths: dict) -> float:
         if not source.exists():
             continue
         target = out_dir / f"{layer}.pmtiles"
+        if layer == "assets" and region in _AREAS_BY_RANK:
+            # the tiles carry each asset's areas, which the outputs do not have
+            import geopandas as gpd
+
+            frame = gpd.read_file(source)
+            frame = frame.join(_AREAS_BY_RANK[region], on="risk_rank")
+            keep = [f for f in spec["fields"] if f in frame.columns]
+            written += _write_pmtiles(frame[keep + ["geometry"]], target, layer, spec["zoom"])
+            continue
         if target.exists():
             target.unlink()
         zmin, zmax = spec["zoom"]
@@ -421,6 +475,7 @@ def build_landslide(conn: sqlite3.Connection, region: str, paths: dict) -> dict:
         points["upazila"] = joined["admin_name"].values
         points["district"] = joined["district_name"].values
         points["unit_susceptibility"] = joined["susceptibility_mean"].values
+        points["union_id"] = admin_areas.assign(points[["geometry"]], levels())["union"].values
         points["susceptibility"] = np.nan
         if surface.exists():
             with rasterio.open(surface) as src:
@@ -468,18 +523,98 @@ def build_landslide(conn: sqlite3.Connection, region: str, paths: dict) -> dict:
 
     out_dir = WEB / "tiles" / region
     out_dir.mkdir(parents=True, exist_ok=True)
-    unit_tiles = units.rename(columns={"shapeID": "unit_id", "admin_name": "name",
-                                       "district_name": "district"})[
-        ["unit_id", "name", "district", "susceptibility_mean", "susceptibility_max",
-         "population", "n_landslides", "geometry"]]
-    size = _write_pmtiles(unit_tiles, out_dir / "ls_upazilas.pmtiles", "ls_upazilas", (4, 12), 0.0005)
+    # the upazilas are drawn from the national area tiles (build_admin) now
+    (out_dir / "ls_upazilas.pmtiles").unlink(missing_ok=True)
+    size = 0.0
     if n_points:
         point_tiles = points[["landslide_id", "landslide_category", "event_date", "unit_id",
-                              "upazila", "district", "susceptibility", "unit_susceptibility",
-                              "geometry"]].rename(columns={"landslide_category": "category"})
+                              "union_id", "upazila", "district", "susceptibility",
+                              "unit_susceptibility", "geometry"]].rename(
+            columns={"landslide_category": "category"})
         size += _write_pmtiles(point_tiles, out_dir / "ls_points.pmtiles", "ls_points", (4, 14))
     conn.commit()
     return {"units": len(units), "landslides": n_points, "tiles_mb": round(size, 1)}
+
+
+# Area tiles: how far each level's outlines are simplified, in degrees, and
+# the zooms its tiles span. The map shows each level's colours over a
+# narrower band of zooms; outlines carry on in further.
+AREA_TILES = {
+    "division": {"simplify": 0.002, "zoom": (4, 10)},
+    "district": {"simplify": 0.001, "zoom": (4, 11)},
+    "upazila": {"simplify": 0.0005, "zoom": (6, 12)},
+    "union": {"simplify": 0.0003, "zoom": (9, 13)},
+}
+AREA_FIELDS = {
+    "flood": ["id", "name", "level", "region", "regions", "share_high", "mean_score",
+              "n_assets"],
+    "landslide": ["id", "name", "level", "susceptibility_mean", "n_landslides"],
+}
+
+
+def build_admin(conn: sqlite3.Connection, landslide_region: str | None) -> dict:
+    """Every level's figures for each hazard, as a table and as tiles.
+
+    Flood figures add up every flood region's assets, so an area on a region
+    boundary is scored from all of them. Landslide figures come from the
+    landslide region's surface and inventory.
+    """
+    import geopandas as gpd
+    import pandas as pd
+
+    lv = levels()
+    people = admin_areas.population(lv)
+    assets = pd.read_sql("SELECT region, asset_type, flood_risk, adm_division AS division,"
+                         " adm_district AS district, adm_upazila AS upazila,"
+                         " adm_union AS \"union\" FROM assets", conn)
+    hazards = {"flood": admin_areas.flood_areas(lv, assets, people)}
+    if landslide_region:
+        paths = region_paths(landslide_region)
+        surface = paths["output"] / "landslide_susceptibility.tif"
+        figures = _read_json(paths["output"] / "landslide_upazila.json") or []
+        inventory = paths["raw"] / "coolr_landslides.geojson"
+        points = gpd.read_file(inventory).to_crs("EPSG:4326") if inventory.exists() else None
+        if surface.exists() and figures:
+            hazards["landslide"] = admin_areas.landslide_areas(lv, surface, figures, points, people)
+
+    conn.execute("DELETE FROM admin_units")
+    out_dir = WEB / "tiles" / "admin"
+    shutil.rmtree(out_dir, ignore_errors=True)
+    out_dir.mkdir(parents=True)
+    columns = [row[1] for row in conn.execute("PRAGMA table_info(admin_units)")]
+    parents = {"division": None, "district": "division", "upazila": "district",
+               "union": "upazila"}
+    counts = {}
+    for hazard, by_level in hazards.items():
+        for level, frame in by_level.items():
+            frame = frame.copy()
+            frame["hazard"], frame["level"] = hazard, level
+            frame["parent"] = frame[parents[level]] if parents[level] else None
+            records = []
+            for row in frame.drop(columns="geometry").to_dict("records"):
+                records.append(tuple(_cell(row.get(c)) for c in columns))
+            conn.executemany(f"INSERT INTO admin_units VALUES ({','.join('?' * len(columns))})",
+                             records)
+            keep = [c for c in AREA_FIELDS[hazard] if c in frame.columns]
+            spec = AREA_TILES[level]
+            _write_pmtiles(frame[keep + ["geometry"]], out_dir / f"{hazard}_{level}.pmtiles",
+                           level, spec["zoom"], spec["simplify"])
+            counts[f"{hazard} {level}"] = len(frame)
+    conn.commit()
+    return counts
+
+
+def _cell(value):
+    """A value SQLite can store: numpy numbers as Python ones, NaN as NULL."""
+    import math
+
+    if value is None:
+        return None
+    if hasattr(value, "item"):
+        value = value.item()
+    if isinstance(value, float) and math.isnan(value):
+        return None
+    return value
 
 
 def pd_dates(series) -> list:
@@ -534,10 +669,14 @@ def build_region(conn: sqlite3.Connection, region: str) -> dict:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--regions", nargs="*", default=None)
+    parser.add_argument("--areas-only", action="store_true",
+                        help="rebuild only the administrative areas from the current database")
     args = parser.parse_args()
 
     connection = _connect()
-    if args.regions:
+    if args.areas_only:
+        regions = []
+    elif args.regions:
         regions = args.regions
     else:
         regions = web_regions()
@@ -552,6 +691,11 @@ if __name__ == "__main__":
               + (f", {result['landslide']['units']} upazilas and "
                  f"{result['landslide']['landslides']:,} landslides"
                  if result.get("landslide") else ""))
+    # every region in the database counts, not only those just rebuilt
+    found = connection.execute("SELECT id FROM regions WHERE has_landslide = 1").fetchone()
+    landslide = found[0] if found else None
+    areas = build_admin(connection, landslide)
+    print("Areas: " + ", ".join(f"{n:,} {k}" for k, n in areas.items()))
     connection.execute("VACUUM")
     connection.close()
     print(f"\nDatabase: {DB_PATH} ({DB_PATH.stat().st_size / 1e6:.1f} MB)")

@@ -80,6 +80,21 @@ def region_ids(region: str) -> list[str]:
     return [region]
 
 
+# The administrative levels, top down; an area filter names one of them.
+LEVELS = ["division", "district", "upazila", "union"]
+HAZARDS = {"flood", "landslide"}
+
+
+def parse_area(area: str) -> tuple[str, str] | None:
+    """An area filter, written "level:id", or None when it is empty."""
+    if not area:
+        return None
+    level, _, unit = area.partition(":")
+    if level not in LEVELS or not unit:
+        raise HTTPException(400, "area must be level:id")
+    return level, unit
+
+
 def placeholders(values: list) -> str:
     return ",".join("?" * len(values))
 
@@ -176,6 +191,7 @@ def filtered_stats(regions: str = Query("", max_length=200),
                    types: str = Query("", max_length=400),
                    districts: str = Query("", max_length=2000),
                    classes: str = Query("", max_length=80),
+                   area: str = Query("", max_length=80),
                    min_score: float = Query(0.0, ge=0, le=1),
                    max_score: float = Query(1.0, ge=0, le=1)):
     """Counts for the assets the map's filters leave visible.
@@ -189,6 +205,11 @@ def filtered_stats(regions: str = Query("", max_length=200),
         raise HTTPException(404, "unknown region")
     where = [f"region IN ({placeholders(chosen)})", "flood_risk >= ?", "flood_risk <= ?"]
     params: list = [*chosen, min_score, max_score]
+    picked_area = parse_area(area)
+    if picked_area:
+        # the column is chosen from LEVELS, never from the request's text
+        where.append(f"adm_{picked_area[0]} = ?")
+        params.append(picked_area[1])
     for column, text in (("asset_type", types), ("division", districts)):
         values = [v for v in text.split(",") if v]
         if values:
@@ -292,6 +313,55 @@ def export_csv(region: str, limit: int = Query(5000, le=100000)):
         headers={"Content-Disposition": f'attachment; filename="{region}_assets.csv"'})
 
 
+# ── Administrative areas ─────────────────────────────────────────────────
+
+AREA_LIST = ("id, name, level, parent, division, district, upazila, region, regions,"
+             " west, south, east, north, n_assets, share_high, susceptibility_mean")
+
+
+@app.get("/api/areas/{hazard}")
+def list_areas(hazard: str, levels: str = Query("division,district,upazila", max_length=60),
+               parent: str = Query("", max_length=80)):
+    """Areas for the cascading pickers: whole levels, or one area's children.
+
+    Unions are many, so the page asks for them one upazila at a time.
+    """
+    if hazard not in HAZARDS:
+        raise HTTPException(404, "unknown hazard")
+    wanted = [level for level in levels.split(",") if level]
+    if any(level not in LEVELS for level in wanted):
+        raise HTTPException(400, "unknown level")
+    where = [f"hazard = ?", f"level IN ({placeholders(wanted)})"]
+    params: list = [hazard, *wanted]
+    if parent:
+        where.append("parent = ?")
+        params.append(parent)
+    found = rows(f"SELECT {AREA_LIST} FROM admin_units WHERE {' AND '.join(where)}"
+                 " ORDER BY level, name", tuple(params))
+    return cached({"hazard": hazard, "areas": found})
+
+
+@app.get("/api/area/{hazard}/{level}/{unit}")
+def area_detail(hazard: str, level: str, unit: str):
+    """One area's figures, the names above it, and its highest-scoring parts."""
+    if hazard not in HAZARDS or level not in LEVELS:
+        raise HTTPException(404, "unknown area")
+    area = one("SELECT * FROM admin_units WHERE hazard = ? AND level = ? AND id = ?",
+               (hazard, level, unit))
+    if not area:
+        raise HTTPException(404, "unknown area")
+    if area["upazila"] and level == "union":
+        found = one("SELECT name FROM admin_units WHERE hazard = ? AND level = 'upazila'"
+                    " AND id = ?", (hazard, area["upazila"]))
+        area["upazila_name"] = found["name"] if found else None
+    order = "share_high" if hazard == "flood" else "susceptibility_mean"
+    area["top_children"] = rows(
+        f"SELECT id, name, level, n_assets, share_high, susceptibility_mean, n_landslides"
+        f" FROM admin_units WHERE hazard = ? AND parent = ? AND {order} IS NOT NULL"
+        f" ORDER BY {order} DESC LIMIT 3", (hazard, unit)) if level != "union" else []
+    return cached(area)
+
+
 # ── Landslide view ──────────────────────────────────────────────────────
 
 def landslide_region(region: str) -> str:
@@ -338,14 +408,19 @@ def landslide_stats(region: str,
                     districts: str = Query("", max_length=400),
                     upazilas: str = Query("", max_length=4000),
                     categories: str = Query("", max_length=400),
+                    area: str = Query("", max_length=80),
                     min_score: float = Query(0.0, ge=0, le=1),
                     max_score: float = Query(1.0, ge=0, le=1)):
     """Counts for the upazilas and landslides the filters leave visible.
 
     Mean susceptibility is weighted by each upazila's area in pixels, so a
-    large upazila counts for its size rather than as one unit.
+    large upazila counts for its size rather than as one unit. With an area
+    chosen, the figures are that area's own.
     """
     landslide_region(region)
+    picked = parse_area(area)
+    if picked:
+        return cached(_landslide_area_stats(*picked, categories))
     clause, params = _unit_filter(region, districts, upazilas, min_score, max_score)
     units = one("SELECT COUNT(*) AS n, SUM(population) AS people,"
                 " SUM(susceptibility_mean * n_pixels) / NULLIF(SUM(n_pixels), 0) AS mean"
@@ -364,6 +439,34 @@ def landslide_stats(region: str,
     return cached({"upazilas": units["n"] or 0, "population": int(units["people"] or 0),
                    "mean_susceptibility": units["mean"], "landslides": points["n"] or 0,
                    "susceptibility_at_landslides": points["at_points"], "highest": top})
+
+
+def _landslide_area_stats(level: str, unit: str, categories: str) -> dict:
+    """One area's landslide figures, as the area tiles colour it."""
+    area = one("SELECT * FROM admin_units WHERE hazard = 'landslide' AND level = ? AND id = ?",
+               (level, unit))
+    if not area:
+        raise HTTPException(404, "unknown area")
+    inside, at_points = [], None
+    if level in ("district", "upazila"):
+        column = "id" if level == "upazila" else "district"
+        inside = rows("SELECT name, district, susceptibility_mean FROM admin_units"
+                      f" WHERE hazard = 'landslide' AND level = 'upazila' AND {column} = ?"
+                      " ORDER BY susceptibility_mean DESC", (unit,))
+        # the landslides table records each point's upazila and district
+        where = ["unit_id = ?" if level == "upazila" else "district = ?"]
+        params: list = [unit]
+        picked = [c for c in categories.split(",") if c]
+        if picked:
+            where.append(f"category IN ({placeholders(picked)})")
+            params += picked
+        at_points = one(f"SELECT AVG(susceptibility) AS v FROM landslides"
+                        f" WHERE {' AND '.join(where)}", tuple(params))["v"]
+    return {"upazilas": len(inside), "population": int(area["population"] or 0),
+            "mean_susceptibility": area["susceptibility_mean"],
+            "landslides": area["n_landslides"] or 0,
+            "susceptibility_at_landslides": at_points,
+            "highest": inside[0] if inside else None}
 
 
 @app.get("/api/landslide/{region}/upazilas.csv")
