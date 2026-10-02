@@ -1253,7 +1253,8 @@ function applyMrva() {
   renderMrvaLegend(info);
   if (!info) return;
   map.addSource("mrva", {
-    type: "raster", tileSize: 512, bounds: MRVA_BOUNDS,
+    // no requests for whole-world images at the lowest zooms
+    type: "raster", tileSize: 512, bounds: MRVA_BOUNDS, minzoom: 5,
     tiles: [`${MRVA_BASE}/${info.service}/MapServer/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857`
       + `&size=512,512&format=png32&transparent=true&layers=show:${info.id}&dpi=96&f=image`],
     attribution: "Official hazard maps &copy; DDM (MRVA), served by UNOSAT",
