@@ -111,6 +111,16 @@ it. geoBoundaries publishes no divisions and no parent links, so
 every unit in its parent. After changing only that step,
 `python scripts/build_web.py --areas-only` rebuilds the areas in a minute.
 
+The left panel can also show the Department of Disaster Management's official
+MRVA scenario maps (flood and storm surge depth by return period, landslide,
+earthquake, tsunami and drought), drawn live from UNOSAT's map server with
+their own legend and credited to it; nothing from them is stored here, and
+the site's Content-Security-Policy must allow `https://unosat-geodrr.cern.ch`
+in `img-src` and `connect-src`. Every fading layer has an opacity slider.
+The address records the view (hazard, region, area, official map, layers and
+position), so "Copy link" shares the exact map, and "Download map" saves the
+visible map as a PNG with a title, legend and credits.
+
 Tiles are PMTiles, read by the browser over HTTP range requests, so no tile
 server is needed: nginx serving the file is enough. Tiles carry only the
 fields the map draws with; the detail card reads the database, so nothing is

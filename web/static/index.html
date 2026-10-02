@@ -76,6 +76,21 @@
       <h2>Map layers</h2>
       <div id="layers" class="layers"></div>
     </section>
+
+    <section>
+      <h2>Official hazard maps</h2>
+      <div class="area-row" id="mrvaRow">
+        <label for="mrvaPick">MRVA</label>
+        <select id="mrvaPick"><option value="">None</option></select>
+      </div>
+      <div class="opacity" id="mrvaOpacity" hidden>
+        <span>Opacity</span>
+        <input type="range" min="0" max="1" step="0.05" value="0.7" data-opacity="mrva" aria-label="Opacity of the official hazard map">
+      </div>
+      <p class="hint">Scenario maps from the Department of Disaster Management's Multi-hazard
+        Risk and Vulnerability Assessment (MRVA), served live by UNOSAT. Modelled return
+        periods, not observed floods.</p>
+    </section>
   </div>
 </aside>
 
@@ -107,6 +122,7 @@
     <section>
       <h2 id="legendTitle">Susceptibility</h2>
       <div class="legend" id="legend"></div>
+      <div class="legend mrva-legend" id="mrvaLegend" hidden></div>
     </section>
 
     <section>
@@ -116,6 +132,10 @@
         <button data-panel="preparedness">Preparedness</button>
         <button data-panel="about">About the data</button>
       </nav>
+      <div class="share-row">
+        <button id="downloadMap" type="button">Download map</button>
+        <button id="copyLink" type="button">Copy link</button>
+      </div>
     </section>
 
     <section>
@@ -123,8 +143,9 @@
       <div id="provenance" class="stats"></div>
     </section>
 
-    <p class="credits">Imagery © Esri, Maxar, Earthstar Geographics · Relief from
-      Mapzen terrain tiles (AWS Open Data) · Labels © Esri · Asset data © OpenStreetMap contributors</p>
+    <p class="credits">Relief © Esri · Hillshade from Mapzen terrain tiles (AWS Open Data) ·
+      Official hazard maps © Department of Disaster Management (MRVA), served by UNOSAT ·
+      Asset data © OpenStreetMap contributors · Boundaries © geoBoundaries · Population © WorldPop</p>
   </div>
 </aside>
 

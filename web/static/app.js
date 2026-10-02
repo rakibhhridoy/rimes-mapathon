@@ -67,6 +67,12 @@ const state = {
     landslide: true, ls_areas: false, ls_points: true,
   },
   filters: { regions: new Set(), types: new Set(), classes: new Set(), min: 0, max: 1 },
+  // Opacity chosen with a layer's slider, by layer key; unset keeps the default.
+  opacity: {},
+  // The official MRVA map shown, as "service:layer", or "" for none.
+  mrva: "",
+  // While a shared link is being applied, the address is left alone.
+  restoring: false,
   // The area chosen in the pickers or on the map, and the choice at each level.
   area: null,
   picks: {},
@@ -197,7 +203,7 @@ function addRegionLayers(region) {
   map.addSource(`hotspots-${region}`, { type: "vector", url: `${base}/hotspots.pmtiles` });
   map.addLayer({
     id: `hotspots-${region}`, type: "fill", source: `hotspots-${region}`, "source-layer": "hotspots",
-    paint: { "fill-color": "#c62828", "fill-opacity": 0.22 },
+    paint: { "fill-color": "#c62828", "fill-opacity": opacityOf("hotspots") },
   });
 
   map.addSource(`assets-${region}`, { type: "vector", url: `${base}/assets.pmtiles` });
@@ -243,7 +249,13 @@ const SHARE_STOPS = [[0, "#ff9b54"], [0.02, "#ff7f51"], [0.05, "#ce4257"], [0.10
   [0.25, "#4f000b"]];
 // An area with no mapped assets keeps only its outline.
 const NO_DATA = "rgba(0, 0, 0, 0)";
-const FILL_OPACITY = { flood: 0.62, landslide: 0.62 };
+// Each adjustable layer's opacity until its slider moves.
+const DEFAULT_OPACITY = {
+  areas: 0.62, ls_areas: 0.62, hotspots: 0.22, landslide: 0.68, flood_risk: 0.55,
+  hand: 0.55, slope: 0.55, dem: 0.55, kriging_variance: 0.55, mrva: 0.7,
+};
+const opacityOf = (key) => state.opacity[key] ?? DEFAULT_OPACITY[key] ?? 1;
+const areaKey = () => (state.hazard === "landslide" ? "ls_areas" : "areas");
 const pct = (v) => (v == null ? "—" : `${(v * 100).toFixed(v > 0 && v < 0.1 ? 1 : 0)} %`);
 
 const levelsOf = () => AREA_LEVELS[state.hazard];
@@ -273,7 +285,7 @@ function addAreaLayers() {
     map.addLayer({
       id: `adm-fill-${level}`, type: "fill", source: `adm-${level}`, "source-layer": level,
       minzoom: from, maxzoom: to,
-      paint: { "fill-color": areaColour(), "fill-opacity": FILL_OPACITY[hazard] },
+      paint: { "fill-color": areaColour(), "fill-opacity": opacityOf(areaKey()) },
     });
   });
   // Outlines from the finest up, so a district's edge draws over its unions'.
@@ -403,6 +415,7 @@ async function pickArea(level, id, { fly = true } = {}) {
   }
   await renderAreaPicker();
   applyFilters();
+  updateHash();
   if (detail) {
     if (fly) {
       map.fitBounds([[detail.west, detail.south], [detail.east, detail.north]],
@@ -509,7 +522,7 @@ async function ensureOverlay(name, region) {
   const below = (map.getStyle().layers || []).find((l) => l.id.startsWith("adm-fill-"))?.id;
   map.addLayer({
     id, type: "raster", source: id,
-    paint: { "raster-opacity": name === "landslide" ? 0.68 : 0.55 },
+    paint: { "raster-opacity": opacityOf(name) },
   }, below);
   return true;
 }
@@ -517,10 +530,10 @@ async function ensureOverlay(name, region) {
 async function applyLayers() {
   const show = (on) => (on ? "visible" : "none");
   // Colours fade rather than hide, so a click still finds the area beneath.
-  const fillOn = state.layers[state.hazard === "landslide" ? "ls_areas" : "areas"];
+  const fillOn = state.layers[areaKey()];
   levelsOf().forEach((level) => {
     if (map.getLayer(`adm-fill-${level}`)) {
-      map.setPaintProperty(`adm-fill-${level}`, "fill-opacity", fillOn ? FILL_OPACITY[state.hazard] : 0);
+      map.setPaintProperty(`adm-fill-${level}`, "fill-opacity", fillOn ? opacityOf(areaKey()) : 0);
     }
     if (map.getLayer(`adm-line-${level}`)) {
       map.setLayoutProperty(`adm-line-${level}`, "visibility", show(state.layers.area_lines));
@@ -842,16 +855,43 @@ function renderLayerToggles() {
 }
 
 function drawToggles(entries) {
+  // a layer that is on and can fade gets an opacity slider under its switch
   $("layers").innerHTML = entries.map(([key, label]) => `
     <label><span>${esc(label)}</span>
       <span class="switch"><input type="checkbox" data-layer="${key}" ${state.layers[key] ? "checked" : ""}><span></span></span>
-    </label>`).join("");
-  $("layers").querySelectorAll("input").forEach((input) =>
+    </label>
+    ${key in DEFAULT_OPACITY && state.layers[key] ? `<div class="opacity"><span>Opacity</span>
+      <input type="range" min="0" max="1" step="0.05" value="${opacityOf(key)}" data-opacity="${key}"
+        aria-label="Opacity of ${esc(label)}"></div>` : ""}`).join("");
+  $("layers").querySelectorAll("input[data-layer]").forEach((input) =>
     input.addEventListener("change", () => {
       state.layers[input.dataset.layer] = input.checked;
+      drawToggles(entries);
       applyLayers();
+      updateHash();
     }));
 }
+
+function applyOpacity(key) {
+  const value = opacityOf(key);
+  const layers = map.getStyle().layers || [];
+  if (key === "areas" || key === "ls_areas") {
+    applyLayers();
+  } else if (key === "hotspots") {
+    layers.filter((l) => l.id.startsWith("hotspots-")).forEach((l) => map.setPaintProperty(l.id, "fill-opacity", value));
+  } else if (key === "mrva") {
+    if (map.getLayer("mrva")) map.setPaintProperty("mrva", "raster-opacity", value);
+  } else {
+    layers.filter((l) => l.id.startsWith(`overlay-${key}-`)).forEach((l) => map.setPaintProperty(l.id, "raster-opacity", value));
+  }
+}
+
+document.addEventListener("input", (event) => {
+  const key = event.target.dataset?.opacity;
+  if (!key) return;
+  state.opacity[key] = Number(event.target.value);
+  applyOpacity(key);
+});
 
 function regionValidation(metrics) {
   const meta = metrics.pipeline_metadata || {};
@@ -1153,6 +1193,309 @@ async function aboutPanel() {
     ${DATA_SOURCES}`;
 }
 
+/* ── Official hazard maps (MRVA) ──────────────────────────────────────────
+ * The Department of Disaster Management's return-period scenarios, drawn
+ * live from UNOSAT's map server and credited to it. Nothing is copied into
+ * this application; the images and the legend come from that server. */
+const MRVA_BASE = "https://unosat-geodrr.cern.ch/data/rest/services/NORAD";
+const MRVA_BOUNDS = [88.0, 20.5, 92.8, 26.7];
+const MRVA = [
+  { service: "BGD_MRVA_Flood", short: "Flood", group: "Flood inundation depth", unit: "Water depth in metres.",
+    layers: [[0, "25-year"], [1, "50-year"], [2, "100-year"], [3, "150-year"]] },
+  { service: "BGD_MRVA_StormSurge", short: "Storm surge", group: "Storm surge inundation depth", unit: "Water depth in metres.",
+    layers: [[0, "25-year"], [1, "50-year"], [2, "100-year"]] },
+  { service: "BGD_MRVA_Landslide", short: "Landslide", group: "Landslide susceptibility", unit: "",
+    layers: [[0, "rainfall-triggered"], [1, "earthquake-triggered"]] },
+  { service: "BGD_MRVA_Earthquake", short: "Earthquake", group: "Earthquake ground shaking", unit: "Peak ground acceleration, in g.",
+    layers: [[0, "50-year"], [1, "100-year"], [2, "200-year"], [3, "500-year"], [4, "1000-year"]] },
+  { service: "BGD_MRVA_Tsunami", short: "Tsunami", group: "Tsunami inundation", unit: "",
+    layers: [[0, "50-year"], [1, "100-year"], [2, "200-year"], [3, "500-year"], [4, "1000-year"]] },
+  { service: "BGD_MRVA_Drought", short: "Drought", group: "Drought", unit: "",
+    layers: [[0, "pre-monsoon, 10-year"], [1, "pre-monsoon, 50-year"], [2, "pre-monsoon, 100-year"],
+      [3, "Kharif, 10-year"], [4, "Kharif, 50-year"], [5, "Kharif, 100-year"]] },
+];
+const mrvaLegends = {};
+
+function mrvaInfo(value) {
+  const [service, id] = String(value || "").split(":");
+  const group = MRVA.find((g) => g.service === service);
+  const layer = group?.layers.find(([n]) => String(n) === id);
+  return layer ? { ...group, id: layer[0], label: layer[1], name: `${group.short}, ${layer[1]}` } : null;
+}
+
+function buildMrvaPicker() {
+  $("mrvaPick").innerHTML = `<option value="">None</option>` + MRVA.map((g) =>
+    `<optgroup label="${esc(g.group)}">${g.layers.map(([id, label]) =>
+      `<option value="${g.service}:${id}">${esc(g.short)}, ${esc(label)}</option>`).join("")}</optgroup>`).join("");
+  $("mrvaPick").addEventListener("change", () => {
+    const first = !state.mrva && $("mrvaPick").value;
+    state.mrva = $("mrvaPick").value;
+    // The area colours would hide the scenario beneath them, so the first
+    // pick switches them off; the switch brings them back.
+    if (first && state.layers[areaKey()]) {
+      state.layers[areaKey()] = false;
+      renderLayerToggles();
+      applyLayers();
+    }
+    applyMrva();
+    updateHash();
+  });
+}
+
+function applyMrva() {
+  if (map.getLayer("mrva")) map.removeLayer("mrva");
+  if (map.getSource("mrva")) map.removeSource("mrva");
+  const info = mrvaInfo(state.mrva);
+  $("mrvaPick").value = info ? state.mrva : "";
+  $("mrvaRow").classList.toggle("active", Boolean(info));
+  $("mrvaOpacity").hidden = !info;
+  $("mrvaOpacity").querySelector("input").value = opacityOf("mrva");
+  renderMrvaLegend(info);
+  if (!info) return;
+  map.addSource("mrva", {
+    type: "raster", tileSize: 512, bounds: MRVA_BOUNDS,
+    tiles: [`${MRVA_BASE}/${info.service}/MapServer/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857`
+      + `&size=512,512&format=png32&transparent=true&layers=show:${info.id}&dpi=96&f=image`],
+    attribution: "Official hazard maps &copy; DDM (MRVA), served by UNOSAT",
+  });
+  // above the area colours, under the outlines and the markers
+  const before = (map.getStyle().layers || []).find((l) => l.id.startsWith("adm-line-")
+    || l.id.startsWith("hotspots-") || l.id.startsWith("assets-") || l.id === "ls-points")?.id;
+  map.addLayer({ id: "mrva", type: "raster", source: "mrva", paint: { "raster-opacity": opacityOf("mrva") } }, before);
+}
+
+async function mrvaLegend(info) {
+  mrvaLegends[info.service] ||= await getJSON(`${MRVA_BASE}/${info.service}/MapServer/legend?f=json`);
+  return mrvaLegends[info.service].layers.find((l) => l.layerId === info.id)?.legend || [];
+}
+
+async function renderMrvaLegend(info) {
+  const box = $("mrvaLegend");
+  box.hidden = !info;
+  if (!info) { box.innerHTML = ""; return; }
+  const title = `<div class="mrva-title">${esc(info.group)}, ${esc(info.label)} (MRVA)</div>`;
+  box.innerHTML = `${title}<div class="note">Loading the legend…</div>`;
+  let items;
+  try {
+    items = await mrvaLegend(info);
+  } catch {
+    box.innerHTML = `${title}<div class="note">UNOSAT's server did not answer, so the legend is unavailable.</div>`;
+    return;
+  }
+  if (mrvaInfo(state.mrva)?.service !== info.service || mrvaInfo(state.mrva)?.id !== info.id) return;
+  box.innerHTML = title + items.map((item) =>
+    `<div><img alt="" src="data:${esc(item.contentType)};base64,${esc(item.imageData)}">${esc(item.label)}</div>`).join("")
+    + `<div class="note">${esc(info.unit)} A modelled scenario from the Department of Disaster
+      Management's MRVA, served by UNOSAT; not this application's model.</div>`;
+}
+
+/* ── Sharing: links and map images ────────────────────────────────────────
+ * The address after # records the hazard, region, area, official map,
+ * layers and view, so a copied link reopens the same map. */
+function linkState() {
+  const p = new URLSearchParams();
+  p.set("h", state.hazard);
+  if (state.view) p.set("v", state.view);
+  if (state.area) p.set("a", `${state.area.level}:${state.area.id}`);
+  if (state.mrva) p.set("m", state.mrva);
+  p.set("l", Object.keys(state.layers).filter((k) => state.layers[k]).join(","));
+  const c = map.getCenter();
+  p.set("map", `${map.getZoom().toFixed(2)}/${c.lat.toFixed(4)}/${c.lng.toFixed(4)}`);
+  return p;
+}
+
+const updateHash = debounce(() => {
+  if (!state.restoring) history.replaceState(null, "", `#${linkState()}`);
+}, 300);
+
+async function applyLink() {
+  const link = new URLSearchParams(location.hash.slice(1));
+  if (link.has("l")) {
+    const on = new Set(link.get("l").split(",").filter((k) => /^[a-z_]+$/.test(k)));
+    Object.keys(state.layers).forEach((k) => (state.layers[k] = on.has(k)));
+    on.forEach((k) => (state.layers[k] = true));
+  }
+  if (mrvaInfo(link.get("m"))) state.mrva = link.get("m");
+  const hazard = link.get("h") === "landslide" && landslideRegions().length ? "landslide" : "flood";
+  await setHazard(hazard, link.get("v"));
+  const [level, ...rest] = (link.get("a") || "").split(":");
+  if (levelsOf().includes(level) && rest.length) {
+    try { await pickArea(level, rest.join(":"), { fly: false }); } catch { /* an area no longer built */ }
+  }
+  const view = (link.get("map") || "").split("/").map(Number);
+  if (view.length === 3 && view.every(Number.isFinite)) map.jumpTo({ zoom: view[0], center: [view[2], view[1]] });
+}
+
+async function copyLink() {
+  history.replaceState(null, "", `#${linkState()}`);
+  const button = $("copyLink");
+  try {
+    await navigator.clipboard.writeText(location.href);
+    button.textContent = "Link copied";
+  } catch {
+    window.prompt("Copy this link", location.href);
+  }
+  setTimeout(() => (button.textContent = "Copy link"), 1600);
+}
+
+// The legend the image carries, as rows to draw.
+async function legendRows() {
+  const rows = [];
+  if (state.hazard === "landslide") {
+    const d = state.ls.summary?.display || {};
+    rows.push({ head: "Landslide susceptibility" },
+      { ramp: OR_RD, labels: [fixed(d.vmin ?? 0, 2), fixed(d.vmax ?? 1, 2)] });
+    if (state.layers.ls_points) rows.push({ dot: LANDSLIDE_POINT, text: "Mapped landslide, 6 August 2023" });
+  } else {
+    if (state.layers.assets) {
+      rows.push({ head: "Asset flood susceptibility" },
+        ...CLASSES.map((c) => ({ dot: c.colour, text: c.label })));
+    }
+    if (state.layers.areas) {
+      rows.push({ head: "Areas: share of assets High or Very high" },
+        { ramp: SHARE_STOPS.map(([, c]) => c), labels: SHARE_STOPS.map(([v], i) =>
+          `${Math.round(v * 100)}${i === SHARE_STOPS.length - 1 ? "+ %" : ""}`) });
+    }
+  }
+  const info = mrvaInfo(state.mrva);
+  if (info) {
+    rows.push({ head: `${info.name} (MRVA)` });
+    try {
+      for (const item of await mrvaLegend(info)) {
+        const image = new Image();
+        image.src = `data:${item.contentType};base64,${item.imageData}`;
+        await image.decode();
+        rows.push({ image, text: item.label });
+      }
+    } catch { /* the image goes out without that legend */ }
+  }
+  return rows;
+}
+
+function drawLegend(ctx, rows, x, bottom, k) {
+  const line = 17 * k;
+  const width = 230 * k;
+  const height = rows.reduce((h, r) => h + (r.ramp ? 2 * line : line), 0) + 16 * k;
+  const top = bottom - height;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+  ctx.beginPath();
+  ctx.roundRect(x, top, width, height, 8 * k);
+  ctx.fill();
+  let y = top + 8 * k;
+  ctx.textBaseline = "middle";
+  for (const r of rows) {
+    const mid = y + line / 2;
+    ctx.fillStyle = "#0f172a";
+    if (r.head) {
+      ctx.font = `600 ${11 * k}px Inter, sans-serif`;
+      ctx.fillText(r.head, x + 10 * k, mid);
+    } else if (r.ramp) {
+      const g = ctx.createLinearGradient(x + 10 * k, 0, x + width - 10 * k, 0);
+      r.ramp.forEach((c, i) => g.addColorStop(i / (r.ramp.length - 1), c));
+      ctx.fillStyle = g;
+      ctx.fillRect(x + 10 * k, y + 3 * k, width - 20 * k, 9 * k);
+      ctx.fillStyle = "#475569";
+      ctx.font = `${10 * k}px Inter, sans-serif`;
+      r.labels.forEach((label, i) => {
+        const at = x + 10 * k + (width - 20 * k) * (i / (r.labels.length - 1));
+        ctx.textAlign = i === 0 ? "left" : i === r.labels.length - 1 ? "right" : "center";
+        ctx.fillText(label, at, y + line + 4 * k);
+      });
+      ctx.textAlign = "left";
+      y += line;
+    } else {
+      if (r.dot) {
+        ctx.fillStyle = r.dot;
+        ctx.beginPath();
+        ctx.arc(x + 16 * k, mid, 5 * k, 0, 2 * Math.PI);
+        ctx.fill();
+      } else if (r.image) {
+        ctx.drawImage(r.image, x + 10 * k, mid - 6 * k, 12 * k, 12 * k);
+      }
+      ctx.fillStyle = "#0f172a";
+      ctx.font = `${11 * k}px Inter, sans-serif`;
+      ctx.fillText(r.text, x + 28 * k, mid);
+    }
+    y += line;
+  }
+}
+
+/* The visible map, between the side panels, with a title, legend and
+ * credits, as a PNG. */
+async function downloadMap() {
+  const button = $("downloadMap");
+  button.disabled = true;
+  button.textContent = "Preparing…";
+  try {
+    const k = window.devicePixelRatio || 1;
+    const width = window.innerWidth;
+    const open = (side) => !document.body.classList.contains(`${side}-collapsed`) && !isPhone();
+    const left = open("left") ? $("panelLeft").getBoundingClientRect().right + 8 : 0;
+    const right = open("right") ? $("panelRight").getBoundingClientRect().left - 8 : width;
+    // the canvas is read in the frame it was drawn, before it is cleared
+    const shot = await new Promise((resolve) => {
+      map.once("render", () => {
+        const c = map.getCanvas();
+        const copy = document.createElement("canvas");
+        copy.width = c.width;
+        copy.height = c.height;
+        copy.getContext("2d").drawImage(c, 0, 0);
+        resolve(copy);
+      });
+      map.triggerRepaint();
+    });
+    const head = 62 * k;
+    const foot = 40 * k;
+    const out = document.createElement("canvas");
+    out.width = Math.round((right - left) * k);
+    out.height = shot.height + head + foot;
+    const ctx = out.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(shot, left * k, 0, out.width, shot.height, 0, head, out.width, shot.height);
+
+    const areaName = $("detail").hidden ? "" : $("detail").querySelector("h3")?.textContent || "";
+    const info = mrvaInfo(state.mrva);
+    const subtitle = [$("regionLine").textContent, areaName, info ? `MRVA ${info.name}` : ""]
+      .filter(Boolean).join(" · ");
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#0f172a";
+    ctx.font = `700 ${18 * k}px Inter, sans-serif`;
+    ctx.fillText("Fermium Hazard Mapper", 16 * k, 28 * k);
+    ctx.fillStyle = "#475569";
+    ctx.font = `${12 * k}px Inter, sans-serif`;
+    ctx.fillText(subtitle, 16 * k, 48 * k);
+    ctx.textAlign = "right";
+    ctx.fillText(new Date().toISOString().slice(0, 10), out.width - 16 * k, 28 * k);
+    ctx.textAlign = "left";
+
+    drawLegend(ctx, await legendRows(), 14 * k, head + shot.height - 14 * k, k);
+
+    ctx.fillStyle = "#64748b";
+    ctx.font = `${10 * k}px Inter, sans-serif`;
+    ctx.fillText("Research prototype: modelled susceptibility, not a forecast or an official warning. "
+      + "fermium.systems/hazmapper", 16 * k, head + shot.height + 16 * k);
+    ctx.fillText("Relief © Esri · Mapzen terrain (AWS) · Assets © OpenStreetMap contributors · "
+      + "Boundaries © geoBoundaries" + (info ? " · Hazard scenario © DDM (MRVA), served by UNOSAT" : ""),
+    16 * k, head + shot.height + 31 * k);
+
+    const blob = await new Promise((resolve) => out.toBlob(resolve, "image/png"));
+    const name = ["hazmapper", state.hazard, state.view, areaName, new Date().toISOString().slice(0, 10)]
+      .filter(Boolean).join("_").toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${name}.png`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 5000);
+  } catch (error) {
+    console.error(error);
+    window.alert("The map image could not be made in this browser.");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Download map";
+  }
+}
+
 /* ── Views ────────────────────────────────────────────────────────────── */
 const isPhone = () => window.innerWidth <= 860;
 
@@ -1199,6 +1542,8 @@ async function selectView(id) {
   renderProvenance();
   applyFilters();
   await applyLayers();
+  applyMrva();
+  updateHash();
   if (state.panel) $("sheetBody").innerHTML = await panelBody(state.panel);
   hideLoading();
 }
@@ -1285,6 +1630,8 @@ async function selectLandslide(region) {
   renderProvenance();
   applyFilters();
   await applyLayers();
+  applyMrva();
+  updateHash();
   if (state.panel) $("sheetBody").innerHTML = await panelBody(state.panel);
   hideLoading();
 }
@@ -1512,7 +1859,7 @@ function renderChips() {
       ? selectLandslide(button.dataset.region) : selectView(button.dataset.region))));
 }
 
-async function setHazard(hazard) {
+async function setHazard(hazard, view = null) {
   state.hazard = hazard;
   clearArea();
   areaTip.remove();
@@ -1522,13 +1869,14 @@ async function setHazard(hazard) {
   $("search").value = "";
   $("searchResults").hidden = true;
   if (hazard === "landslide") {
-    state.view = landslideRegions()[0]?.id;
+    const known = landslideRegions().some((r) => r.id === view);
+    state.view = known ? view : landslideRegions()[0]?.id;
     renderChips();
     if (state.view) await selectLandslide(state.view);
   } else {
-    state.view = ALL;
+    state.view = view === ALL || floodRegions().some((r) => r.id === view) ? view : ALL;
     renderChips();
-    await selectView(ALL);
+    await selectView(state.view);
   }
 }
 
@@ -1543,5 +1891,16 @@ async function setHazard(hazard) {
   if (!landslideRegions().length) $("hazards").closest("section").hidden = true;
 
   await mapReady;
-  await setHazard("flood");
+  buildMrvaPicker();
+  $("downloadMap").addEventListener("click", downloadMap);
+  $("copyLink").addEventListener("click", copyLink);
+  map.on("moveend", updateHash);
+  // a shared link reopens its map; without one the flood view opens
+  state.restoring = true;
+  try {
+    await applyLink();
+  } finally {
+    state.restoring = false;
+  }
+  updateHash();
 })();

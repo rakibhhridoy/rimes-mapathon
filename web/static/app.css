@@ -220,6 +220,24 @@ body.right-collapsed .side-right { transform: translateX(calc(100% + var(--gap) 
 .panel-links button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 .panel-links button[aria-pressed="true"]::after { color: #fff; }
 
+/* ── Opacity sliders, official hazard maps, sharing ───────────────────── */
+.opacity { display: flex; align-items: center; gap: 10px; margin: -2px 0 8px; font-size: 11px; color: var(--dim); }
+.opacity[hidden] { display: none; }
+.opacity input { flex: 1; accent-color: var(--accent); height: 14px; }
+.layers .opacity { margin: 0 0 6px; padding-left: 2px; }
+.hint { color: var(--dim); font-size: 11px; line-height: 1.45; margin: 8px 0 0; }
+.mrva-legend { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--hairline); }
+.mrva-legend[hidden] { display: none; }
+.mrva-legend .mrva-title { font-size: 11.5px; font-weight: 600; margin-bottom: 4px; }
+.mrva-legend img { width: 16px; height: 16px; flex: none; }
+.share-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.share-row button {
+  border: 1px solid var(--hairline); border-radius: 10px; background: var(--glass-control);
+  padding: 8px 10px; font: 600 12px Inter, sans-serif; color: var(--text); cursor: pointer;
+}
+.share-row button:hover { background: #fff; }
+.share-row button:disabled { color: var(--dim); cursor: default; }
+
 /* ── Area picker: division, district, upazila, union ─────────────────── */
 .area-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin-bottom: 8px; }
 .area-row {
