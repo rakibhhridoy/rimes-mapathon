@@ -61,7 +61,6 @@ const state = {
   hazard: "flood",
   view: ALL,
   summary: null,
-  basemap: "topo",
   panel: null,
   layers: {
     assets: true, areas: true, area_lines: true, hotspots: true,
@@ -109,18 +108,14 @@ function showLoading(label) {
 }
 const hideLoading = () => ($("loading").hidden = true);
 
-/* ── Map and basemaps ─────────────────────────────────────────────────────
- * Three basemaps built from one set of sources. Satellite imagery is always
- * drawn; relief is a hillshade computed in the browser from elevation tiles,
- * laid over the imagery; the hybrid adds road and place-name labels on top.
- * Switching is a visibility change, so no tiles are refetched. */
+/* ── Map and basemap ──────────────────────────────────────────────────────
+ * One light relief basemap: Esri's shaded relief, a pale ground with blue
+ * water, sharpened by a hillshade computed in the browser from elevation
+ * tiles, with place names on top. No imagery and no roads, so the area
+ * colours and the asset markers carry the map. */
 const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
-const BASEMAPS = {
-  satellite: { relief: false, labels: false },
-  topo: { relief: true, labels: false },
-  hybrid: { relief: true, labels: true },
-};
-const LABEL_LAYERS = ["basemap-roads", "basemap-places"];
+// Every map layer is inserted just under the place names.
+const LABELS = "basemap-places";
 
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol("pmtiles", protocol.tile);
@@ -130,11 +125,11 @@ const map = new maplibregl.Map({
   style: {
     version: 8,
     sources: {
-      imagery: {
+      relief: {
         type: "raster",
-        tiles: [`${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`],
-        tileSize: 256, maxzoom: 19,
-        attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics",
+        tiles: [`${ESRI}/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}`],
+        tileSize: 256, maxzoom: 13,
+        attribution: "Relief &copy; Esri",
       },
       elevation: {
         type: "raster-dem",
@@ -142,35 +137,25 @@ const map = new maplibregl.Map({
         encoding: "terrarium", tileSize: 256, maxzoom: 14,
         attribution: "Relief: Mapzen terrain tiles, AWS Open Data",
       },
-      roads: {
-        type: "raster",
-        tiles: [`${ESRI}/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}`],
-        tileSize: 256, maxzoom: 19,
-      },
       places: {
         type: "raster",
-        tiles: [`${ESRI}/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}`],
-        tileSize: 256, maxzoom: 19,
+        tiles: [`${ESRI}/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}`],
+        tileSize: 256, maxzoom: 16,
         attribution: "Labels &copy; Esri &middot; Asset data &copy; OpenStreetMap contributors",
       },
     },
     layers: [
-      {
-        id: "basemap-imagery", type: "raster", source: "imagery",
-        // a touch less saturated, so the risk colours stand out from the fields
-        paint: { "raster-saturation": -0.15, "raster-contrast": 0.05 },
-      },
+      { id: "basemap-ground", type: "raster", source: "relief" },
       {
         id: "basemap-relief", type: "hillshade", source: "elevation",
         paint: {
-          "hillshade-exaggeration": 0.55,
-          "hillshade-shadow-color": "#0b1220",
-          "hillshade-highlight-color": "#fff6e8",
-          "hillshade-accent-color": "#1b2a3a",
+          "hillshade-exaggeration": 0.3,
+          "hillshade-shadow-color": "#5b5348",
+          "hillshade-highlight-color": "#ffffff",
+          "hillshade-accent-color": "#8a8173",
           "hillshade-illumination-direction": 315,
         },
       },
-      { id: "basemap-roads", type: "raster", source: "roads", paint: { "raster-opacity": 0.75 } },
       { id: "basemap-places", type: "raster", source: "places" },
     ],
   },
@@ -191,16 +176,6 @@ const mapReady = new Promise((resolve) => map.once("load", resolve));
 // MapLibre opens a compact attribution on wide screens; close it once loaded.
 map.once("load", () =>
   document.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show"));
-
-function setBasemap(name) {
-  const choice = BASEMAPS[name] || BASEMAPS.topo;
-  state.basemap = name;
-  const show = (on) => (on ? "visible" : "none");
-  map.setLayoutProperty("basemap-relief", "visibility", show(choice.relief));
-  LABEL_LAYERS.forEach((id) => map.setLayoutProperty(id, "visibility", show(choice.labels)));
-  document.querySelectorAll("#basemaps button").forEach((button) =>
-    button.setAttribute("aria-checked", String(button.dataset.basemap === name)));
-}
 
 /* ── Regions in view ──────────────────────────────────────────────────── */
 const viewRegions = () => (state.view === ALL
@@ -223,12 +198,12 @@ function removeRegionLayers() {
 
 function addRegionLayers(region) {
   const base = `pmtiles://${url(`tiles/${region}`)}`;
-  // Layers sit under the hybrid's labels, above the administrative areas.
+  // Layers sit under the place names, above the administrative areas.
   map.addSource(`hotspots-${region}`, { type: "vector", url: `${base}/hotspots.pmtiles` });
   map.addLayer({
     id: `hotspots-${region}`, type: "fill", source: `hotspots-${region}`, "source-layer": "hotspots",
     paint: { "fill-color": "#c62828", "fill-opacity": 0.22 },
-  }, "basemap-roads");
+  }, LABELS);
 
   map.addSource(`assets-${region}`, { type: "vector", url: `${base}/assets.pmtiles` });
   map.addLayer({
@@ -246,7 +221,7 @@ function addRegionLayers(region) {
       // faint at country scale, so the division and district colours read
       "circle-opacity": ["interpolate", ["linear"], ["zoom"], 6, 0.35, 8.5, 0.8, 10, 0.95],
     },
-  }, "basemap-roads");        // under the hybrid's labels, which stay readable
+  }, LABELS);
 }
 
 /* ── Administrative areas ─────────────────────────────────────────────────
@@ -266,13 +241,14 @@ const AREA_ZOOM = {
 const LEVEL_LABEL = { division: "Division", district: "District", upazila: "Upazila", union: "Union" };
 const LINE_WIDTH = { division: 2.2, district: 1.5, upazila: 0.9, union: 0.5 };
 // Flood areas are coloured by the share of their assets in the High or Very
-// high class: mean scores sit below 0.30 almost everywhere, so they would
-// paint every division the same.
-const SHARE_STOPS = [[0, "#eef5ff"], [0.02, "#c9ddfb"], [0.05, "#97c0f6"], [0.10, "#5b9bec"],
-  [0.20, "#2563c9"], [0.40, "#1e3a8a"]];
+// high class, on the magma palette from pale yellow (few) to near black
+// (many): mean scores sit below 0.30 almost everywhere, so they would paint
+// every division the same.
+const SHARE_STOPS = [[0, "#fcfdbf"], [0.02, "#fec287"], [0.05, "#fc8961"], [0.10, "#b73779"],
+  [0.20, "#51127c"], [0.40, "#000004"]];
 // An area with no mapped assets keeps only its outline.
 const NO_DATA = "rgba(0, 0, 0, 0)";
-const FILL_OPACITY = { flood: 0.5, landslide: 0.62 };
+const FILL_OPACITY = { flood: 0.62, landslide: 0.62 };
 const pct = (v) => (v == null ? "—" : `${(v * 100).toFixed(v > 0 && v < 0.1 ? 1 : 0)} %`);
 
 const levelsOf = () => AREA_LEVELS[state.hazard];
@@ -303,19 +279,19 @@ function addAreaLayers() {
       id: `adm-fill-${level}`, type: "fill", source: `adm-${level}`, "source-layer": level,
       minzoom: from, maxzoom: to,
       paint: { "fill-color": areaColour(), "fill-opacity": FILL_OPACITY[hazard] },
-    }, "basemap-roads");
+    }, LABELS);
   });
   // Outlines from the finest up, so a district's edge draws over its unions'.
   [...levels].reverse().forEach((level) => map.addLayer({
     id: `adm-line-${level}`, type: "line", source: `adm-${level}`, "source-layer": level,
     minzoom: AREA_ZOOM[hazard][level][0],
-    paint: { "line-color": "#ffffff", "line-width": LINE_WIDTH[level], "line-opacity": 0.8 },
-  }, "basemap-roads"));
+    paint: { "line-color": "#ffffff", "line-width": LINE_WIDTH[level], "line-opacity": 0.9 },
+  }, LABELS));
   levels.forEach((level) => map.addLayer({
     id: `adm-sel-${level}`, type: "line", source: `adm-${level}`, "source-layer": level,
     filter: ["==", ["get", "id"], ""],
     paint: { "line-color": "#0f172a", "line-width": 2.6 },
-  }, "basemap-roads"));
+  }, LABELS));
 }
 
 // The flood regions the view covers, or none for no restriction.
@@ -480,7 +456,7 @@ function showAreaCard(d) {
       ["Bridges", d.n_bridge], ["Flood shelters", d.n_shelter]];
     body = `
       <div class="meta">${people} · ${fmt(d.n_assets)} assets · ${esc(regionName(d.region))}${(d.regions || "").includes(",") ? " and others" : ""}</div>
-      <div class="probability" style="color:#1e3a8a">${pct(d.share_high)}</div>
+      <div class="probability" style="color:#51127c">${pct(d.share_high)}</div>
       <div class="probability-note">of its assets score High or Very high (0.50 and above), ${fmt(d.n_high)} in all</div>
       <div class="factor"><span>Mean score</span>
         <span class="bar"><span style="width:${Math.round((d.mean_score || 0) * 100)}%;background:${riskColour(d.mean_score || 0)}"></span></span>
@@ -536,7 +512,7 @@ async function ensureOverlay(name, region) {
     coordinates: [[west, north], [east, north], [east, south], [west, south]],
   });
   const below = (map.getStyle().layers || []).find((l) => l.id.startsWith("adm-fill-"))?.id
-    || "basemap-roads";
+    || LABELS;
   map.addLayer({
     id, type: "raster", source: id,
     paint: { "raster-opacity": name === "landslide" ? 0.68 : 0.55 },
@@ -1278,7 +1254,7 @@ function addLandslideLayers(region) {
       "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 8, 0.5, 13, 1.2],
       "circle-opacity": 0.9,
     },
-  }, "basemap-roads");
+  }, LABELS);
 }
 
 async function selectLandslide(region) {
@@ -1493,8 +1469,6 @@ document.querySelectorAll("[data-close]").forEach((button) =>
 document.querySelectorAll("[data-open]").forEach((button) =>
   button.addEventListener("click", () => setSide(button.dataset.open, true)));
 $("resetFilters").addEventListener("click", resetFilters);
-document.querySelectorAll("#basemaps button").forEach((button) =>
-  button.addEventListener("click", () => setBasemap(button.dataset.basemap)));
 document.querySelectorAll("#panelButtons button").forEach((button) =>
   button.addEventListener("click", () => openPanel(button.dataset.panel)));
 $("sheetClose").addEventListener("click", closePanel);
@@ -1575,6 +1549,5 @@ async function setHazard(hazard) {
   if (!landslideRegions().length) $("hazards").closest("section").hidden = true;
 
   await mapReady;
-  setBasemap(state.basemap);
   await setHazard("flood");
 })();

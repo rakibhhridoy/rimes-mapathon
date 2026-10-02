@@ -127,9 +127,9 @@ application, run by `hazmapper.service` (uvicorn on port 2030, as a
 dedicated `hazmapper` user, from a virtual environment in
 `/var/www/hazmapper/.venv`). `apps.conf` holds the nginx lines it needs; on
 the server they sit in the shared nginx file that serves the rest of
-fermium.systems. The map offers three basemaps, satellite imagery, imagery
-with relief shaded from elevation tiles (the default), and a hybrid with road
-and place labels, and it opens fitted to every mapped asset of the region.
+fermium.systems. The basemap is a light relief, Esri's shaded relief with a hillshade
+from elevation tiles and place names on top, without imagery or roads, and
+the map opens fitted to every mapped asset of the region.
 
 ### Deploying an update to the public server
 
