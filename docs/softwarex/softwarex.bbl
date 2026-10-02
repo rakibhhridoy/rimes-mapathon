@@ -1,4 +1,4 @@
-\begin{thebibliography}{20}
+\begin{thebibliography}{19}
 \expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
 \providecommand{\url}[1]{\texttt{#1}}
 \providecommand{\href}[2]{#2}
@@ -106,12 +106,6 @@
 \newblock \bibinfo{journal}{Remote Sensing} \bibinfo{volume}{11}
   (\bibinfo{year}{2019}) \bibinfo{pages}{1581}.
   \DOIprefix\doi{10.3390/rs11131581}.
-%Type = Unpublished
-\bibitem[{Hasan(2026)}]{hasan2026jfrm}
-\bibinfo{author}{M.~R. Hasan}, \bibinfo{title}{Do flood susceptibility models
-  know more than the flood record? {E}vidence from radar-observed floods in
-  {B}angladesh}, \bibinfo{year}{2026}. \bibinfo{note}{Manuscript submitted to
-  the Journal of Flood Risk Management}.
 %Type = Misc
 \bibitem[{{UN-SPIDER}(2019)}]{unspider}
 \bibinfo{author}{{UN-SPIDER}}, \bibinfo{title}{{Recommended Practice: Flood

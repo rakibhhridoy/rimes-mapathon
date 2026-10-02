@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Fermium Hazard Mapper"
+abstract: >-
+  An open Python pipeline and web application that trains flood
+  susceptibility models on flood extents mapped from Sentinel-1 radar, scores
+  every model on whole areas held out from training, and publishes asset-level
+  and administrative-level flood and landslide risk for Bangladesh.
+type: software
+authors:
+  - family-names: Hasan
+    given-names: Md Rakib
+    orcid: "https://orcid.org/0009-0002-4007-7590"
+    affiliation: "Department of Soil, Water and Environment, University of Dhaka; Fermium Systems"
+    email: rakibhhridoy@fermium.systems
+version: "3.0.0"
+date-released: "2026-10-02"
+license: MIT
+repository-code: "https://github.com/rakibhhridoy/rimes-mapathon"
+url: "https://fermium.systems/hazmapper"
+keywords:
+  - flood susceptibility
+  - landslide susceptibility
+  - Sentinel-1
+  - spatial cross-validation
+  - risk mapping
+  - Bangladesh
+references:
+  - type: dataset
+    title: "Fermium Hazard Mapper: input data and outputs for flood and landslide susceptibility in Bangladesh (version 2)"
+    authors:
+      - family-names: Hasan
+        given-names: Md Rakib
+    doi: "10.5281/zenodo.22978729"
