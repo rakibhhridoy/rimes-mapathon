@@ -159,6 +159,19 @@ def _fetch_query(tile, batch_name, priority, tags, endpoints, cache_dir: Path,
     return frames, failures
 
 
+def flood_threshold_pct(min_events: int, n_events: int) -> float:
+    """The flood-frequency value at which ground counts as flood-prone.
+
+    The frequency layer stores the share of events as a whole percentage,
+    rounded down, so one flood in three events is 33 rather than 33.33. A
+    threshold of exactly 100 * min / n would then miss every pixel at the
+    boundary, and with three events "flooded in at least one" would silently
+    mean "in at least two". Flooring the threshold the same way matches it;
+    where 100 divides evenly (four or five events) nothing changes.
+    """
+    return math.floor(100.0 * min_events / max(n_events, 1)) - 1e-6
+
+
 def _matches(column: pd.Series, wanted) -> pd.Series:
     """osmnx's tag semantics: a list of values, one value, or True for any."""
     if wanted is True:
@@ -789,7 +802,7 @@ def build_observed_flood_labels(cfg: dict, dem_derivatives: dict,
 
     n_events = len(cfg.get("sentinel1", {}).get("events", [])) or 1
     min_events = labels_cfg.get("min_events", 1)
-    threshold_pct = 100.0 * min_events / n_events - 1e-6
+    threshold_pct = flood_threshold_pct(min_events, n_events)
 
     labels = (freq_pct >= threshold_pct).astype(np.float32)
     positive_rate = float(labels.mean())

@@ -55,3 +55,13 @@ def test_a_query_that_fails_at_every_size_is_reported(tmp_path, monkeypatch):
     frames, failures = ingest._fetch_query((0, 0, 1, 1), "transport", 1, {"highway": "primary"},
                                            ["https://example"], tmp_path, "tile 1/1")
     assert frames == [] and len(failures) == 16      # four quarters of four quarters
+
+
+def test_flood_threshold_matches_the_stored_whole_percentages():
+    # one flood in three events is stored as 33, two as 66
+    assert 33 >= ingest.flood_threshold_pct(1, 3)
+    assert 66 >= ingest.flood_threshold_pct(2, 3)
+    assert 33 < ingest.flood_threshold_pct(2, 3)
+    # where 100 divides evenly the threshold is unchanged
+    for m, n, exact in [(1, 4, 25), (2, 4, 50), (2, 5, 40)]:
+        assert exact >= ingest.flood_threshold_pct(m, n) > exact - 1

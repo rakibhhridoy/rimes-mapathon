@@ -20,6 +20,8 @@ from pathlib import Path
 
 import numpy as np
 
+from pipeline.data_ingest import flood_threshold_pct
+
 logger = logging.getLogger(__name__)
 
 
@@ -111,7 +113,7 @@ def validate_assets(cfg: dict, output_dir: Path, raw_dir: Path) -> dict:
     # Same definition as the training labels: flooded in at least
     # `min_events` of the mapped events, not in any one of them.
     min_events = cfg["data"].get("labels", {}).get("min_events", 1)
-    threshold_pct = 100.0 * min_events / n_events - 1e-6
+    threshold_pct = flood_threshold_pct(min_events, n_events)
     observed = (freq_pct >= threshold_pct).astype(int)
 
     results = {
@@ -222,7 +224,7 @@ def _validate_one_surface(cfg: dict, hazard_path: Path, raw_dir: Path) -> dict:
     # flooded in at least `min_events` events, matching the label definition.
     n_events = len(cfg.get("sentinel1", {}).get("events", [])) or 1
     min_events = cfg["data"].get("labels", {}).get("min_events", 1)
-    flooded = (observed_v >= 100.0 * min_events / n_events - 1e-6).astype(int)
+    flooded = (observed_v >= flood_threshold_pct(min_events, n_events)).astype(int)
     result = {
         "n_cells": int(valid.sum()),
         "min_events": min_events,
@@ -265,7 +267,7 @@ def compare_proxy_to_observed(cfg: dict, processed_dir: Path, raw_dir: Path) -> 
 
     n_events = len(cfg.get("sentinel1", {}).get("events", [])) or 1
     min_events = cfg["data"].get("labels", {}).get("min_events", 1)
-    threshold_pct = 100.0 * min_events / n_events - 1e-6
+    threshold_pct = flood_threshold_pct(min_events, n_events)
     from pipeline.country import foreign_mask
 
     valid = (np.isfinite(proxy) & (proxy >= 0) & np.isfinite(observed)
