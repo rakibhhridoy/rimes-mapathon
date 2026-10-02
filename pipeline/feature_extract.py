@@ -46,7 +46,14 @@ def sample_raster_at_points(raster_path: str,
             [v[0] for v in src.sample(coords, indexes=band)], dtype=np.float64
         )
         nodata = src.nodata
-    invalid = np.isnan(values) | (values < -9000)
+        # A point far outside the raster can overflow the pixel index and
+        # wrap onto a real pixel, so the bounds decide, not the sample alone.
+        left, bottom, right, top = src.bounds
+        xy = np.array(coords, dtype=np.float64).reshape(-1, 2)
+        outside = ~(np.isfinite(xy).all(axis=1)
+                    & (xy[:, 0] >= left) & (xy[:, 0] <= right)
+                    & (xy[:, 1] >= bottom) & (xy[:, 1] <= top))
+    invalid = np.isnan(values) | (values < -9000) | outside
     if nodata is not None:
         invalid |= values == nodata
     values[invalid] = fill
