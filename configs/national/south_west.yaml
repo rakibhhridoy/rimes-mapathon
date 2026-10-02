@@ -1,0 +1,73 @@
+# South-west coast: Satkhira, Khulna, Bagerhat, Pirojpur, Jhalokati, Barisal, Barguna, Patuakhali, Bhola.
+# A region of the national partition (configs/national/partition.yaml),
+# defined by its districts. Events copied from configs/sw_coastal.yaml, whose
+# windows were checked over these districts with scripts/check_s1_events.py.
+# Only the differences from the base config live here.
+extends: ../../config.yaml
+paths:
+  raw_dir: data/south_west/raw
+  processed_dir: data/south_west/processed
+  output_dir: data/south_west/output
+aoi:
+  name: south_west
+  divisions: []
+  bbox:
+  - 88.85
+  - 21.6
+  - 91.07
+  - 23.12
+  districts:
+  - Satkhira
+  - Khulna
+  - Bagerhat
+  - Pirojpur
+  - Jhalokati
+  - Barisal
+  - Barguna
+  - Patuakhali
+  - Bhola
+  crs: EPSG:32646
+  grid_resolution_m: 500
+asset_model:
+  past_flooding: false
+data:
+  osm:
+    source: pbf
+    pbf_path: data/shared/osm/bangladesh-2026-09-30.osm.pbf
+  labels:
+    min_events: 1
+  dem:
+    path: data/south_west/raw/dem_srtm_30m.tif
+  admin_boundaries:
+    union: data/south_west/raw/bgd_union.gpkg
+    upazila: data/south_west/raw/bgd_upazila.gpkg
+    district: data/south_west/raw/bgd_district.gpkg
+  vulnerability:
+    population_path: data/south_west/raw/worldpop_popdens.tif
+sentinel1:
+  events:
+  - name: amphan_may2020
+    start: '2020-05-20'
+    end: '2020-05-31'
+    baseline_start: '2020-02-01'
+    baseline_end: '2020-03-15'
+  - name: yaas_may2021
+    start: '2021-05-25'
+    end: '2021-06-04'
+    baseline_start: '2021-02-01'
+    baseline_end: '2021-03-15'
+  - name: sitrang_oct2022
+    start: '2022-10-23'
+    end: '2022-11-02'
+    baseline_start: '2022-02-01'
+    baseline_end: '2022-03-15'
+  - name: remal_may2024
+    start: '2024-05-26'
+    end: '2024-06-05'
+    baseline_start: '2024-02-01'
+    baseline_end: '2024-03-15'
+dashboard:
+  map_center:
+  - 22.36
+  - 89.96
+  map_zoom: 8

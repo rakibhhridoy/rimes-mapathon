@@ -1,0 +1,5 @@
+# Checked 2026-10-02. Cyclones Mocha (May 2023, first pass four days after
+# landfall) and Hamoon (Oct 2023, 54 % covered) are left out.
+- {name: aug2023_chattogram, start: "2023-08-05", end: "2023-08-15", baseline_start: "2023-02-01", baseline_end: "2023-03-15", source: "https://reliefweb.int/report/bangladesh/bangladesh-chattogram-division-flash-flood-and-monsoon-rain-2023-situation-report-no-01-13-august-2023"}
+- {name: aug2024_eastern, start: "2024-08-20", end: "2024-09-05", baseline_start: "2024-02-01", baseline_end: "2024-03-15", source: "https://bangladesh.un.org/sites/default/files/2024-08/SitRep%2002%20Eastern%20Flash%20Flood.pdf"}
+- {name: may2024_remal, start: "2024-05-26", end: "2024-06-01", baseline_start: "2024-02-01", baseline_end: "2024-03-15", source: "https://reliefweb.int/report/bangladesh/bangladesh-cyclone-remal-2024-situation-report-no-03-29-may-2024"}

@@ -1,0 +1,77 @@
+# Sylhet haor: Sylhet, Sunamganj, Maulvibazar, Habiganj, Netrakona, Kishoreganj, Brahamanbaria.
+# A region of the national partition (configs/national/partition.yaml),
+# defined by its districts. Events copied from configs/sylhet.yaml, whose
+# windows were checked over these districts with scripts/check_s1_events.py.
+# Only the differences from the base config live here.
+extends: ../../config.yaml
+paths:
+  raw_dir: data/haor/raw
+  processed_dir: data/haor/processed
+  output_dir: data/haor/output
+aoi:
+  name: haor
+  divisions: []
+  bbox:
+  - 90.44
+  - 23.6
+  - 92.55
+  - 25.26
+  districts:
+  - Sylhet
+  - Sunamganj
+  - Maulvibazar
+  - Habiganj
+  - Netrakona
+  - Kishoreganj
+  - Brahamanbaria
+  crs: EPSG:32646
+  grid_resolution_m: 500
+asset_model:
+  past_flooding: true
+data:
+  osm:
+    source: pbf
+    pbf_path: data/shared/osm/bangladesh-2026-09-30.osm.pbf
+  labels:
+    min_events: 2
+  dem:
+    path: data/haor/raw/dem_srtm_30m.tif
+  admin_boundaries:
+    union: data/haor/raw/bgd_union.gpkg
+    upazila: data/haor/raw/bgd_upazila.gpkg
+    district: data/haor/raw/bgd_district.gpkg
+  vulnerability:
+    population_path: data/haor/raw/worldpop_popdens.tif
+sentinel1:
+  events:
+  - name: apr2017_haor
+    gfd_ids:
+    - 4459
+    source: https://reliefweb.int/report/bangladesh/bangladesh-floods-northeast-haor-areas-april-may-2017
+    start: '2017-03-30'
+    end: '2017-04-20'
+    baseline_start: '2017-01-15'
+    baseline_end: '2017-03-01'
+  - name: jun2022
+    source: https://reliefweb.int/report/bangladesh/bangladesh-2022-severe-flash-flood-office-un-resident-coordinator-situation-update-1-19-june-2022
+    start: '2022-06-15'
+    end: '2022-06-26'
+    baseline_start: '2022-01-15'
+    baseline_end: '2022-03-01'
+  - name: jun2024
+    source: https://reliefweb.int/report/bangladesh/bangladesh-needs-assessment-working-group-nawg-situation-analysis-northeastern-flood-june-2024-version-01-20-june-2024
+    start: '2024-06-16'
+    end: '2024-06-28'
+    baseline_start: '2024-01-15'
+    baseline_end: '2024-03-01'
+  - name: aug2024
+    source: https://reliefweb.int/report/bangladesh/bangladesh-floods-emergency-appeal-no-mdrbd036
+    start: '2024-08-18'
+    end: '2024-08-30'
+    baseline_start: '2024-01-15'
+    baseline_end: '2024-03-01'
+dashboard:
+  map_center:
+  - 24.43
+  - 91.49
+  map_zoom: 8

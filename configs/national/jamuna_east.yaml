@@ -1,0 +1,72 @@
+# Jamuna east bank: Sherpur, Jamalpur, Mymensingh, Tangail.
+# A region of the national partition (configs/national/partition.yaml),
+# defined by its districts. Events from configs/national/events/jamuna_east.yaml, whose
+# windows were checked over these districts with scripts/check_s1_events.py.
+# Only the differences from the base config live here.
+extends: ../../config.yaml
+paths:
+  raw_dir: data/jamuna_east/raw
+  processed_dir: data/jamuna_east/processed
+  output_dir: data/jamuna_east/output
+aoi:
+  name: jamuna_east
+  divisions: []
+  bbox:
+  - 89.59
+  - 23.91
+  - 90.87
+  - 25.48
+  districts:
+  - Sherpur
+  - Jamalpur
+  - Mymensingh
+  - Tangail
+  crs: EPSG:32646
+  grid_resolution_m: 500
+asset_model:
+  past_flooding: true
+data:
+  osm:
+    source: pbf
+    pbf_path: data/shared/osm/bangladesh-2026-09-30.osm.pbf
+  labels:
+    min_events: 2
+  dem:
+    path: data/jamuna_east/raw/dem_srtm_30m.tif
+  admin_boundaries:
+    union: data/jamuna_east/raw/bgd_union.gpkg
+    upazila: data/jamuna_east/raw/bgd_upazila.gpkg
+    district: data/jamuna_east/raw/bgd_district.gpkg
+  vulnerability:
+    population_path: data/jamuna_east/raw/worldpop_popdens.tif
+sentinel1:
+  events:
+  - name: aug2017
+    start: '2017-08-12'
+    end: '2017-08-26'
+    baseline_start: '2017-02-01'
+    baseline_end: '2017-03-15'
+    source: https://reliefweb.int/report/bangladesh/monsoon-floods-bangladesh-situation-report-02-16-august-2017
+  - name: jul2019
+    start: '2019-07-13'
+    end: '2019-07-28'
+    baseline_start: '2019-02-01'
+    baseline_end: '2019-03-15'
+    source: https://reliefweb.int/report/bangladesh/bangladesh-monsoon-flood-2019-situation-report-5-19-july-2019
+  - name: jul2020
+    start: '2020-07-11'
+    end: '2020-07-31'
+    baseline_start: '2020-02-01'
+    baseline_end: '2020-03-15'
+    source: https://reliefweb.int/report/bangladesh/bangladesh-monsoon-flood-2020-situation-report-4-30-july-2020
+  - name: oct2024_northcentral
+    start: '2024-10-03'
+    end: '2024-10-15'
+    baseline_start: '2024-02-01'
+    baseline_end: '2024-03-15'
+    source: https://reliefweb.int/report/bangladesh/bangladesh-situation-overview-northcentral-flood-2024-potential-inundation-exposed-and-affected-population-version-1st-update-07-october-2024
+dashboard:
+  map_center:
+  - 24.7
+  - 90.23
+  map_zoom: 8

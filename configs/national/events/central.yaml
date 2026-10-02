@@ -1,0 +1,5 @@
+# Checked 2026-10-02: reports name Faridpur, Rajbari, Manikganj, Munshiganj,
+# Madaripur and Shariatpur; Sentinel-1 covered 100 % in every window.
+- {name: aug2017, start: "2017-08-15", end: "2017-08-31", baseline_start: "2017-02-01", baseline_end: "2017-03-15", source: "https://reliefweb.int/report/bangladesh/bangladesh-flood-situation-august-22-2017"}
+- {name: jul2019, start: "2019-07-18", end: "2019-08-02", baseline_start: "2019-02-01", baseline_end: "2019-03-15", source: "https://reliefweb.int/report/bangladesh/bangladesh-monsoon-flood-2019-situation-report-5-19-july-2019"}
+- {name: jul2020, start: "2020-07-15", end: "2020-08-10", baseline_start: "2020-02-01", baseline_end: "2020-03-15", source: "https://reliefweb.int/report/bangladesh/bangladesh-monsoon-flood-2020-situation-report-4-30-july-2020"}

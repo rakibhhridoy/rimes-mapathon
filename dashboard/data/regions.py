@@ -22,9 +22,25 @@ REGION_CONFIGS = {
                    "configs/sw_coastal.yaml"),
     "eastern_plains": ("Eastern plains", "Flash flood, surge & waterlogging",
                        "configs/eastern_plains.yaml"),
+    # The national partition (configs/national/partition.yaml), by district.
+    "north_west": ("North-west rivers", "Riverine flood", "configs/national/north_west.yaml"),
+    "haor": ("Sylhet haor", "Flash flood", "configs/national/haor.yaml"),
+    "south_west": ("South-west coast", "Coastal & tidal flooding",
+                   "configs/national/south_west.yaml"),
+    "jamuna_east": ("Jamuna east bank", "Riverine & flash flood",
+                    "configs/national/jamuna_east.yaml"),
+    "central": ("Central", "Riverine flood", "configs/national/central.yaml"),
+    "west_central": ("West-central", "Waterlogging", "configs/national/west_central.yaml"),
+    "chattogram_coast": ("Chattogram coast", "Flash flood & surge",
+                         "configs/national/chattogram_coast.yaml"),
     "cht": ("Chittagong Hill Tracts", "Rainfall-triggered landslide",
             "configs/cht.yaml"),
 }
+
+
+# The three original regions are bounding boxes kept for the JFRM paper,
+# whose numbers come from them; the website shows the national partition.
+PAPER_REGIONS = {"rangpur_rajshahi", "sylhet", "sw_coastal"}
 
 
 def _load_config(path: Path) -> dict:

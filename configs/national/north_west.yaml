@@ -1,0 +1,93 @@
+# North-west rivers: Panchagarh, Thakurgaon, Dinajpur, Nilphamari, Rangpur, Lalmonirhat, Kurigram, Gaibandha, Joypurhat, Bogra, Naogaon, Nawabganj, Rajshahi, Natore, Sirajganj, Pabna.
+# A region of the national partition (configs/national/partition.yaml),
+# defined by its districts. Events copied from config.yaml, whose
+# windows were checked over these districts with scripts/check_s1_events.py.
+# Only the differences from the base config live here.
+extends: ../../config.yaml
+paths:
+  raw_dir: data/north_west/raw
+  processed_dir: data/north_west/processed
+  output_dir: data/north_west/output
+aoi:
+  name: north_west
+  divisions: []
+  bbox:
+  - 87.96
+  - 23.76
+  - 89.94
+  - 26.68
+  districts:
+  - Panchagarh
+  - Thakurgaon
+  - Dinajpur
+  - Nilphamari
+  - Rangpur
+  - Lalmonirhat
+  - Kurigram
+  - Gaibandha
+  - Joypurhat
+  - Bogra
+  - Naogaon
+  - Nawabganj
+  - Rajshahi
+  - Natore
+  - Sirajganj
+  - Pabna
+  crs: EPSG:32646
+  grid_resolution_m: 500
+asset_model:
+  past_flooding: true
+data:
+  osm:
+    source: pbf
+    pbf_path: data/shared/osm/bangladesh-2026-09-30.osm.pbf
+  labels:
+    min_events: 2
+  dem:
+    path: data/north_west/raw/dem_srtm_30m.tif
+  admin_boundaries:
+    union: data/north_west/raw/bgd_union.gpkg
+    upazila: data/north_west/raw/bgd_upazila.gpkg
+    district: data/north_west/raw/bgd_district.gpkg
+  vulnerability:
+    population_path: data/north_west/raw/worldpop_popdens.tif
+sentinel1:
+  events:
+  - name: aug2017
+    gfd_ids:
+    - 4507
+    - 4508
+    source: https://reliefweb.int/report/bangladesh/monsoon-floods-bangladesh-situation-report-02-16-august-2017
+    start: '2017-08-12'
+    end: '2017-08-26'
+    baseline_start: '2017-02-01'
+    baseline_end: '2017-03-15'
+  - name: jul2019
+    source: https://reliefweb.int/report/bangladesh/briefing-note-northern-bangladesh-river-flooding-17-july-2019
+    start: '2019-07-12'
+    end: '2019-07-26'
+    baseline_start: '2019-02-01'
+    baseline_end: '2019-03-15'
+  - name: jul2020
+    source: https://reliefweb.int/report/bangladesh/bangladesh-monsoon-flood-2020-situation-report-3-26-july-2020
+    start: '2020-07-11'
+    end: '2020-07-31'
+    baseline_start: '2020-02-01'
+    baseline_end: '2020-03-15'
+  - name: jul2024
+    source: https://reliefweb.int/report/bangladesh/bangladesh-flood-2024-situation-report-01-l-7-july-2024-1400-hrs
+    start: '2024-06-28'
+    end: '2024-07-16'
+    baseline_start: '2024-02-01'
+    baseline_end: '2024-03-15'
+  - name: oct2024
+    source: https://reliefweb.int/report/bangladesh/bangladesh-situation-overview-northcentral-flood-2024-potential-inundation-exposed-and-affected-population-version-1st-update-07-october-2024
+    start: '2024-09-27'
+    end: '2024-10-12'
+    baseline_start: '2024-02-01'
+    baseline_end: '2024-03-15'
+dashboard:
+  map_center:
+  - 25.22
+  - 88.95
+  map_zoom: 8

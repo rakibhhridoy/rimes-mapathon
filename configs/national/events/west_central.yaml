@@ -1,0 +1,4 @@
+# Checked 2026-10-02. River floods are rare here; both events are waterlogging
+# after heavy rain, documented only in national newspapers.
+- {name: sep2024_jessore, start: "2024-09-13", end: "2024-09-30", baseline_start: "2024-02-01", baseline_end: "2024-03-15", source: "https://www.dhakatribune.com/bangladesh/nation/358517/low-lying-areas-inundated-in-jessore-due-to"}
+- {name: jul2025_bhabodah, start: "2025-07-25", end: "2025-08-25", baseline_start: "2025-02-01", baseline_end: "2025-03-15", source: "https://www.dhakatribune.com/bangladesh/nation/389621/waterlogged-and-forgotten-over-5l-trapped-in"}

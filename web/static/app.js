@@ -23,6 +23,8 @@ const CLASSES = [
 
 const REGION_SHORT = {
   rangpur_rajshahi: "Rangpur", sylhet: "Sylhet", sw_coastal: "Coast", eastern_plains: "Eastern",
+  north_west: "North-west", jamuna_east: "Jamuna east", haor: "Haor", central: "Central",
+  west_central: "West-central", south_west: "South-west", chattogram_coast: "Chattogram",
   cht: "Hill Tracts",
 };
 

@@ -26,7 +26,38 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from dashboard.data.regions import REGION_CONFIGS, has_results, region_paths  # noqa: E402
+from dashboard.data.regions import (PAPER_REGIONS, REGION_CONFIGS, has_results,  # noqa: E402
+                                    region_paths)
+
+# The website's regions, north to south, then the landslide region. The three
+# original box regions are kept for the paper and left off the website.
+WEB_ORDER = ["north_west", "jamuna_east", "haor", "central", "west_central",
+             "south_west", "eastern_plains", "chattogram_coast", "cht"]
+
+
+def web_regions() -> list[str]:
+    ordered = [r for r in WEB_ORDER if r in REGION_CONFIGS]
+    ordered += [r for r in REGION_CONFIGS if r not in ordered and r not in PAPER_REGIONS]
+    return [r for r in ordered if has_results(r)]
+
+
+def purge_regions(conn: sqlite3.Connection, keep: list[str]) -> list[str]:
+    """Remove every region not in `keep`, its rows, tiles and overlays."""
+    present = [row[0] for row in conn.execute("SELECT id FROM regions")]
+    gone = [r for r in present if r not in keep]
+    tables = [row[0] for row in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type IN ('table') AND sql LIKE '%region%'")]
+    for region in gone:
+        conn.execute("DELETE FROM regions WHERE id = ?", (region,))
+        for table in tables:
+            if table != "regions":
+                conn.execute(f"DELETE FROM {table} WHERE region = ?", (region,))
+        for kind in ("tiles", "overlays"):
+            shutil.rmtree(WEB / kind / region, ignore_errors=True)
+    # rebuilt regions are re-inserted in order, so the list reads north to south
+    conn.execute("DELETE FROM regions")
+    conn.commit()
+    return gone
 
 WEB = ROOT / "web" / "data"
 DB_PATH = WEB / "hazmapper.sqlite"
@@ -505,8 +536,14 @@ if __name__ == "__main__":
     parser.add_argument("--regions", nargs="*", default=None)
     args = parser.parse_args()
 
-    regions = args.regions or [r for r in REGION_CONFIGS if has_results(r)]
     connection = _connect()
+    if args.regions:
+        regions = args.regions
+    else:
+        regions = web_regions()
+        removed = purge_regions(connection, regions)
+        if removed:
+            print(f"Removed from the website: {', '.join(removed)}")
     for region_id in regions:
         result = build_region(connection, region_id)
         print(f"{region_id}: {result['assets']:,} assets, {result['admin']:,} admin rows, "
