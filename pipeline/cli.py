@@ -487,7 +487,9 @@ def risk(ctx):
         if not path or not Path(path).exists():
             logger.warning(f"No {level} boundaries at {path} — skipping.")
             continue
-        admin_gdf = gpd.read_file(path)
+        # Units across the border, or in another region's districts, belong to
+        # no part of this region's map.
+        admin_gdf = drop_foreign(gpd.read_file(path), cfg, f"{level} units")
         summary = aggregate_to_admin(grid_gdf, admin_gdf, infra,
                                      high_risk_threshold=threshold)
         summaries[level] = summary

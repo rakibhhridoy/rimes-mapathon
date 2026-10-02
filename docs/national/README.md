@@ -5,6 +5,34 @@ its three regions; this is the next phase of the system and the website.
 
 ![Proposed regions](proposed_regions.png)
 
+## Progress
+
+**Eastern plains: built 2026-10-02** (`configs/eastern_plains.yaml`). 9,461
+assets in Comilla, Feni, Noakhali and Lakshmipur, from Geofabrik's national
+OpenStreetMap extract of 30 September 2026 after the public Overpass servers
+throttled the region's queries. Three 2024 events, one-event labelling rule;
+4.3 % of assets flood-prone.
+
+| Measure | Result |
+|---|---|
+| AUC over 20 held-out block assignments | 0.743 ± 0.122 (random forest 0.750) |
+| AUC against observed floods, published split | 0.854, precision lift 5.5 |
+| Radar labels over terrain-threshold labels | +0.181, ahead on 17 of 20 |
+| Graph network against the best model | −0.088 |
+| Terrain hazard surface across the grid | 0.546, near chance |
+| Temporal test | not possible: every usable event is from 2024 |
+
+The wide spread comes from a small region with about 400 flood-prone assets,
+so some held-out blocks hold few or none. The hazard surface is near chance,
+as on the south-west coast: surge and flash floods follow embankments, tides
+and hill runoff that terrain does not describe.
+
+Built along the way: district-defined regions, assets read from the national
+extract (`data.osm.source: pbf`), a resumable Overpass fetch that splits a
+query the server cannot answer, and a fix to the flood threshold, which with
+three events had made the one-event rule act as a two-event rule. The papers'
+numbers are unchanged by all of it.
+
 ## Where coverage stands
 
 The three flood regions reach 44 of Bangladesh's 64 districts, measured by

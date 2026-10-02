@@ -417,7 +417,9 @@ def build(out_path: Path) -> Path:
         r"\providecommand{\todo}[1]{\textbf{[TODO: #1]}}",
         "",
     ]
-    for region_id in REGION_CONFIGS:
+    # The papers describe the regions that have a macro prefix; regions added
+    # since (docs/national/) appear on the website, not in these documents.
+    for region_id in (r for r in REGION_CONFIGS if r in REGION_MACRO):
         lines += region_numbers(region_id) + [""]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)

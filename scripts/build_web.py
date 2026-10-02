@@ -292,7 +292,12 @@ def _clip_to_country(png: bytes, bounds, cfg: dict) -> bytes:
     image = Image.open(io.BytesIO(png)).convert("RGBA")
     width, height = image.size
     (south, west), (north, east) = bounds
-    home = gpd.read_file(ROOT / boundary).to_crs("EPSG:4326").geometry.union_all()
+    country = gpd.read_file(ROOT / boundary).to_crs("EPSG:4326")
+    districts = (cfg.get("aoi") or {}).get("districts")
+    if districts:
+        # a region defined by its districts shows its surfaces only there
+        country = country[country["shapeName"].isin(districts)]
+    home = country.geometry.union_all()
     inside = rasterize([(home, 1)], out_shape=(height, width),
                        transform=from_bounds(west, south, east, north, width, height),
                        fill=0, dtype="uint8").astype(bool)
