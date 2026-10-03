@@ -44,16 +44,17 @@ KEYWORDS (6)
 flood susceptibility; Sentinel-1; spatial cross-validation; risk mapping; open-source software; Bangladesh
 
 
-CODE METADATA (SoftwareX template Version 6, March 2026)
---------------------------------------------------------
+CODE METADATA
+-------------
 C1  Current code version: v3.0
 C2  Permanent link to code/repository used for this code version: https://github.com/rakibhhridoy/rimes-mapathon
-C3  Legal code license: MIT
-C4  Code versioning system used: git
-C5  Software code languages, tools and services used: Python 3.11; GeoPandas, Rasterio, GDAL, scikit-learn, PyTorch Geometric, PyKrige, PySAL; Google Earth Engine; FastAPI, SQLite, PMTiles and MapLibre GL
-C6  Compilation requirements, operating environments and dependencies: Python 3.11 on Linux or macOS; minimum versions in requirements.txt and tested versions in requirements-lock.txt; the GDAL command-line tools for the web build; a Google Earth Engine project only for the Sentinel-1 stage
-C7  Link to developer documentation/manual: https://github.com/rakibhhridoy/rimes-mapathon#readme
-C8  Support email for questions: rakibhhridoy@fermium.systems
+C3  Permanent link to reproducible capsule: Archived release: https://doi.org/10.5281/zenodo.23108192
+C4  Legal code license: MIT
+C5  Code versioning system used: git
+C6  Software code languages, tools and services used: Python 3.11; GeoPandas, Rasterio, GDAL, scikit-learn, PyTorch Geometric, PyKrige, PySAL; Google Earth Engine; FastAPI, SQLite, PMTiles and MapLibre GL
+C7  Compilation requirements, operating environments and dependencies: Python 3.11 on Linux or macOS; minimum versions in requirements.txt and tested versions in requirements-lock.txt; the GDAL command-line tools for the web build; a Google Earth Engine project only for the Sentinel-1 stage
+C8  Link to developer documentation/manual: https://github.com/rakibhhridoy/rimes-mapathon#readme
+C9  Support email for questions: rakibhhridoy@fermium.systems
 
 
 CRediT AUTHORSHIP CONTRIBUTION STATEMENT
@@ -95,7 +96,7 @@ Pages: 15
 Figures: 3 (processing chain; web application screenshot; national results)
 Tables: 1 (pipeline stages), plus the code metadata table
 Main text: about 2,575 words (limit 4,000; excluding abstract, metadata, references and captions)
-Template: SoftwareX article template Version 6 (March 2026) section order and metadata table, set in elsarticle
+Template: SoftwareX elsarticle template v4 (Nov 2023), 9-row metadata table kept for the reproducible-capsule row
 
 
 FILES TO UPLOAD
