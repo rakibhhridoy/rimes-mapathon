@@ -219,6 +219,11 @@
 \newblock \bibinfo{journal}{Nature} \bibinfo{volume}{596}
   (\bibinfo{year}{2021}) \bibinfo{pages}{80--86}.
   \DOIprefix\doi{10.1038/s41586-021-03695-w}.
+%Type = Misc
+\bibitem[{Hasan(2026)}]{hasan2026data}
+\bibinfo{author}{M.~R. Hasan}, \bibinfo{title}{Fermium hazard mapper: input
+  data and outputs for flood and landslide susceptibility in {B}angladesh
+  (version 3)}, \bibinfo{year}{2026}. \DOIprefix\doi{10.5281/zenodo.23108572}.
 %Type = Article
 \bibitem[{Herfort et~al.(2023)Herfort, Lautenbach, Porto~de Albuquerque,
   Anderson, and Zipf}]{herfort2023}
@@ -231,11 +236,6 @@
 \newblock \bibinfo{journal}{Nature Communications} \bibinfo{volume}{14}
   (\bibinfo{year}{2023}) \bibinfo{pages}{3985}.
   \DOIprefix\doi{10.1038/s41467-023-39698-6}.
-%Type = Misc
-\bibitem[{Hasan(2026)}]{hasan2026data}
-\bibinfo{author}{M.~R. Hasan}, \bibinfo{title}{Fermium hazard mapper: input
-  data and outputs for flood and landslide susceptibility in {B}angladesh
-  (version 3)}, \bibinfo{year}{2026}. \DOIprefix\doi{10.5281/zenodo.23108572}.
 %Type = Article
 \bibitem[{Rabby and Li(2019)}]{rabby2019}
 \bibinfo{author}{Y.~W. Rabby}, \bibinfo{author}{Y.~Li},
