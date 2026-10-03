@@ -102,8 +102,8 @@ Template: SoftwareX elsarticle template v4 (Nov 2023)
 FILES TO UPLOAD
 ---------------
 Manuscript (PDF):                    softwarex.pdf
-LaTeX source:                        softwarex.tex, softwarex.bib, ../references.bib, national.tex, softwarex.bbl, figures/
-Figures:                             figures/fig_chain_national.pdf, figures/fig_dashboard.png, figures/fig_national.pdf
+LaTeX source:                        softwarex.tex, softwarex.bib, ../references.bib, national.tex, softwarex.bbl, figures (below)
+Figures:                             docs/figures/fig_chain_national.pdf, docs/figures/fig_dashboard.png, docs/figures/fig_national.pdf
 Cover letter:                        cover_letter.pdf (set the date first)
 Declaration of interest statement:   declaration_of_interest.docx
 
