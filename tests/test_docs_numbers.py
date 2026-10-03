@@ -30,12 +30,18 @@ class TestMacroFormatting:
     def test_integers_get_thousands_separators(self):
         assert _macro("Assets", 22111).endswith("{22,111}")
 
-    def test_floats_are_trimmed_not_padded(self):
+    def test_floats_keep_three_decimals_with_trailing_zeros(self):
+        # figures set side by side must read alike: 0.080 beside 0.101, not 0.08
         assert _macro("Auc", 0.8539).endswith("{0.854}")
-        assert _macro("Round", 2.0).endswith("{2}")
+        assert _macro("Gap", 0.08).endswith("{0.080}")
+        assert _macro("Round", 2.0).endswith("{2.000}")
+
+    def test_lifts_take_one_decimal(self):
+        assert _macro("ValAPLift", 7.032).endswith("{7.0}")
 
     def test_percentages_convert_from_fractions(self):
-        assert _pct(0.00750) == 0.8
+        assert _macro("Share", _pct(0.00750)).endswith("{0.8}")
+        assert _macro("Agree", _pct(0.82)).endswith("{82.0}")
         assert _pct(None) is None
 
 
@@ -115,5 +121,5 @@ class TestPValues:
     def test_other_p_values_carry_their_equals_sign(self):
         from build_numbers import _p
         assert _p(0.215) == "=0.215"
-        assert _p(0.08) == "=0.08"
+        assert _p(0.08) == "=0.080"
         assert _p(None) is None

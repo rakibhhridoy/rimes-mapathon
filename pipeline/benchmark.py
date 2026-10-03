@@ -402,6 +402,122 @@ def run_temporal_holdout(cfg: dict, processed_dir: Path, raw_dir: Path,
     return result
 
 
+def run_persistence_check(cfg: dict, processed_dir: Path, raw_dir: Path,
+                          output_dir: Path, infra_path: Path, seeds=SEEDS,
+                          cutoff_year: int = 2022) -> dict:
+    """Does the record beat the model only because radar repeats its errors?
+
+    The record of earlier flooding and the later floods it is scored against
+    come from the same change detection, so ground that radar mistakes for
+    water every monsoon, such as wet paddy, would count as flooded in both
+    and favour the record. The temporal test is therefore repeated on two
+    stricter sets of test assets, with the model and the blocks unchanged:
+    "not_always_flooded" leaves out ground flagged in every earlier event,
+    where a repeated error would sit, and "outside_recorded_water" leaves out
+    ground the JRC record has ever seen under water, which removes seasonal
+    wetland. Both remove genuine flood-prone ground as well, so the check is
+    conservative: it can only take ground away from the record.
+    """
+    import geopandas as gpd
+    from scipy import stats
+
+    from pipeline.asset_model import _fit_tabular, model_type
+    from pipeline.feature_extract import (compute_centroids, extract_features,
+                                          project_coords, sample_raster_at_points)
+    from pipeline.graph_build import spatial_block_split_three
+
+    kind = model_type(cfg)
+    if kind == "graph_sage":
+        raise ValueError("Persistence check expects a tabular asset model.")
+
+    events = (cfg.get("sentinel1") or {}).get("events", [])
+    early = [e for e in events if int(e["start"][:4]) <= cutoff_year]
+    late = [e for e in events if int(e["start"][:4]) > cutoff_year]
+    if not early or not late:
+        raise ValueError(f"Need events on both sides of {cutoff_year}.")
+
+    infra = gpd.read_file(str(infra_path))
+    X, coords, _, _ = extract_features(cfg, infra, processed_dir)
+    X = np.ascontiguousarray(X, dtype=np.float32)
+    centroids = compute_centroids(gpd.read_file(str(infra_path)))
+    points = list(zip(centroids["lon"], centroids["lat"]))
+
+    def flooded_count(evts):
+        masks = [sample_raster_at_points(str(raw_dir / f"s1_flood_{e['name']}.tif"),
+                                         points) for e in evts]
+        return np.sum([np.nan_to_num(m) > 0.5 for m in masks], axis=0)
+
+    early_count, late_count = flooded_count(early), flooded_count(late)
+    # The same labels as the temporal test, so the "all" set reproduces it.
+    min_events = min((cfg.get("data", {}).get("labels", {}) or {})
+                     .get("min_events", 1), len(early))
+    y_early = (early_count >= min_events).astype(int)
+    y_late = (late_count >= 1).astype(int)
+    past = early_count / len(early)
+    occurrence = np.nan_to_num(sample_raster_at_points(
+        str(raw_dir / "jrc_water_occurrence.tif"), points))
+    subsets = {
+        "all": np.ones(len(y_late), dtype=bool),
+        "not_always_flooded": early_count < len(early),
+        "outside_recorded_water": occurrence <= 0,
+    }
+
+    coords_m = project_coords(np.asarray(coords), cfg["aoi"]["crs"])
+    block_m = cfg["graph"].get("block_size_m", 10_000)
+    train_ratio = cfg["graph"].get("train_split", 0.8)
+
+    per_seed = []
+    for seed in seeds:
+        train_mask, _, test_mask = spatial_block_split_three(
+            coords_m, train_ratio=train_ratio, block_size_m=block_m, seed=seed)
+        train = train_mask.numpy().astype(bool)
+        test = test_mask.numpy().astype(bool)
+        if (len(np.unique(y_late[test])) < 2
+                or len(np.unique(y_early[train])) < 2):
+            continue
+        model_scores = _fit_tabular(kind, X, y_early, train, seed).predict_proba(X)[:, 1]
+        row = {"seed": seed}
+        for name, keep in subsets.items():
+            idx = test & keep
+            if len(np.unique(y_late[idx])) < 2:
+                continue
+            row[name] = {"n_test": int(idx.sum()),
+                         "positive_rate": float(y_late[idx].mean()),
+                         "temporal": _metrics(y_late[idx], model_scores[idx])["auc_roc"],
+                         "past_flooding": _metrics(y_late[idx], past[idx])["auc_roc"]}
+        per_seed.append(row)
+
+    summary = {}
+    for name, keep in subsets.items():
+        rows = [r[name] for r in per_seed if name in r]
+        if len(rows) < 2:
+            continue
+        model_auc = np.array([r["temporal"] for r in rows])
+        past_auc = np.array([r["past_flooding"] for r in rows])
+        diff = model_auc - past_auc
+        summary[name] = {
+            "share_of_assets": float(keep.mean()),
+            "share_of_late_positives": float(y_late[keep].sum() / max(y_late.sum(), 1)),
+            "temporal_auc_mean": float(model_auc.mean()),
+            "past_flooding_auc_mean": float(past_auc.mean()),
+            "temporal_minus_past": {
+                "mean": float(diff.mean()), "sd": float(diff.std(ddof=1)),
+                "seeds_temporal_ahead": int((diff > 0).sum()),
+                "n_seeds": int(len(diff)),
+                "p_value": float(stats.ttest_1samp(diff, 0.0).pvalue),
+            },
+        }
+
+    result = {"model": kind, "cutoff_year": cutoff_year, "seeds": list(seeds),
+              "train_events": [e["name"] for e in early],
+              "test_events": [e["name"] for e in late],
+              "per_seed": per_seed, "summary": summary}
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "persistence_check.json").write_text(json.dumps(result, indent=2))
+    logger.info(f"Wrote {output_dir / 'persistence_check.json'}")
+    return result
+
+
 def run_past_flooding_feature(cfg: dict, processed_dir: Path, raw_dir: Path,
                               output_dir: Path, infra_path: Path, seeds=SEEDS,
                               cutoff_year: int = 2022) -> dict:

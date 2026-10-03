@@ -17,6 +17,7 @@ Usage:
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -44,12 +45,29 @@ def _read_json(path: Path):
         return None
 
 
+class _Fixed(float):
+    """A float that prints with a set number of decimals, such as a percentage."""
+
+    def __new__(cls, value, digits):
+        obj = super().__new__(cls, value)
+        obj.digits = digits
+        return obj
+
+
 def _macro(name: str, value) -> str:
-    r"""One \newcommand line; missing values render as a visible \todo."""
+    r"""One \newcommand line; missing values render as a visible \todo.
+
+    Floats keep a fixed number of decimals, trailing zeros included, so that
+    figures set side by side read alike: scores to three decimals,
+    percentages to one, and lifts over the base rate to one.
+    """
     if value is None:
         body = r"\todo{missing}"
+    elif isinstance(value, _Fixed):
+        body = f"{value:.{value.digits}f}"
     elif isinstance(value, float):
-        body = f"{value:.3f}".rstrip("0").rstrip(".")
+        digits = 1 if name.endswith("Lift") else 3
+        body = f"{value:.{digits}f}"
     elif isinstance(value, int):
         body = f"{value:,}"
     else:
@@ -74,7 +92,7 @@ def _p(value):
     if value is None:
         return None
     value = float(value)
-    return "<0.001" if value < 0.001 else "=" + f"{value:.3f}".rstrip("0").rstrip(".")
+    return "<0.001" if value < 0.001 else "=" + f"{value:.3f}"
 
 
 def _gap(value):
@@ -83,7 +101,7 @@ def _gap(value):
 
 
 def _pct(value):
-    return None if value is None else round(100 * float(value), 1)
+    return None if value is None else _Fixed(100 * float(value), 1)
 
 
 def _mapped_cell_share(output_dir: Path):
@@ -208,7 +226,7 @@ def region_numbers(region_id: str) -> list[str]:
                 step = max(1, min(src.width, src.height) // 1500)
                 data = src.read(1, masked=True, out_shape=(
                     src.height // step, src.width // step))
-            spread[key] = round(float(data.std()), 2)
+            spread[key] = float(data.std())
     lines += [
         _macro(f"{prefix}KrigedGridSD", spread["Kriged"]),
         _macro(f"{prefix}TerrainGridSD", spread["Terrain"]),
@@ -256,7 +274,7 @@ def region_numbers(region_id: str) -> list[str]:
             _macro(f"{prefix}Bench{macro}AUC", stats.get("auc_mean")),
             _macro(f"{prefix}Bench{macro}SD", stats.get("auc_sd")),
             _macro(f"{prefix}Bench{macro}Lift",
-                   round(stats["ap_lift_mean"], 2) if stats.get("ap_lift_mean") else None),
+                   stats["ap_lift_mean"] if stats.get("ap_lift_mean") else None),
         ]
     paired = bsum.get("graph_vs_best_baseline") or {}
     best = paired.get("best_baseline")
@@ -352,6 +370,21 @@ def region_numbers(region_id: str) -> list[str]:
         _macro(f"{prefix}ImpAssetType", _loss(igroup, "asset_type")),
     ]
 
+    # The temporal test on stricter test sets, against repeated radar errors.
+    persist = (_read_json(paths["output"] / "persistence_check.json") or {}).get("summary") or {}
+    for key, tag in (("not_always_flooded", "Always"), ("outside_recorded_water", "Water")):
+        sub = persist.get(key) or {}
+        diff = sub.get("temporal_minus_past") or {}
+        lines += [
+            _macro(f"{prefix}Persist{tag}AssetShare", _pct(sub.get("share_of_assets"))),
+            _macro(f"{prefix}Persist{tag}PosShare", _pct(sub.get("share_of_late_positives"))),
+            _macro(f"{prefix}Persist{tag}ModelAUC", sub.get("temporal_auc_mean")),
+            _macro(f"{prefix}Persist{tag}RecordAUC", sub.get("past_flooding_auc_mean")),
+            _macro(f"{prefix}Persist{tag}Gap", _gap(diff.get("mean"))),
+            _macro(f"{prefix}Persist{tag}P", _p(diff.get("p_value"))),
+            _macro(f"{prefix}Persist{tag}Ahead", diff.get("seeds_temporal_ahead")),
+        ]
+
     # Past flooding as a feature, trained on the latest pre-cutoff event.
     pastf = _read_json(paths["output"] / "past_flooding_feature.json") or {}
     psum = pastf.get("summary") or {}
@@ -407,6 +440,23 @@ def region_numbers(region_id: str) -> list[str]:
     return lines
 
 
+def _shared_p_values(lines: list[str]) -> list[str]:
+    r"""p-values of one comparison across the three flood regions, in a single
+    macro: "all $p<0.001$" when every region gives the same value, otherwise
+    the three in region order."""
+    defined = dict(re.findall(r"\\newcommand\{\\(\w+)\}\{(.*)\}$", "\n".join(lines), re.M))
+    out = []
+    for stem in ("LabelGapP", "TempProxyGapP"):
+        values = [defined.get(f"{prefix}{stem}") for prefix in ("RR", "Sylhet", "Coastal")]
+        if any(v is None or "todo" in v for v in values):
+            out.append(_macro(f"All{stem}", None))
+        elif len(set(values)) == 1:
+            out.append(_macro(f"All{stem}", f"all $p{values[0]}$"))
+        else:
+            out.append(_macro(f"All{stem}", f"$p{values[0]}$, $p{values[1]}$ and $p{values[2]}$"))
+    return out
+
+
 def build(out_path: Path) -> Path:
     lines = [
         "% Generated by docs/build_numbers.py — do not edit by hand.",
@@ -421,6 +471,7 @@ def build(out_path: Path) -> Path:
     # since (docs/national/) appear on the website, not in these documents.
     for region_id in (r for r in REGION_CONFIGS if r in REGION_MACRO):
         lines += region_numbers(region_id) + [""]
+    lines += _shared_p_values(lines) + [""]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(lines) + "\n")
