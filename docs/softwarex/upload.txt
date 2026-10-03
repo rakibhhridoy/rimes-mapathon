@@ -1,0 +1,116 @@
+SOFTWAREX SUBMISSION: UPLOAD INFORMATION
+========================================
+Everything the Elsevier submission system asks for, ready to copy into its
+fields. Text matches softwarex.tex as of commit 67a8c3d.
+
+
+ARTICLE TYPE
+------------
+Original Software Publication
+
+
+TITLE
+-----
+Fermium Hazard Mapper: an open pipeline for flood and landslide risk mapping, trained and tested on radar-observed floods
+
+
+AUTHORS (in order)
+------------------
+1. Md Rakib Hasan (corresponding author)
+   Given name: Md Rakib
+   Family name: Hasan
+   Email: rakibhhridoy@fermium.systems
+   ORCID: 0009-0002-4007-7590
+   Affiliations:
+     a. Department of Soil, Water and Environment, University of Dhaka, Dhaka 1000, Bangladesh
+     b. Fermium Systems, Dhaka 1207, Bangladesh
+
+2. Shoumik Zubyer
+   Given name: Shoumik
+   Family name: Zubyer
+   Email: shoumik-2019617365@swe.du.ac.bd
+   ORCID: 0009-0006-4085-1493
+   Affiliation:
+     a. Department of Soil, Water and Environment, University of Dhaka, Dhaka 1000, Bangladesh
+
+
+ABSTRACT (98 words)
+-------------------
+Flood susceptibility maps for Bangladesh are usually trained on a few hundred surveyed points and scored on a random share of the same points, so their accuracy says little about unmapped ground. Fermium Hazard Mapper is an open Python pipeline and web application that trains flood models on extents mapped from Sentinel-1 radar, scores every model on whole areas held out from training, and publishes risk for each mapped asset and administrative unit. One configuration file drives each region. A national partition of 8 flood regions covers all 61 lowland districts and 114,569 assets, served openly at https://fermium.systems/hazmapper.
+
+
+KEYWORDS (6)
+------------
+flood susceptibility; Sentinel-1; spatial cross-validation; risk mapping; open-source software; Bangladesh
+
+
+CODE METADATA
+-------------
+C1  Current code version: v3.0
+C2  Permanent link to code/repository: https://github.com/rakibhhridoy/rimes-mapathon
+C3  Permanent link to reproducible capsule: https://doi.org/10.5281/zenodo.23108192
+C4  Legal code license: MIT
+C5  Code versioning system used: git
+C6  Software code languages, tools and services used: Python 3.11; GeoPandas, Rasterio, GDAL, scikit-learn, PyTorch Geometric, PyKrige, PySAL; Google Earth Engine; FastAPI, SQLite, PMTiles and MapLibre GL
+C7  Compilation requirements, operating environments and dependencies: Python 3.11 on Linux or macOS; minimum versions in requirements.txt and tested versions in requirements-lock.txt; the GDAL command-line tools for the web build; a Google Earth Engine project only for the Sentinel-1 stage
+C8  Developer documentation/manual: https://github.com/rakibhhridoy/rimes-mapathon#readme
+C9  Support email: rakibhhridoy@fermium.systems
+
+
+CRediT AUTHORSHIP CONTRIBUTION STATEMENT
+----------------------------------------
+Md Rakib Hasan: Conceptualization, Methodology, Software, Validation, Formal analysis, Data curation, Visualization, Writing – original draft, Writing – review & editing.
+Shoumik Zubyer: Conceptualization, Writing – review & editing.
+
+
+DECLARATION OF COMPETING INTEREST
+---------------------------------
+Md Rakib Hasan is affiliated with Fermium Systems, which hosts the public dashboard. The software is released under the MIT licence and the dashboard is free to use. The authors declare no other competing interests.
+(File: declaration_of_interest.docx; second box ticked.)
+
+
+FUNDING
+-------
+This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors.
+
+
+DATA AVAILABILITY
+-----------------
+The code is at https://github.com/rakibhhridoy/rimes-mapathon, and the release the article describes is archived at https://doi.org/10.5281/zenodo.23108192. Input data and outputs for the three validation regions and the landslide region are archived at https://doi.org/10.5281/zenodo.23108572, and the national partition is reproduced by the configuration files in the repository. A single command, python scripts/demo.py, downloads a validation region's archive, reruns the pipeline on it without Earth Engine in a few minutes, and checks every headline figure against the archived outputs.
+
+Data/software repository links for the "research data" step:
+  Software (v3.0.0): https://doi.org/10.5281/zenodo.23108192
+  Data (v3):         https://doi.org/10.5281/zenodo.23108572
+  Code:              https://github.com/rakibhhridoy/rimes-mapathon
+  Live dashboard:    https://fermium.systems/hazmapper
+
+
+ACKNOWLEDGEMENTS
+----------------
+The authors thank the Regional Integrated Multi-Hazard Early Warning System for Africa and Asia (RIMES) for organising the Mapathon in which the first version of the software competed. Infrastructure data are © OpenStreetMap contributors, under the Open Database Licence. Population data are from WorldPop, University of Southampton, CC BY 4.0. Administrative boundaries are from geoBoundaries, William & Mary geoLab, CC BY 4.0. Sentinel-1 data are Copernicus Sentinel data, processed in Google Earth Engine. Landslide locations are from NASA's Cooperative Open Online Landslide Repository. The scenario maps shown beside the results are the Department of Disaster Management's Multi-hazard Risk and Vulnerability Assessment, served by the United Nations Satellite Centre (UNOSAT), and the basemap relief is from Esri.
+
+
+MANUSCRIPT FACTS
+----------------
+Pages: 15
+Figures: 3 (processing chain; web application screenshot; national results)
+Tables: 1 (pipeline stages), plus the code metadata table
+Main text: under the 3,000-word limit (excluding metadata, references and captions)
+Template: SoftwareX elsarticle template v4 (Nov 2023)
+
+
+FILES TO UPLOAD
+---------------
+Manuscript (PDF):                    softwarex.pdf
+LaTeX source:                        softwarex.tex, softwarex.bib, ../references.bib, national.tex, softwarex.bbl, figures/
+Figures:                             figures/fig_chain_national.pdf, figures/fig_dashboard.png, figures/fig_national.pdf
+Cover letter:                        cover_letter.pdf (set the date first)
+Declaration of interest statement:   declaration_of_interest.docx
+
+
+SUBMISSION DECLARATIONS
+-----------------------
+- The manuscript is original, has not been published, and is not under consideration elsewhere.
+- Both authors have approved the submission.
+- Suggested reviewers: none.
+- APC: submit before 31 December 2026 for the full Research4Life waiver (all authors are in Bangladesh, Group A until 1 January 2027).
