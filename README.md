@@ -496,4 +496,6 @@ OpenStreetMap (ODbL), WorldPop (CC BY 4.0), JRC Global Surface Water, SRTM
 map tiles and data is shown in the dashboard.
 
 Originally developed by Md Rakib Hasan (Fermium Systems) for the RIMES
-Mapathon (ResilienceAI track).
+Mapathon (ResilienceAI track, March 2026), a national competition among 60
+university teams in Bangladesh, where its first version was one of 12
+finalists and received the honourable mention.
