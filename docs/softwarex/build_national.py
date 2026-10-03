@@ -192,6 +192,8 @@ def main() -> None:
         f"\\newcommand{{\\NatAssets}}{{{total:,}}}",
         f"\\newcommand{{\\NatGraphGapMin}}{{{min(gaps):.3f}}}",
         f"\\newcommand{{\\NatGraphGapMax}}{{{max(gaps):.3f}}}",
+        f"\\newcommand{{\\NatAUCMin}}{{{min(r['auc'] for r in rows):.3f}}}",
+        f"\\newcommand{{\\NatAUCMax}}{{{max(r['auc'] for r in rows):.3f}}}",
     ]
     OUT.write_text("\n".join(lines) + "\n")
     write_chain_counts(partition, total)

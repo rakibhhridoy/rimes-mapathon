@@ -56,7 +56,7 @@
   city={Dhaka}, postcode={1207}, country={Bangladesh}}
 
 \begin{abstract}
-Flood susceptibility maps for Bangladesh are usually trained on a few hundred surveyed points and scored on a random share of the same points, so their accuracy says little about unmapped ground. Fermium Hazard Mapper is an open Python pipeline and web application that trains flood models on extents mapped from Sentinel-1 radar, scores every model on whole areas held out from training, and publishes risk for each mapped asset and administrative unit. One configuration file drives each region. A national partition of \NatRegions{} flood regions covers all \NatDistricts{} lowland districts and \NatAssets{} assets, served openly at \url{https://fermium.systems/hazmapper}.
+Flood susceptibility maps for Bangladesh are usually trained on a few hundred surveyed points and scored on a random share of the same points, so their accuracy says little about unmapped ground. Fermium Hazard Mapper is an open Python pipeline and web application that trains flood models on extents mapped from Sentinel-1 radar, scores every model on whole areas held out from training, and publishes risk for each mapped asset and administrative unit, with one configuration file driving each region. Across a national partition of \NatRegions{} flood regions, covering all \NatDistricts{} lowland districts and \NatAssets{} assets, the default model reaches an AUC of \NatAUCMin{} to \NatAUCMax{} on held-out 10\,km blocks, and training on radar-observed floods beats training on terrain-threshold labels in every region. Every comparison runs on identical held-out areas and reruns with one command, so another group can check any claim about a model or a data source. Results are served openly at \url{https://fermium.systems/hazmapper}.
 \end{abstract}
 
 \begin{keyword}
@@ -76,13 +76,12 @@ Nr. & Code metadata description & Metadata \\
 \midrule
 C1 & Current code version & v3.0 \\
 C2 & Permanent link to code/repository used for this code version & \url{https://github.com/rakibhhridoy/rimes-mapathon} \\
-C3 & Permanent link to reproducible capsule & Archived release: \SoftwareDOI{} \\
-C4 & Legal code license & MIT \\
-C5 & Code versioning system used & git \\
-C6 & Software code languages, tools and services used & Python 3.11; GeoPandas, Rasterio, GDAL, scikit-learn, PyTorch Geometric, PyKrige, PySAL; Google Earth Engine; FastAPI, SQLite, PMTiles and MapLibre GL \\
-C7 & Compilation requirements, operating environments and dependencies & Python 3.11 on Linux or macOS; minimum versions in \texttt{requirements.txt} and the tested versions in \texttt{requirements-lock.txt}; the GDAL command-line tools for the web build; a Google Earth Engine project only for the Sentinel-1 stage \\
-C8 & Link to developer documentation/manual & \url{https://github.com/rakibhhridoy/rimes-mapathon\#readme} \\
-C9 & Support email for questions & rakibhhridoy@fermium.systems \\
+C3 & Legal code license & MIT \\
+C4 & Code versioning system used & git \\
+C5 & Software code languages, tools and services used & Python 3.11; GeoPandas, Rasterio, GDAL, scikit-learn, PyTorch Geometric, PyKrige, PySAL; Google Earth Engine; FastAPI, SQLite, PMTiles and MapLibre GL \\
+C6 & Compilation requirements, operating environments and dependencies & Python 3.11 on Linux or macOS; minimum versions in \texttt{requirements.txt} and the tested versions in \texttt{requirements-lock.txt}; the GDAL command-line tools for the web build; a Google Earth Engine project only for the Sentinel-1 stage \\
+C7 & Link to developer documentation/manual & \url{https://github.com/rakibhhridoy/rimes-mapathon\#readme} \\
+C8 & Support email for questions & rakibhhridoy@fermium.systems \\
 \bottomrule
 \end{tabularx}
 \end{table}
