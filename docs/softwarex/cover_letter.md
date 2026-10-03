@@ -24,12 +24,6 @@ We believe the software suits SoftwareX because it is built to be rerun and chec
 
 The main text runs to about 2,350 words, excluding the metadata tables, references and captions, with three figures and one table, and it follows the SoftwareX article template. The manuscript is original, has not been published, and is not under consideration elsewhere. Both authors have approved its submission. Md Rakib Hasan declares an affiliation with Fermium Systems, which hosts the public dashboard; the software is free and open, and no result depends on a proprietary component. The work received no specific funding.
 
-Suggested reviewers:
-
-- Prof. Hanna Meyer, Institute of Landscape Ecology, University of Münster, Germany. hanna.meyer@uni-muenster.de
-- Dr Sandro Martinis, German Remote Sensing Data Center, German Aerospace Center (DLR), Germany. Sandro.Martinis@dlr.de
-- Dr Beth Tellman, Nelson Institute for Environmental Studies, University of Wisconsin–Madison, USA. Beth.tellman@wisc.edu
-
 Thank you for considering the manuscript.
 
 Yours sincerely,
