@@ -607,6 +607,18 @@ def crosscheck(ctx):
                    f"CSI {r['csi']:.3f} | {r['n_cells']:,} cells")
 
 
+@cli.command("refresh-pvalues")
+@click.pass_context
+def refresh_pvalues(ctx):
+    """Recompute saved p-values with the corrected resampled t-test."""
+    from pipeline.benchmark import refresh_p_values
+
+    cfg = ctx.obj["config"]
+    for name, p in refresh_p_values(cfg, _dir(cfg, "processed"), _dir(cfg, "output"),
+                                    _infra_path(cfg)).items():
+        click.echo(f"{name}: p = {p}")
+
+
 # ---------------------------------------------------------------------------
 # Benchmark — the graph model against ordinary tabular models
 # ---------------------------------------------------------------------------

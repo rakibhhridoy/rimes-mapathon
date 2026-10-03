@@ -77,6 +77,11 @@ Ma, J., Han, Z., Liu, F., Wang, X., Hu, J., and Zhang, P. (2025).
   contour topographic features in slope units using graph convolution network}.
 \newblock {\em CATENA}, 255:109029.
 
+\bibitem[Nadeau and Bengio, 2003]{nadeau2003}
+Nadeau, C. and Bengio, Y. (2003).
+\newblock Inference for the generalization error.
+\newblock {\em Machine Learning}, 52(3):239--281.
+
 \bibitem[Niculescu-Mizil and Caruana, 2005]{niculescu2005}
 Niculescu-Mizil, A. and Caruana, R. (2005).
 \newblock {Predicting good probabilities with supervised learning}.

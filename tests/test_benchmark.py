@@ -15,9 +15,35 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from pipeline.benchmark import _fit_predict, _metrics, _tabular_models
+from pipeline.benchmark import (_fit_predict, _metrics, _tabular_models,
+                                _uncorrected_p_value, corrected_p_value)
 from pipeline.sensitivity import (_top_overlap, _weighted_geometric_mean,
                                   _vulnerability_scenarios)
+
+
+class TestCorrectedPValue:
+    """Nadeau-Bengio: overlapping assignments must widen the variance."""
+
+    diff = np.array([0.03, 0.05, 0.01, 0.04, 0.02, 0.06, 0.00, 0.03])
+
+    def test_matches_the_plain_test_when_the_correction_vanishes(self):
+        # with n_test/n_train = 0 the formula is the ordinary one-sample t-test
+        assert corrected_p_value(self.diff, [0.0]) == pytest.approx(
+            _uncorrected_p_value(self.diff))
+
+    def test_is_never_smaller_than_the_plain_test(self):
+        assert corrected_p_value(self.diff, [0.125]) > _uncorrected_p_value(self.diff)
+
+    def test_hand_computed_value(self):
+        from scipy import stats
+        j, ratio = len(self.diff), 0.125
+        t = self.diff.mean() / np.sqrt((1 / j + ratio) * self.diff.var(ddof=1))
+        assert corrected_p_value(self.diff, [ratio]) == pytest.approx(
+            2 * stats.t.sf(abs(t), j - 1))
+
+    def test_degenerate_inputs(self):
+        assert corrected_p_value([0.1], [0.1]) is None
+        assert corrected_p_value([0.0, 0.0], [0.1]) == 1.0
 
 
 class TestMetrics:

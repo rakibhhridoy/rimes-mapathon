@@ -36,6 +36,34 @@ def _metrics(y_true: np.ndarray, scores: np.ndarray) -> dict:
     return out
 
 
+def corrected_p_value(diff, test_over_train) -> float | None:
+    """Two-sided p-value of a mean paired difference over block assignments.
+
+    The assignments reuse the same assets, so their differences are not
+    independent and a plain t-test overstates the evidence. The corrected
+    resampled t-test of Nadeau and Bengio (2003) widens the variance by the
+    ratio of test to training size, t = mean / sqrt((1/J + n_test/n_train)
+    * var), with J - 1 degrees of freedom.
+    """
+    from scipy import stats
+
+    diff = np.asarray(diff, dtype=float)
+    if len(diff) < 2:
+        return None
+    var = diff.var(ddof=1)
+    if var == 0:
+        return 0.0 if diff.mean() != 0 else 1.0
+    ratio = float(np.mean(test_over_train))
+    t = diff.mean() / np.sqrt((1.0 / len(diff) + ratio) * var)
+    return float(2 * stats.t.sf(abs(t), len(diff) - 1))
+
+
+def _uncorrected_p_value(diff) -> float | None:
+    from scipy import stats
+
+    return float(stats.ttest_1samp(diff, 0.0).pvalue) if len(diff) > 1 else None
+
+
 def _tabular_models(seed: int):
     """The baselines a reviewer would reach for, all class-balanced."""
     from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
@@ -107,7 +135,7 @@ def run_benchmark(cfg: dict, processed_dir: Path, output_dir: Path,
             logger.warning(f"seed {seed}: test blocks hold one class, skipped")
             continue
 
-        row = {"seed": seed, "n_test": int(test.sum()),
+        row = {"seed": seed, "n_test": int(test.sum()), "n_train": int(train.sum()),
                "test_positive_rate": float(y[test].mean()),
                "models": {}}
 
@@ -164,13 +192,9 @@ def run_benchmark(cfg: dict, processed_dir: Path, output_dir: Path,
                   "auc_difference_sd": float(diff.std(ddof=1)) if len(diff) > 1 else None,
                   "seeds_graph_ahead": int((diff > 0).sum()), "n_seeds": int(len(diff))}
         if len(diff) > 1:
-            from scipy import stats
-
-            t_stat, p_value = stats.ttest_rel(
-                [r["models"]["graph_sage"]["auc_roc"] for r in per_seed],
-                [r["models"][best]["auc_roc"] for r in per_seed])
-            paired["t_statistic"] = float(t_stat)
-            paired["p_value"] = float(p_value)
+            paired["p_value"] = corrected_p_value(
+                diff, [r["n_test"] / r["n_train"] for r in per_seed])
+            paired["p_value_uncorrected"] = _uncorrected_p_value(diff)
         summary["graph_vs_best_baseline"] = paired
 
     result = {"features": list(feature_names), "n_assets": int(len(y)),
@@ -222,7 +246,8 @@ def run_label_comparison(cfg: dict, processed_dir: Path, output_dir: Path,
         test = test_mask.numpy().astype(bool)
         if len(np.unique(y_observed[test])) < 2:
             continue
-        row = {"seed": seed, "n_test": int(test.sum()), "labels": {}}
+        row = {"seed": seed, "n_test": int(test.sum()), "n_train": int(train.sum()),
+               "labels": {}}
         scores = {}
         for name, labels in (("observed", y_observed), ("proxy", y_proxy)):
             if len(np.unique(labels[train])) < 2:
@@ -243,8 +268,9 @@ def run_label_comparison(cfg: dict, processed_dir: Path, output_dir: Path,
             summary[name] = {"auc_mean": float(aucs.mean()),
                              "auc_sd": float(aucs.std(ddof=1)) if len(aucs) > 1 else None,
                              "n_seeds": int(len(aucs))}
+    both = [r for r in per_seed if len(r["labels"]) == 2]
     paired = [r["labels"]["observed"]["auc_roc"] - r["labels"]["proxy"]["auc_roc"]
-              for r in per_seed if len(r["labels"]) == 2]
+              for r in both]
     if paired:
         summary["observed_minus_proxy"] = {
             "mean": float(np.mean(paired)),
@@ -253,10 +279,9 @@ def run_label_comparison(cfg: dict, processed_dir: Path, output_dir: Path,
             "n_seeds": int(len(paired)),
         }
         if len(paired) > 1:
-            from scipy import stats
-
-            summary["observed_minus_proxy"]["p_value"] = float(
-                stats.ttest_1samp(paired, 0.0).pvalue)
+            summary["observed_minus_proxy"]["p_value"] = corrected_p_value(
+                paired, [r["n_test"] / r["n_train"] for r in both])
+            summary["observed_minus_proxy"]["p_value_uncorrected"] = _uncorrected_p_value(paired)
 
     result = {"model": kind, "seeds": list(seeds), "per_seed": per_seed,
               "summary": summary}
@@ -359,6 +384,7 @@ def run_temporal_holdout(cfg: dict, processed_dir: Path, raw_dir: Path,
             scores["proxy_trained"] = (_fit_tabular(kind, X, y_proxy, train, seed)
                                        .predict_proba(X[test])[:, 1])
         per_seed.append({"seed": seed, "n_test": int(test.sum()),
+                         "n_train": int(train.sum()),
                          "scores": {k: _metrics(y_late[test], v)
                                     for k, v in scores.items()}})
 
@@ -375,15 +401,16 @@ def run_temporal_holdout(cfg: dict, processed_dir: Path, raw_dir: Path,
                 "n_seeds": int(len(aucs)),
             }
     for ref in ("past_flooding", "all_events", "proxy_trained"):
+        rows = [r for r in per_seed if ref in r["scores"]]
         diff = np.array([r["scores"]["temporal"]["auc_roc"]
-                         - r["scores"][ref]["auc_roc"] for r in per_seed
-                         if ref in r["scores"]])
+                         - r["scores"][ref]["auc_roc"] for r in rows])
         if len(diff) > 1:
             summary[f"temporal_minus_{ref}"] = {
                 "mean": float(diff.mean()), "sd": float(diff.std(ddof=1)),
                 "seeds_temporal_ahead": int((diff > 0).sum()),
                 "n_seeds": int(len(diff)),
-                "p_value": float(stats.ttest_1samp(diff, 0.0).pvalue),
+                "p_value": corrected_p_value(diff, [r["n_test"] / r["n_train"] for r in rows]),
+                "p_value_uncorrected": _uncorrected_p_value(diff),
             }
 
     result = {
@@ -476,7 +503,7 @@ def run_persistence_check(cfg: dict, processed_dir: Path, raw_dir: Path,
                 or len(np.unique(y_early[train])) < 2):
             continue
         model_scores = _fit_tabular(kind, X, y_early, train, seed).predict_proba(X)[:, 1]
-        row = {"seed": seed}
+        row = {"seed": seed, "n_train": int(train.sum())}
         for name, keep in subsets.items():
             idx = test & keep
             if len(np.unique(y_late[idx])) < 2:
@@ -489,7 +516,7 @@ def run_persistence_check(cfg: dict, processed_dir: Path, raw_dir: Path,
 
     summary = {}
     for name, keep in subsets.items():
-        rows = [r[name] for r in per_seed if name in r]
+        rows = [dict(r[name], n_train=r["n_train"]) for r in per_seed if name in r]
         if len(rows) < 2:
             continue
         model_auc = np.array([r["temporal"] for r in rows])
@@ -504,7 +531,8 @@ def run_persistence_check(cfg: dict, processed_dir: Path, raw_dir: Path,
                 "mean": float(diff.mean()), "sd": float(diff.std(ddof=1)),
                 "seeds_temporal_ahead": int((diff > 0).sum()),
                 "n_seeds": int(len(diff)),
-                "p_value": float(stats.ttest_1samp(diff, 0.0).pvalue),
+                "p_value": corrected_p_value(diff, [r["n_test"] / r["n_train"] for r in rows]),
+                "p_value_uncorrected": _uncorrected_p_value(diff),
             },
         }
 
@@ -607,7 +635,7 @@ def run_past_flooding_feature(cfg: dict, processed_dir: Path, raw_dir: Path,
             "without_past": without.predict_proba(X[test])[:, 1],
             "past_only": past_test[test],
         }
-        row = {"seed": seed, "n_test": int(test.sum()),
+        row = {"seed": seed, "n_test": int(test.sum()), "n_train": int(train.sum()),
                "scores": {k: _metrics(y_test[test], v) for k, v in scores.items()}}
         # Ground no earlier flood reached, where past flooding cannot rank at
         # all: how well the model with the feature ranks it there.
@@ -646,7 +674,8 @@ def run_past_flooding_feature(cfg: dict, processed_dir: Path, raw_dir: Path,
             summary[f"with_past_minus_{ref}"] = {
                 "mean": float(diff.mean()), "sd": float(diff.std(ddof=1)),
                 "seeds_ahead": int((diff > 0).sum()), "n_seeds": int(len(diff)),
-                "p_value": float(stats.ttest_1samp(diff, 0.0).pvalue),
+                "p_value": corrected_p_value(diff, [r["n_test"] / r["n_train"] for r in per_seed]),
+                "p_value_uncorrected": _uncorrected_p_value(diff),
             }
 
     result = {
@@ -764,3 +793,108 @@ def run_feature_importance(cfg: dict, processed_dir: Path, output_dir: Path,
     (output_dir / "feature_importance.json").write_text(json.dumps(result, indent=2))
     logger.info(f"Wrote {output_dir / 'feature_importance.json'}")
     return result
+
+
+def refresh_p_values(cfg: dict, processed_dir: Path, output_dir: Path,
+                     infra_path: Path) -> dict:
+    """Recompute the p-values of saved comparisons with the corrected test.
+
+    The scores stay as they are. Only the training-set size of each block
+    assignment is needed, and the split is deterministic, so it is rebuilt
+    from the coordinates rather than by refitting any model. Each summary
+    keeps the plain t-test beside the corrected one as p_value_uncorrected.
+    """
+    import geopandas as gpd
+
+    from pipeline.feature_extract import extract_features, project_coords
+    from pipeline.graph_build import spatial_block_split_three
+
+    infra = gpd.read_file(str(infra_path))
+    _, coords, _, _ = extract_features(cfg, infra, processed_dir)
+    coords_m = project_coords(np.asarray(coords), cfg["aoi"]["crs"])
+    block_m = cfg["graph"].get("block_size_m", 10_000)
+    train_ratio = cfg["graph"].get("train_split", 0.8)
+    n_train = {}
+
+    def train_size(seed):
+        if seed not in n_train:
+            train_mask, _, _ = spatial_block_split_three(
+                coords_m, train_ratio=train_ratio, block_size_m=block_m, seed=seed)
+            n_train[seed] = int(train_mask.numpy().astype(bool).sum())
+        return n_train[seed]
+
+    def ratios(rows):
+        return [r["n_test"] / train_size(r["seed"]) for r in rows]
+
+    def update(entry, diff, rows):
+        entry["p_value"] = corrected_p_value(diff, ratios(rows))
+        entry["p_value_uncorrected"] = _uncorrected_p_value(diff)
+        entry.pop("t_statistic", None)
+
+    refreshed = {}
+
+    path = output_dir / "benchmark.json"
+    if path.exists():
+        data = json.loads(path.read_text())
+        paired = data["summary"].get("graph_vs_best_baseline")
+        if paired:
+            rows = data["per_seed"]
+            best = paired["best_baseline"]
+            diff = np.array([r["models"]["graph_sage"]["auc_roc"]
+                             - r["models"][best]["auc_roc"] for r in rows])
+            update(paired, diff, rows)
+        path.write_text(json.dumps(data, indent=2))
+        refreshed["benchmark"] = paired.get("p_value") if paired else None
+
+    path = output_dir / "label_comparison.json"
+    if path.exists():
+        data = json.loads(path.read_text())
+        entry = data["summary"].get("observed_minus_proxy")
+        if entry:
+            rows = [r for r in data["per_seed"] if len(r["labels"]) == 2]
+            diff = np.array([r["labels"]["observed"]["auc_roc"]
+                             - r["labels"]["proxy"]["auc_roc"] for r in rows])
+            update(entry, diff, rows)
+        path.write_text(json.dumps(data, indent=2))
+        refreshed["labels"] = entry.get("p_value") if entry else None
+
+    path = output_dir / "temporal_holdout.json"
+    if path.exists():
+        data = json.loads(path.read_text())
+        for ref in ("past_flooding", "all_events", "proxy_trained"):
+            entry = data["summary"].get(f"temporal_minus_{ref}")
+            if not entry:
+                continue
+            rows = [r for r in data["per_seed"] if ref in r["scores"]]
+            diff = np.array([r["scores"]["temporal"]["auc_roc"]
+                             - r["scores"][ref]["auc_roc"] for r in rows])
+            update(entry, diff, rows)
+            refreshed[f"temporal_minus_{ref}"] = entry["p_value"]
+        path.write_text(json.dumps(data, indent=2))
+
+    path = output_dir / "past_flooding_feature.json"
+    if path.exists():
+        data = json.loads(path.read_text())
+        for ref in ("past_only", "without_past"):
+            entry = data["summary"].get(f"with_past_minus_{ref}")
+            if not entry:
+                continue
+            rows = data["per_seed"]
+            diff = np.array([r["scores"]["with_past"]["auc_roc"]
+                             - r["scores"][ref]["auc_roc"] for r in rows])
+            update(entry, diff, rows)
+            refreshed[f"with_past_minus_{ref}"] = entry["p_value"]
+        path.write_text(json.dumps(data, indent=2))
+
+    path = output_dir / "persistence_check.json"
+    if path.exists():
+        data = json.loads(path.read_text())
+        for name, entry in data["summary"].items():
+            rows = [dict(r[name], seed=r["seed"]) for r in data["per_seed"] if name in r]
+            diff = np.array([r["temporal"] - r["past_flooding"] for r in rows])
+            update(entry["temporal_minus_past"], diff, rows)
+            refreshed[f"persistence_{name}"] = entry["temporal_minus_past"]["p_value"]
+        path.write_text(json.dumps(data, indent=2))
+
+    logger.info(f"Refreshed p-values in {output_dir}: {refreshed}")
+    return refreshed

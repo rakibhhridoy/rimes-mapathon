@@ -383,6 +383,8 @@ def region_numbers(region_id: str) -> list[str]:
             _macro(f"{prefix}Persist{tag}Gap", _gap(diff.get("mean"))),
             _macro(f"{prefix}Persist{tag}P", _p(diff.get("p_value"))),
             _macro(f"{prefix}Persist{tag}Ahead", diff.get("seeds_temporal_ahead")),
+            _macro(f"{prefix}Persist{tag}RecordAhead",
+                   diff["n_seeds"] - diff["seeds_temporal_ahead"] if diff else None),
         ]
 
     # Past flooding as a feature, trained on the latest pre-cutoff event.
