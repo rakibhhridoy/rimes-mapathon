@@ -1,12 +1,12 @@
-Md Rakib Hasan
-Department of Soil, Water and Environment, University of Dhaka, Dhaka-1000, Bangladesh
-Fermium Systems, Dhaka-1207, Bangladesh
-rakibhhridoy@fermium.systems · ORCID 0009-0002-4007-7590
+| Md Rakib Hasan
+| Department of Soil, Water and Environment, University of Dhaka, Dhaka-1000, Bangladesh
+| Fermium Systems, Dhaka-1207, Bangladesh
+| rakibhhridoy@fermium.systems · ORCID 0009-0002-4007-7590
 
 3 October 2026
 
-The Editors-in-Chief
-SoftwareX
+| The Editors-in-Chief
+| SoftwareX
 
 Dear Editors,
 
