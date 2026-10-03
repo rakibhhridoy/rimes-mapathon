@@ -630,7 +630,8 @@ def benchmark(ctx, seeds):
     """Compare the graph model with tabular baselines over repeated splits."""
     from pipeline.benchmark import (SEEDS, run_benchmark, run_feature_importance,
                                     run_label_comparison, run_past_flooding_feature,
-                                    run_persistence_check, run_temporal_holdout)
+                                    run_block_size_check, run_persistence_check,
+                                    run_temporal_holdout)
 
     cfg = ctx.obj["config"]
     chosen = tuple(int(s) for s in seeds.split(",")) if seeds else SEEDS
@@ -657,6 +658,8 @@ def benchmark(ctx, seeds):
                                          seeds=chosen)
         run_persistence_check(cfg, _dir(cfg, "processed"), _dir(cfg, "raw"),
                               _dir(cfg, "output"), _infra_path(cfg), seeds=chosen)
+        run_block_size_check(cfg, _dir(cfg, "processed"), _dir(cfg, "raw"),
+                             _dir(cfg, "output"), _infra_path(cfg), seeds=chosen)
         w = past["summary"].get("with_past") or {}
         if w:
             click.echo(f"with past flooding as a feature: AUC {w['auc_mean']:.3f}")

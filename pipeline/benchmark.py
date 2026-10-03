@@ -795,6 +795,104 @@ def run_feature_importance(cfg: dict, processed_dir: Path, output_dir: Path,
     return result
 
 
+def run_block_size_check(cfg: dict, processed_dir: Path, raw_dir: Path,
+                         output_dir: Path, infra_path: Path, seeds=SEEDS,
+                         block_sizes_m=(10_000, 20_000, 40_000),
+                         cutoff_year: int = 2022) -> dict:
+    """Do the held-out results hold when the blocks grow?
+
+    Assets within a block's width of a training block still share its terrain,
+    so blocks smaller than the range of spatial correlation leave some of the
+    advantage a random split gives. The default model's held-out AUC, and the
+    temporal test of the model against the record of earlier flooding, are
+    therefore repeated with larger blocks on the same seeds.
+    """
+    import geopandas as gpd
+
+    from pipeline.asset_model import _fit_tabular, model_type
+    from pipeline.feature_extract import (compute_centroids, extract_features,
+                                          project_coords, sample_raster_at_points)
+    from pipeline.graph_build import spatial_block_split_three
+
+    kind = model_type(cfg)
+    if kind == "graph_sage":
+        raise ValueError("Block-size check expects a tabular asset model.")
+
+    infra = gpd.read_file(str(infra_path))
+    X, coords, y_all, _ = extract_features(cfg, infra, processed_dir)
+    X = np.ascontiguousarray(X, dtype=np.float32)
+    y_all = np.ascontiguousarray(y_all).astype(int)
+    coords_m = project_coords(np.asarray(coords), cfg["aoi"]["crs"])
+    train_ratio = cfg["graph"].get("train_split", 0.8)
+
+    events = (cfg.get("sentinel1") or {}).get("events", [])
+    early = [e for e in events if int(e["start"][:4]) <= cutoff_year]
+    late = [e for e in events if int(e["start"][:4]) > cutoff_year]
+    temporal = bool(early and late)
+    if temporal:
+        centroids = compute_centroids(gpd.read_file(str(infra_path)))
+        points = list(zip(centroids["lon"], centroids["lat"]))
+
+        def flooded_count(evts):
+            masks = [sample_raster_at_points(str(raw_dir / f"s1_flood_{e['name']}.tif"),
+                                             points) for e in evts]
+            return np.sum([np.nan_to_num(m) > 0.5 for m in masks], axis=0)
+
+        early_count = flooded_count(early)
+        min_events = min((cfg.get("data", {}).get("labels", {}) or {})
+                         .get("min_events", 1), len(early))
+        y_early = (early_count >= min_events).astype(int)
+        y_late = (flooded_count(late) >= 1).astype(int)
+        past = early_count / len(early)
+
+    sizes = {}
+    for block_m in block_sizes_m:
+        rows = []
+        for seed in seeds:
+            train_mask, _, test_mask = spatial_block_split_three(
+                coords_m, train_ratio=train_ratio, block_size_m=block_m, seed=seed)
+            train = train_mask.numpy().astype(bool)
+            test = test_mask.numpy().astype(bool)
+            if len(np.unique(y_all[test])) < 2 or len(np.unique(y_all[train])) < 2:
+                continue
+            row = {"seed": seed, "n_train": int(train.sum()), "n_test": int(test.sum()),
+                   "spatial_auc": _metrics(y_all[test], _fit_tabular(
+                       kind, X, y_all, train, seed).predict_proba(X[test])[:, 1])["auc_roc"]}
+            if (temporal and len(np.unique(y_late[test])) == 2
+                    and len(np.unique(y_early[train])) == 2):
+                row["temporal_auc"] = _metrics(y_late[test], _fit_tabular(
+                    kind, X, y_early, train, seed).predict_proba(X[test])[:, 1])["auc_roc"]
+                row["past_flooding_auc"] = _metrics(y_late[test], past[test])["auc_roc"]
+            rows.append(row)
+
+        spatial = np.array([r["spatial_auc"] for r in rows])
+        entry = {"n_seeds": len(rows),
+                 "spatial_auc_mean": float(spatial.mean()) if len(rows) else None,
+                 "spatial_auc_sd": float(spatial.std(ddof=1)) if len(rows) > 1 else None,
+                 "test_share_mean": float(np.mean([r["n_test"] / len(y_all) for r in rows]))
+                 if rows else None}
+        trows = [r for r in rows if "temporal_auc" in r]
+        if len(trows) > 1:
+            diff = np.array([r["temporal_auc"] - r["past_flooding_auc"] for r in trows])
+            entry["temporal_auc_mean"] = float(np.mean([r["temporal_auc"] for r in trows]))
+            entry["past_flooding_auc_mean"] = float(np.mean([r["past_flooding_auc"] for r in trows]))
+            entry["temporal_minus_past"] = {
+                "mean": float(diff.mean()), "sd": float(diff.std(ddof=1)),
+                "seeds_temporal_ahead": int((diff > 0).sum()), "n_seeds": int(len(diff)),
+                "p_value": corrected_p_value(diff, [r["n_test"] / r["n_train"] for r in trows]),
+                "p_value_uncorrected": _uncorrected_p_value(diff),
+            }
+        entry["per_seed"] = rows
+        sizes[str(block_m)] = entry
+
+    result = {"model": kind, "seeds": list(seeds), "block_sizes_m": list(block_sizes_m),
+              "sizes": sizes}
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "block_size_check.json").write_text(json.dumps(result, indent=2))
+    logger.info(f"Wrote {output_dir / 'block_size_check.json'}")
+    return result
+
+
 def refresh_p_values(cfg: dict, processed_dir: Path, output_dir: Path,
                      infra_path: Path) -> dict:
     """Recompute the p-values of saved comparisons with the corrected test.

@@ -149,6 +149,11 @@ def region_numbers(region_id: str) -> list[str]:
         _macro(f"{prefix}KrigingSillRatio",
                meta.get("kriging_variance_sill_ratio")),
         _macro(f"{prefix}VariogramRange", variogram.get("range")),
+        # PyKrige fits on longitude and latitude, so the range is in degrees;
+        # at 24 degrees N one degree spans about 102 km east-west and 111 km
+        # north-south, and 106 km is taken between them, to the nearest km.
+        _macro(f"{prefix}VariogramRangeKm",
+               int(round(variogram["range"] * 106)) if variogram.get("range") else None),
         # Nugget as a fraction of the full sill. Older variogram files stored
         # the partial sill as "sill"; rebuild them from partial_sill when the
         # newer key is present, otherwise treat "sill" as partial.
@@ -385,6 +390,24 @@ def region_numbers(region_id: str) -> list[str]:
             _macro(f"{prefix}Persist{tag}Ahead", diff.get("seeds_temporal_ahead")),
             _macro(f"{prefix}Persist{tag}RecordAhead",
                    diff["n_seeds"] - diff["seeds_temporal_ahead"] if diff else None),
+        ]
+
+    # Held-out results with larger blocks, on the same seeds.
+    blocks = (_read_json(paths["output"] / "block_size_check.json") or {}).get("sizes") or {}
+    for size in ("10000", "20000", "40000"):
+        entry = blocks.get(size) or {}
+        diff = entry.get("temporal_minus_past") or {}
+        # LaTeX command names cannot hold digits, so the width is spelt out.
+        tag = "Block" + {"10000": "Ten", "20000": "Twenty", "40000": "Forty"}[size]
+        lines += [
+            _macro(f"{prefix}{tag}SpatialAUC", entry.get("spatial_auc_mean")),
+            _macro(f"{prefix}{tag}Seeds", entry.get("n_seeds")),
+            _macro(f"{prefix}{tag}ModelAUC", entry.get("temporal_auc_mean")),
+            _macro(f"{prefix}{tag}RecordAUC", entry.get("past_flooding_auc_mean")),
+            _macro(f"{prefix}{tag}TempGap", _gap(diff.get("mean"))),
+            _macro(f"{prefix}{tag}TempP", _p(diff.get("p_value"))),
+            _macro(f"{prefix}{tag}TempAhead", diff.get("seeds_temporal_ahead")),
+            _macro(f"{prefix}{tag}TempSeeds", diff.get("n_seeds")),
         ]
 
     # Past flooding as a feature, trained on the latest pre-cutoff event.
