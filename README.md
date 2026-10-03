@@ -34,7 +34,9 @@ cd rimes-mapathon
 pip install -r requirements-lock.txt     # the exact tested versions (Python 3.11)
 ```
 
-`requirements.txt` gives the minimum versions instead. On Linux without a GPU,
+The web build and the database export also need the GDAL command-line tools
+(`ogr2ogr`): `brew install gdal` on macOS, `apt install gdal-bin` on Debian
+or Ubuntu. `requirements.txt` gives the minimum versions instead. On Linux without a GPU,
 install torch first from the CPU index
 (`pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu`).
 
