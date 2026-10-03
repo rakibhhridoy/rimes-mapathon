@@ -13,7 +13,14 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "docs"))
 
+import pytest  # noqa: E402
 from build_numbers import _macro, _pct, build, region_numbers  # noqa: E402
+from dashboard.data.regions import has_results  # noqa: E402
+
+# A fresh clone has no pipeline outputs; these tests need one processed region.
+needs_outputs = pytest.mark.skipif(
+    not has_results("rangpur_rajshahi"),
+    reason="needs the region's outputs: run the pipeline or scripts/demo.py")
 
 
 class TestMacroFormatting:
@@ -33,6 +40,7 @@ class TestMacroFormatting:
 
 
 class TestRegionNumbers:
+    @needs_outputs
     def test_processed_region_reports_its_validation_auc(self):
         lines = "\n".join(region_numbers("rangpur_rajshahi"))
         assert r"\newcommand{\RRValAUC}" in lines

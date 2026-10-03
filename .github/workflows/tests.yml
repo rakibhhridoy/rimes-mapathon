@@ -1,0 +1,28 @@
+# Runs the test suite on every push and pull request, on a clean Linux
+# machine with the exact versions in requirements-lock.txt. Tests that need
+# pipeline outputs or the web database skip themselves there, with a reason.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-lock.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # the CPU build of torch, a tenth the size of the default CUDA one
+          pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements-lock.txt
+      - name: Run the tests
+        run: python -m pytest -q

@@ -24,6 +24,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import time
 from pathlib import Path
 
 import requests
@@ -36,6 +37,7 @@ from dashboard.data.regions import REGION_CONFIGS, region_paths  # noqa: E402
 RECORD = "23108572"           # data archive, version 3
 STAGES = ["preprocess", "features", "graph", "train", "krige", "risk", "metadata", "validate"]
 CHUNK = 1 << 20
+RETRIES = 8
 
 
 def download(region: str, record: str, target: Path) -> Path:
@@ -52,12 +54,27 @@ def download(region: str, record: str, target: Path) -> Path:
     if path.exists() and _md5(path) == expected:
         print(f"{name} already downloaded")
         return path
-    print(f"downloading {name} ({entry['size'] / 1e6:,.0f} MB)")
-    with requests.get(entry["links"]["self"], stream=True, timeout=(60, 3600)) as r:
-        r.raise_for_status()
-        with open(path, "wb") as f:
-            for block in r.iter_content(CHUNK):
-                f.write(block)
+    print(f"downloading {name} ({entry['size'] / 1e6:,.0f} MB)", flush=True)
+    # Zenodo connections can stall on large files, so a broken download
+    # resumes from the bytes already on disk instead of starting over.
+    for attempt in range(1, RETRIES + 1):
+        have = path.stat().st_size if path.exists() else 0
+        if have >= entry["size"]:
+            break
+        headers = {"Range": f"bytes={have}-"} if have else {}
+        try:
+            with requests.get(entry["links"]["self"], stream=True, headers=headers,
+                              timeout=(60, 120)) as r:
+                r.raise_for_status()
+                # a server that ignores the range sends the whole file again
+                mode = "ab" if have and r.status_code == 206 else "wb"
+                with open(path, mode) as f:
+                    for block in r.iter_content(CHUNK):
+                        f.write(block)
+        except requests.RequestException as error:
+            print(f"  attempt {attempt} stopped at {path.stat().st_size / 1e6:,.0f} MB "
+                  f"({type(error).__name__}); resuming", flush=True)
+            time.sleep(10 * attempt)
     if _md5(path) != expected:
         path.unlink()
         sys.exit(f"{name}: checksum does not match Zenodo's; download again")

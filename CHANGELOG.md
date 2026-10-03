@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- `scripts/demo.py` reproduces a validation region from the data archive
+  without Earth Engine and checks it against the archived outputs; downloads
+  resume after a stall.
+- The download stage fetches the country-border files the clip needs.
+- Continuous integration on GitHub Actions; `requirements-lock.txt` records
+  the tested versions; the NumPy < 2 pin is lifted.
+- Tests that need pipeline outputs skip on a fresh clone instead of failing.
+- Raster sampling marks points outside the raster as missing by its bounds.
+
 ## v3.0.0 (2026-10-02)
 
 National coverage and a new public front end.

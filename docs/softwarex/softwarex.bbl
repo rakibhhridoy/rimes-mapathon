@@ -1,4 +1,4 @@
-\begin{thebibliography}{21}
+\begin{thebibliography}{24}
 \expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
 \providecommand{\url}[1]{\texttt{#1}}
 \providecommand{\href}[2]{#2}
@@ -106,6 +106,50 @@
 \newblock \bibinfo{journal}{Remote Sensing} \bibinfo{volume}{11}
   (\bibinfo{year}{2019}) \bibinfo{pages}{1581}.
   \DOIprefix\doi{10.3390/rs11131581}.
+%Type = Article
+\bibitem[{Nearing et~al.(2024)Nearing, Cohen, Dube, Gauch, Gilon, Harrigan,
+  Hassidim, Klotz, Kratzert, Metzger, Nevo, Pappenberger, Prudhomme, Shalev,
+  Shenzis, Tekalign, Weitzner, and Matias}]{nearing2024}
+\bibinfo{author}{G.~Nearing}, \bibinfo{author}{D.~Cohen},
+  \bibinfo{author}{V.~Dube}, \bibinfo{author}{M.~Gauch},
+  \bibinfo{author}{O.~Gilon}, \bibinfo{author}{S.~Harrigan},
+  \bibinfo{author}{A.~Hassidim}, \bibinfo{author}{D.~Klotz},
+  \bibinfo{author}{F.~Kratzert}, \bibinfo{author}{A.~Metzger},
+  \bibinfo{author}{S.~Nevo}, \bibinfo{author}{F.~Pappenberger},
+  \bibinfo{author}{C.~Prudhomme}, \bibinfo{author}{G.~Shalev},
+  \bibinfo{author}{S.~Shenzis}, \bibinfo{author}{T.~Y. Tekalign},
+  \bibinfo{author}{D.~Weitzner}, \bibinfo{author}{Y.~Matias},
+\newblock \bibinfo{title}{Global prediction of extreme floods in ungauged
+  watersheds},
+\newblock \bibinfo{journal}{Nature} \bibinfo{volume}{627}
+  (\bibinfo{year}{2024}) \bibinfo{pages}{559--563}.
+  \DOIprefix\doi{10.1038/s41586-024-07145-1}.
+%Type = Inproceedings
+\bibitem[{Salamon et~al.(2021)Salamon, McCormick, Reimer, Clarke,
+  Bauer-Marschallinger, Wagner, Martinis, Chow, B{\"o}hnke, Matgen, Chini,
+  Hostache, Molini, Fiori, and Walli}]{salamon2021}
+\bibinfo{author}{P.~Salamon}, \bibinfo{author}{N.~McCormick},
+  \bibinfo{author}{C.~Reimer}, \bibinfo{author}{T.~Clarke},
+  \bibinfo{author}{B.~Bauer-Marschallinger}, \bibinfo{author}{W.~Wagner},
+  \bibinfo{author}{S.~Martinis}, \bibinfo{author}{C.~Chow},
+  \bibinfo{author}{C.~B{\"o}hnke}, \bibinfo{author}{P.~Matgen},
+  \bibinfo{author}{M.~Chini}, \bibinfo{author}{R.~Hostache},
+  \bibinfo{author}{L.~Molini}, \bibinfo{author}{E.~Fiori},
+  \bibinfo{author}{A.~Walli},
+\newblock \bibinfo{title}{The new, systematic global flood monitoring product
+  of the {C}opernicus {E}mergency {M}anagement {S}ervice},
+\newblock in: \bibinfo{booktitle}{2021 IEEE International Geoscience and Remote
+  Sensing Symposium (IGARSS)}, \bibinfo{year}{2021}, pp.
+  \bibinfo{pages}{1053--1056}.
+  \DOIprefix\doi{10.1109/IGARSS47720.2021.9554214}.
+%Type = Misc
+\bibitem[{{Department of Disaster Management}(2026)}]{ddm_mrva}
+\bibinfo{author}{{Department of Disaster Management}},
+  \bibinfo{title}{Bangladesh hazard \& risk map: Multi-hazard risk and
+  vulnerability assessment}, \bibinfo{howpublished}{Web application by the
+  United Nations Satellite Centre (UNOSAT),
+  \url{https://unosat-geodrr.cern.ch/apps/BGD/hazard-risk/}},
+  \bibinfo{year}{2026}. \bibinfo{note}{Accessed 2 October 2026}.
 %Type = Misc
 \bibitem[{{UN-SPIDER}(2019)}]{unspider}
 \bibinfo{author}{{UN-SPIDER}}, \bibinfo{title}{{Recommended Practice: Flood

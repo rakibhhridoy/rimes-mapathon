@@ -1,6 +1,16 @@
-# SGMDI — Smart Geospatial Mapping & Disaster Impact Intelligence
+# Fermium Hazard Mapper
 
-Flood risk pipeline and public dashboard for **Rangpur & Rajshahi Divisions, Bangladesh**. It combines OpenStreetMap infrastructure, a gradient-boosted tree trained on flood extents observed by Sentinel-1, a terrain hazard surface, and a composite hazard–exposure–vulnerability score on a ~500 m grid.
+[![tests](https://github.com/rakibhhridoy/rimes-mapathon/actions/workflows/tests.yml/badge.svg)](https://github.com/rakibhhridoy/rimes-mapathon/actions/workflows/tests.yml)
+[![software DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23108192.svg)](https://doi.org/10.5281/zenodo.23108192)
+[![data DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23108572.svg)](https://doi.org/10.5281/zenodo.23108572)
+
+Open flood and landslide risk mapping for **all of Bangladesh** (formerly
+SGMDI). A pipeline trains flood models on extents mapped from Sentinel-1
+radar, scores every model on whole areas held out from training, and
+publishes risk for each mapped OpenStreetMap asset and for every division,
+district, upazila and union. A national partition of eight flood regions
+covers all 61 lowland districts; a landslide model covers the Chittagong Hill
+Tracts.
 
 **Live dashboard:** <https://fermium.systems/hazmapper> — open to everyone, no sign-in.
 
@@ -10,60 +20,59 @@ Flood risk pipeline and public dashboard for **Rangpur & Rajshahi Divisions, Ban
 > [FFWC](https://www.ffwc.gov.bd) and [BMD](https://www.bmd.gov.bd); in an
 > emergency dial 999.
 
-Everything the dashboard displays comes from pipeline outputs in `data/output`.
+Everything the dashboard displays comes from pipeline outputs in `data/*/output`.
 Where an output is missing, the dashboard says so rather than showing a
 placeholder — see `tests/test_pipeline.py::TestNoFabricatedData`.
 
 ## Quick Start
 
-### 1. Clone the repository
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/rakibhhridoy/rimes-mapathon.git
 cd rimes-mapathon
+pip install -r requirements-lock.txt     # the exact tested versions (Python 3.11)
 ```
 
-### 2. Download the data
+`requirements.txt` gives the minimum versions instead. On Linux without a GPU,
+install torch first from the CPU index
+(`pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu`).
 
-The full data folder is archived on Zenodo:
-
-> **DOI**: [10.5281/zenodo.22978729](https://doi.org/10.5281/zenodo.22978729) (version 2.0, September 2026)  
-> All versions: [10.5281/zenodo.19233967](https://doi.org/10.5281/zenodo.19233967)
-
-Download and extract the `data/` folder into the project root so the structure looks like:
-
-```
-rimes-mapathon/
-├── config.yaml
-├── pipeline/
-├── dashboard/
-├── data/
-│   ├── raw/                  # Source datasets (~75 MB)
-│   │   ├── dem_srtm_30m.tif
-│   │   ├── jrc_water_occurrence.tif
-│   │   ├── worldpop_popdens.tif
-│   │   ├── infrastructure_raw.gpkg
-│   │   ├── gadm_union.*
-│   │   └── gadm_upazila.*
-│   ├── processed/            # DEM derivatives, flood labels (~1.6 GB)
-│   └── output/               # Pipeline results (~101 MB)
-│       ├── risk_ranked_assets.geojson
-│       ├── union_risk_summary.geojson
-│       ├── risk_grid.geojson
-│       ├── flood_risk_kriged.tif
-│       ├── situation_report.pdf
-│       └── ...
-└── docs/
-```
-
-### 3. Install dependencies
+### 2. Reproduce one region (no Earth Engine needed)
 
 ```bash
-pip install -r requirements.txt
+python scripts/demo.py                   # Sylhet; or --region sw_coastal
 ```
 
-`numpy` is pinned below 2.0 because the torch 2.2 wheels are built against
-numpy 1.x. On platforms with newer torch wheels the pin can be relaxed.
+The demo downloads the region's archive (402 MB for Sylhet) from the data
+record, checks it, runs the pipeline from terrain preprocessing to validation
+on the archived inputs (the Sentinel-1 flood masks are included), and
+compares the new results with the archived ones. On a laptop the pipeline
+part takes about six minutes and the run needs about 3 GB of disk; an
+interrupted download resumes where it stopped. From a fresh clone:
+
+```
+                              this run     archive
+assets                          13,374      13,374
+flood-prone share                0.147       0.147
+validation AUC                   0.934       0.934
+AUC vs observed floods           0.934       0.934
+
+Reproduced: every figure agrees with the archive.
+```
+
+### 3. Download the data (optional)
+
+Inputs and outputs of the three validation regions and the landslide region
+are archived on Zenodo, one archive per region with a manifest of SHA-256
+checksums and licences:
+
+> **DOI**: [10.5281/zenodo.23108572](https://doi.org/10.5281/zenodo.23108572) (version 3, October 2026)
+> All versions: [10.5281/zenodo.19233967](https://doi.org/10.5281/zenodo.19233967)
+
+Each archive unpacks to `<region>/raw/` (inputs) and `<region>/output/`
+(results); `scripts/demo.py` shows where each goes. The national regions are
+rebuilt from their configuration files (step 5).
 
 ### 4. Launch the map
 
@@ -166,6 +175,10 @@ pipeline outputs directly, but it is no longer deployed.
 pytest -q
 ```
 
+Tests that need pipeline outputs or the web database skip themselves on a
+fresh clone, with the reason; continuous integration runs the rest on every
+push.
+
 ## Re-running the Pipeline (optional)
 
 If you want to regenerate results from scratch instead of using pre-computed outputs:
@@ -181,7 +194,7 @@ python preprocess_cache.py
 python -m pipeline.cli run
 
 # Or individual steps
-python -m pipeline.cli download      # Step 0: Download GADM, SRTM, JRC, WorldPop
+python -m pipeline.cli download      # Step 0: boundaries, SRTM, JRC, WorldPop, border files
 python -m pipeline.cli ingest        # Step 1: OSM infrastructure
 python -m pipeline.cli preprocess    # Step 2: Reproject, clip, DEM derivatives
 python -m pipeline.cli features      # Step 3: Feature extraction
@@ -195,16 +208,19 @@ python -m pipeline.cli landslide     # CHT landslide susceptibility (optional)
 
 ## Study Area
 
-- **Divisions**: Rangpur and Rajshahi, Bangladesh
-- **Bounding Box**: 88.0°E – 89.9°E, 24.0°N – 26.7°N
-- **CRS**: EPSG:32646 (UTM Zone 46N)
-- **Grid Resolution**: ~500m
+- **National partition** (`configs/national/partition.yaml`): eight flood
+  regions by flood regime, defined by their districts, covering all 61
+  lowland districts; the Chittagong Hill Tracts are the landslide region.
+- **Validation regions**: Rangpur & Rajshahi (`config.yaml`), Sylhet and the
+  south-west coast, defined by bounding boxes; their outputs are the archived
+  data.
+- **CRS**: EPSG:32646 (UTM Zone 46N); **grid**: ~500 m
 
 ## Pipeline Architecture
 
 | Step | Module | Description |
 |------|--------|-------------|
-| 0 | `data_download` | Download GADM, SRTM DEM, JRC water, WorldPop |
+| 0 | `data_download` | Download geoBoundaries, SRTM DEM, JRC water, WorldPop and the country-border files |
 | 1 | `data_ingest` | Fetch OSM infrastructure via Overpass API |
 | 2 | `data_ingest` | Reproject, clip, compute DEM derivatives, flood labels |
 | 3 | `feature_extract` | Extract raster + spatial features at infrastructure points |
@@ -260,8 +276,10 @@ DEM and surface-water tiles are derived from the bounding box, and national
 datasets (WorldPop, geoBoundaries, JRC tiles) are cached once in
 `data/shared/` and clipped per region.
 
-Available regions: `config.yaml` (Rangpur & Rajshahi), `configs/sylhet.yaml`,
-`configs/sw_coastal.yaml`, `configs/cht.yaml`.
+Available regions: the national partition in `configs/national/` and
+`configs/eastern_plains.yaml`, defined by `aoi.districts`; the validation
+regions `config.yaml` (Rangpur & Rajshahi), `configs/sylhet.yaml` and
+`configs/sw_coastal.yaml`; and `configs/cht.yaml` for landslides.
 
 ### OpenStreetMap ingestion
 
@@ -449,24 +467,24 @@ python scripts/build_database.py --extract-raster sylhet_dem_srtm_30m dem.tif
 
 ## Documentation
 
-See the `docs/` folder for detailed documentation:
-
-- [Project Overview](docs/00_PROJECT_OVERVIEW.md)
-- [Data Pipeline](docs/01_DATA_PIPELINE.md)
-- [GNN & Kriging Model](docs/02_GNN_KRIGING_MODEL.md)
-- [Risk Assessment](docs/03_RISK_ASSESSMENT.md)
-- [Dashboard](docs/04_DASHBOARD.md)
-- [Ten-Step Procedure](docs/05_TEN_STEP_PROCEDURE.md)
+- [Technical document](docs/sgmdi_technical_document.pdf): data, models,
+  validation, deployment and limitations ([how it is built](docs/README.md))
+- [Software article](docs/softwarex/softwarex.pdf): the system as a whole
+- [National partition](docs/national/README.md): regions, events and results
+- Web API: interactive documentation at `/api/docs` on any running instance
+- [Changelog](CHANGELOG.md)
 
 ## Citing this work
 
 If you use this code or its outputs, please cite the software (MIT licence, see
-`LICENSE`) and the input data archive:
+`LICENSE`; citation metadata in `CITATION.cff`) and the data archive:
 
-> Hasan, M. R. (2026). *Fermium Hazard Mapper:
-> input data and outputs for flood and landslide susceptibility in Bangladesh*
-> (version 2.0).
-> Zenodo. https://doi.org/10.5281/zenodo.22978729
+> Hasan, M. R. (2026). *Fermium Hazard Mapper* (version 3.0.0) [Software].
+> Zenodo. https://doi.org/10.5281/zenodo.23108192
+
+> Hasan, M. R. (2026). *Fermium Hazard Mapper: input data and outputs for
+> flood and landslide susceptibility in Bangladesh* (version 3).
+> Zenodo. https://doi.org/10.5281/zenodo.23108572
 
 ## Licence
 

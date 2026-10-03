@@ -1,0 +1,45 @@
+# Exact versions the test suite and the published results were run with,
+# on Python 3.11 (macOS arm64; Linux in continuous integration).
+# requirements.txt gives the minimum versions; install this file to
+# reproduce the tested environment:  pip install -r requirements-lock.txt
+# On Linux without a GPU, install torch first from the CPU index:
+#   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+geopandas==1.1.2
+pyarrow==23.0.1
+rasterstats==0.20.0
+rasterio==1.4.4
+shapely==2.1.2
+pyproj==3.7.0
+fiona==1.10.1
+osmnx==2.1.0
+overpy==0.7
+pykrige==1.7.2
+scikit-learn==1.8.0
+torch==2.5.1
+torch-geometric==2.6.1
+libpysal==4.12.1
+esda==2.6.0
+pointpats==2.5.1
+folium==0.19.2
+matplotlib==3.10.9
+streamlit==1.55.0
+streamlit-folium==0.26.2
+plotly==6.6.0
+branca==0.8.0
+numba==0.65.1
+click==8.5.0
+pyyaml==6.0.3
+numpy==2.4.6
+pandas==2.2.3
+scipy==1.14.1
+tqdm==4.67.3
+loguru==0.7.3
+requests==2.33.1
+earthengine-api==1.5.12
+umap-learn==0.5.11
+cdsapi==0.7.5
+Pillow==12.2.0
+fpdf2==2.8.7
+fastapi==0.141.1
+uvicorn==0.54.0
+httpx==0.28.1

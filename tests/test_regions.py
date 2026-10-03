@@ -72,6 +72,8 @@ class TestRegionPaths:
         assert paths["output"].parts[-2:] == ("data", "output")
         assert paths["cache"].parts[-2:] == ("data", "cache")
 
+    @pytest.mark.skipif(not has_results("rangpur_rajshahi"),
+                        reason="needs the region's outputs: run the pipeline or scripts/demo.py")
     def test_availability_follows_the_files_on_disk(self):
         # The base region has been processed in this repo; a region whose
         # directory is empty must report no results.
