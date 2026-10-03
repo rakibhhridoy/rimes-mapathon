@@ -1,5 +1,5 @@
-# Exact versions the test suite and the published results were run with,
-# on Python 3.11 (macOS arm64; Linux in continuous integration).
+# Exact versions the test suite runs with in continuous integration
+# (Python 3.11, Linux). NumPy is held at 2.2 because SciPy 1.14 needs < 2.3.
 # requirements.txt gives the minimum versions; install this file to
 # reproduce the tested environment:  pip install -r requirements-lock.txt
 # On Linux without a GPU, install torch first from the CPU index:
@@ -29,7 +29,7 @@ branca==0.8.0
 numba==0.65.1
 click==8.5.0
 pyyaml==6.0.3
-numpy==2.4.6
+numpy==2.2.6
 pandas==2.2.3
 scipy==1.14.1
 tqdm==4.67.3
