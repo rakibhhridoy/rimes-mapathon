@@ -67,8 +67,11 @@ def _licence_for(path: Path) -> str:
 def archive_region(region_id: str, out_dir: Path) -> Path:
     paths = region_paths(region_id)
     name, hazard, _ = REGION_CONFIGS[region_id]
+    # raw_s1a holds the events re-mapped from Sentinel-1A alone
+    # (scripts/remap_s1a.py), for the single-satellite check of the paper.
+    paths = dict(paths, raw_s1a=paths["raw"].with_name(paths["raw"].name + "_s1a"))
     files = []
-    for kind in ("raw", "output"):
+    for kind in ("raw", "raw_s1a", "output"):
         base = paths[kind]
         if not base.exists():
             continue
@@ -115,5 +118,5 @@ if __name__ == "__main__":
     regions = args.regions or [r for r in REGION_CONFIGS if has_results(r)]
     for region in regions:
         archive_region(region, Path(args.out))
-    print("Upload the archives and manifests to Zenodo as a new version of "
-          "10.5281/zenodo.22978729, and cite the DOI it assigns.")
+    print("Upload the archives and manifests to Zenodo as a new version of the "
+          "data record (scripts/zenodo_upload.py --new-version), and cite the DOI it assigns.")
