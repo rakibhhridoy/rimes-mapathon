@@ -104,6 +104,10 @@ def _pct(value):
     return None if value is None else _Fixed(100 * float(value), 1)
 
 
+def _raw_events_path(paths: dict) -> Path:
+    return paths["raw"] / "s1_flood_events.json"
+
+
 def _mapped_cell_share(output_dir: Path):
     """Share of grid cells holding any mapped asset, where composite risk is defined."""
     path = output_dir / "risk_grid.geojson"
@@ -409,6 +413,60 @@ def region_numbers(region_id: str) -> list[str]:
             _macro(f"{prefix}{tag}TempAhead", diff.get("seeds_temporal_ahead")),
             _macro(f"{prefix}{tag}TempSeeds", diff.get("n_seeds")),
         ]
+
+    # The temporal test with the model trained on fairer targets.
+    tv = (_read_json(paths["output"] / "target_variants.json") or {}).get("summary") or {}
+    for key, tag in (("any_earlier", "Any"), ("flood_fraction", "Frac")):
+        sub = tv.get(key) or {}
+        diff = sub.get("minus_past") or {}
+        lines += [
+            _macro(f"{prefix}Target{tag}AUC", sub.get("auc_mean")),
+            _macro(f"{prefix}Target{tag}Gap", _gap(diff.get("mean"))),
+            _macro(f"{prefix}Target{tag}P", _p(diff.get("p_value"))),
+            _macro(f"{prefix}Target{tag}Ahead", diff.get("seeds_model_ahead")),
+        ]
+
+    # The temporal test on masks re-mapped from Sentinel-1A alone, and the
+    # flooded share of each event (scripts/remap_s1a.py).
+    sens = paths["output"] / "sensitivity_s1a"
+    single = (_read_json(sens / "temporal_holdout.json") or {}).get("summary") or {}
+    sdiff = single.get("temporal_minus_past_flooding") or {}
+    lines += [
+        _macro(f"{prefix}SingleSatModelAUC", (single.get("temporal") or {}).get("auc_mean")),
+        _macro(f"{prefix}SingleSatRecordAUC", (single.get("past_flooding") or {}).get("auc_mean")),
+        _macro(f"{prefix}SingleSatGap", _gap(sdiff.get("mean"))),
+        _macro(f"{prefix}SingleSatP", _p(sdiff.get("p_value"))),
+    ]
+    extents = _read_json(sens / "event_extents.json") or {}
+    cfg_events = {e["name"]: int(e["start"][:4]) for e in
+                  (_read_json(_raw_events_path(paths)) or {}).get("events", [])}
+    early = [v["published"]["flooded_share"] for k, v in extents.items() if cfg_events.get(k, 9999) <= 2022]
+    late = [v["published"]["flooded_share"] for k, v in extents.items() if cfg_events.get(k, 0) > 2022]
+    shrink = [1 - v["s1a"]["flooded_share"] / v["published"]["flooded_share"]
+              for v in extents.values() if v["published"]["flooded_share"] > 0]
+    lines += [
+        _macro(f"{prefix}EarlyExtentMin", _pct(min(early)) if early else None),
+        _macro(f"{prefix}EarlyExtentMax", _pct(max(early)) if early else None),
+        _macro(f"{prefix}LateExtentMin", _pct(min(late)) if late else None),
+        _macro(f"{prefix}LateExtentMax", _pct(max(late)) if late else None),
+        _macro(f"{prefix}SingleSatShrinkMax", _pct(max(shrink)) if shrink else None),
+    ]
+
+    # Where the published single assignment (the default seed) ranks among
+    # the repeated ones, by the AUC of the observed-label model.
+    lc_rows = (_read_json(paths["output"] / "label_comparison.json") or {}).get("per_seed") or []
+    aucs = {r["seed"]: r["labels"]["observed"]["auc_roc"] for r in lc_rows if "observed" in r["labels"]}
+    default_seed = 42
+    lines.append(_macro(f"{prefix}DefaultSeedRank",
+                        1 + sum(a > aucs[default_seed] for a in aucs.values())
+                        if default_seed in aucs else None))
+
+    # The terrain hazard surface scored only on held-out blocks.
+    hz = (_read_json(paths["output"] / "hazard_heldout.json") or {}).get("summary") or {}
+    lines += [
+        _macro(f"{prefix}HazardHeldoutAUC", (hz.get("heldout_auc") or {}).get("mean")),
+        _macro(f"{prefix}HazardHeldoutSD", (hz.get("heldout_auc") or {}).get("sd")),
+    ]
 
     # Past flooding as a feature, trained on the latest pre-cutoff event.
     pastf = _read_json(paths["output"] / "past_flooding_feature.json") or {}

@@ -63,16 +63,25 @@ def init_ee(cfg: dict):
     return ee
 
 
-def _s1_scenes(ee, aoi, start: str, end: str, polarisation: str = "VV"):
-    """Sentinel-1 GRD scenes over the AOI in a date range."""
-    return (
+def _s1_scenes(ee, aoi, start: str, end: str, polarisation: str = "VV",
+               platform: str | None = None):
+    """Sentinel-1 GRD scenes over the AOI in a date range.
+
+    `platform` ("A" or "B") keeps one satellite. Sentinel-1B failed in
+    December 2021, so events before then were seen by two satellites and
+    later ones by one; mapping every event from Sentinel-1A alone gives each
+    the same revisit, for checking whether scene counts drive the extents.
+    """
+    scenes = (
         ee.ImageCollection(S1_COLLECTION)
         .filterBounds(aoi)
         .filterDate(start, end)
         .filter(ee.Filter.eq("instrumentMode", "IW"))
         .filter(ee.Filter.listContains("transmitterReceiverPolarisation", polarisation))
-        .select(polarisation)
     )
+    if platform:
+        scenes = scenes.filter(ee.Filter.eq("platform_number", platform))
+    return scenes.select(polarisation)
 
 
 def flood_mask_for_event(ee, cfg: dict, aoi, event: dict):
@@ -89,9 +98,11 @@ def flood_mask_for_event(ee, cfg: dict, aoi, event: dict):
     max_slope_deg = s1_cfg.get("max_slope_deg", 5.0)
     permanent_water_pct = s1_cfg.get("permanent_water_pct", 50)
     min_connected_px = s1_cfg.get("min_connected_pixels", 8)
+    platform = s1_cfg.get("platform")
 
-    during = _s1_scenes(ee, aoi, event["start"], event["end"], pol)
-    baseline = _s1_scenes(ee, aoi, event["baseline_start"], event["baseline_end"], pol)
+    during = _s1_scenes(ee, aoi, event["start"], event["end"], pol, platform)
+    baseline = _s1_scenes(ee, aoi, event["baseline_start"], event["baseline_end"],
+                          pol, platform)
 
     n_during = during.size()
     n_baseline = baseline.size()

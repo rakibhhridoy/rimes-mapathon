@@ -795,6 +795,103 @@ def run_feature_importance(cfg: dict, processed_dir: Path, output_dir: Path,
     return result
 
 
+def run_target_variants(cfg: dict, processed_dir: Path, raw_dir: Path,
+                        output_dir: Path, infra_path: Path, seeds=SEEDS,
+                        cutoff_year: int = 2022) -> dict:
+    """Is the record's lead an artefact of the target the model learns?
+
+    The temporal model learns a yes/no label, flooded in at least the
+    region's minimum number of earlier events, and is then compared with the
+    record itself, the fraction of earlier events in which the ground
+    flooded, which keeps more of the information. Two fairer targets are
+    tried on the same features and blocks: "any_earlier", flooded in any
+    earlier event, which matches how the later floods are counted, and
+    "flood_fraction", a regression on the record's own fraction.
+    "min_events" is the published target and reproduces the temporal test.
+    """
+    import geopandas as gpd
+    from sklearn.ensemble import HistGradientBoostingRegressor
+
+    from pipeline.asset_model import _fit_tabular, model_type
+    from pipeline.feature_extract import (compute_centroids, extract_features,
+                                          project_coords, sample_raster_at_points)
+    from pipeline.graph_build import spatial_block_split_three
+
+    kind = model_type(cfg)
+    if kind != "gradient_boosting":
+        raise ValueError("Target variants are set up for the gradient-boosted model.")
+
+    events = (cfg.get("sentinel1") or {}).get("events", [])
+    early = [e for e in events if int(e["start"][:4]) <= cutoff_year]
+    late = [e for e in events if int(e["start"][:4]) > cutoff_year]
+    if not early or not late:
+        raise ValueError(f"Need events on both sides of {cutoff_year}.")
+
+    infra = gpd.read_file(str(infra_path))
+    X, coords, _, _ = extract_features(cfg, infra, processed_dir)
+    X = np.ascontiguousarray(X, dtype=np.float32)
+    centroids = compute_centroids(gpd.read_file(str(infra_path)))
+    points = list(zip(centroids["lon"], centroids["lat"]))
+
+    def flooded_count(evts):
+        masks = [sample_raster_at_points(str(raw_dir / f"s1_flood_{e['name']}.tif"),
+                                         points) for e in evts]
+        return np.sum([np.nan_to_num(m) > 0.5 for m in masks], axis=0)
+
+    early_count = flooded_count(early)
+    min_events = min((cfg.get("data", {}).get("labels", {}) or {})
+                     .get("min_events", 1), len(early))
+    y_late = (flooded_count(late) >= 1).astype(int)
+    past = early_count / len(early)
+    targets = {"min_events": (early_count >= min_events).astype(int),
+               "any_earlier": (early_count >= 1).astype(int)}
+
+    coords_m = project_coords(np.asarray(coords), cfg["aoi"]["crs"])
+    block_m = cfg["graph"].get("block_size_m", 10_000)
+    train_ratio = cfg["graph"].get("train_split", 0.8)
+
+    per_seed = []
+    for seed in seeds:
+        train_mask, _, test_mask = spatial_block_split_three(
+            coords_m, train_ratio=train_ratio, block_size_m=block_m, seed=seed)
+        train = train_mask.numpy().astype(bool)
+        test = test_mask.numpy().astype(bool)
+        if len(np.unique(y_late[test])) < 2 or any(
+                len(np.unique(y[train])) < 2 for y in targets.values()):
+            continue
+        scores = {name: _fit_tabular(kind, X, y, train, seed).predict_proba(X[test])[:, 1]
+                  for name, y in targets.items()}
+        regressor = HistGradientBoostingRegressor(max_iter=300, learning_rate=0.1,
+                                                  random_state=seed)
+        scores["flood_fraction"] = regressor.fit(X[train], past[train]).predict(X[test])
+        scores["past_flooding"] = past[test]
+        per_seed.append({"seed": seed, "n_train": int(train.sum()), "n_test": int(test.sum()),
+                         "auc": {k: _metrics(y_late[test], v)["auc_roc"]
+                                 for k, v in scores.items()}})
+
+    ratios = [r["n_test"] / r["n_train"] for r in per_seed]
+    summary = {"min_events": int(min_events)}
+    for name in ("min_events", "any_earlier", "flood_fraction", "past_flooding"):
+        aucs = np.array([r["auc"][name] for r in per_seed])
+        summary[name] = {"auc_mean": float(aucs.mean()),
+                         "auc_sd": float(aucs.std(ddof=1)), "n_seeds": int(len(aucs))}
+        if name != "past_flooding":
+            diff = aucs - np.array([r["auc"]["past_flooding"] for r in per_seed])
+            summary[name]["minus_past"] = {
+                "mean": float(diff.mean()), "sd": float(diff.std(ddof=1)),
+                "seeds_model_ahead": int((diff > 0).sum()), "n_seeds": int(len(diff)),
+                "p_value": corrected_p_value(diff, ratios),
+                "p_value_uncorrected": _uncorrected_p_value(diff),
+            }
+
+    result = {"model": kind, "cutoff_year": cutoff_year, "seeds": list(seeds),
+              "per_seed": per_seed, "summary": summary}
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "target_variants.json").write_text(json.dumps(result, indent=2))
+    logger.info(f"Wrote {output_dir / 'target_variants.json'}")
+    return result
+
+
 def run_block_size_check(cfg: dict, processed_dir: Path, raw_dir: Path,
                          output_dir: Path, infra_path: Path, seeds=SEEDS,
                          block_sizes_m=(10_000, 20_000, 40_000),
@@ -996,3 +1093,146 @@ def refresh_p_values(cfg: dict, processed_dir: Path, output_dir: Path,
 
     logger.info(f"Refreshed p-values in {output_dir}: {refreshed}")
     return refreshed
+
+
+def run_hazard_surface_heldout(cfg: dict, processed_dir: Path, raw_dir: Path,
+                               output_dir: Path, infra_path: Path, seeds=SEEDS,
+                               cell_m: float = 500.0, rows_per_block: int = 8) -> dict:
+    """The terrain hazard surface scored only on ground it was not fitted on.
+
+    The published surface is a logistic regression fitted at the assets of
+    the training blocks and then scored across every grid cell, training
+    ground included. Here it is refitted on the training blocks of each
+    assignment and scored, against observed flooding on the same ~500 m grid
+    and with the same flooded-cell rule as the published validation, only on
+    cells inside that assignment's test blocks. The whole-grid score of each
+    refit is kept beside it for comparison.
+    """
+    import geopandas as gpd
+    import rasterio
+    from rasterio.enums import Resampling
+    from rasterio.warp import reproject
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import roc_auc_score
+    from sklearn.preprocessing import StandardScaler
+
+    from pipeline.country import foreign_mask
+    from pipeline.data_ingest import flood_threshold_pct
+    from pipeline.feature_extract import project_coords, sample_raster_at_points
+    from pipeline.graph_build import spatial_block_split_three
+    from pipeline.hazard_model import TERRAIN_FEATURES, _raster_paths, _sample
+
+    paths = _raster_paths(processed_dir)
+    features = [f for f in TERRAIN_FEATURES if paths[f].exists()]
+    labels_cfg = cfg["data"].get("labels", {})
+    label_path = processed_dir / labels_cfg.get("path", "flood_observed_labels.tif")
+
+    infra = gpd.read_file(str(infra_path))
+    points = infra.geometry.representative_point()
+    coords = list(zip(points.x, points.y))
+    X = _sample(paths, features, coords)
+    y = (sample_raster_at_points(str(label_path), coords) > 0.5).astype(int)
+    ok = np.all(np.isfinite(X), axis=1)
+    coords_m = project_coords(np.column_stack([points.x, points.y]), cfg["aoi"]["crs"])
+    block_m = cfg["graph"].get("block_size_m", 10_000)
+    train_ratio = cfg["graph"].get("train_split", 0.8)
+    asset_blocks = np.floor(coords_m / block_m).astype(np.int64)
+
+    # One logistic model per assignment, written as weights on the raw
+    # features so the grid can be scored for every assignment in one pass.
+    fits = []
+    for seed in seeds:
+        train_mask, _, test_mask = spatial_block_split_three(
+            coords_m, train_ratio=train_ratio, block_size_m=block_m, seed=seed)
+        train = train_mask.numpy().astype(bool) & ok
+        test = test_mask.numpy().astype(bool)
+        if len(np.unique(y[train])) < 2:
+            continue
+        scaler = StandardScaler().fit(X[train])
+        model = LogisticRegression(max_iter=1000, class_weight="balanced").fit(
+            scaler.transform(X[train]), y[train])
+        w = model.coef_[0] / scaler.scale_
+        b = model.intercept_[0] - np.sum(model.coef_[0] * scaler.mean_ / scaler.scale_)
+        fits.append({"seed": seed, "w": w, "b": b,
+                     "test_blocks": {tuple(t) for t in asset_blocks[test]}})
+    W = np.column_stack([f["w"] for f in fits])
+    B = np.array([f["b"] for f in fits])
+
+    sources = {name: rasterio.open(paths[name]) for name in features}
+    try:
+        ref = sources[features[0]]
+        factor = max(1, int(round(cell_m / abs(ref.transform.a))))
+        out_h, out_w = ref.height // factor, ref.width // factor
+        sums = np.zeros((out_h, out_w, len(fits)), dtype=np.float64)
+        counts = np.zeros((out_h, out_w), dtype=np.float64)
+        for row_start in range(0, out_h * factor, rows_per_block * factor):
+            rows = min(rows_per_block * factor, out_h * factor - row_start)
+            window = rasterio.windows.Window(0, row_start, out_w * factor, rows)
+            bands, invalid = [], None
+            for name in features:
+                src = sources[name]
+                data = src.read(1, window=window).astype(np.float32)
+                bad = ~np.isfinite(data) | (data < -9000)
+                if src.nodata is not None:
+                    bad |= data == src.nodata
+                invalid = bad if invalid is None else (invalid | bad)
+                bands.append(np.nan_to_num(data, nan=0.0))
+            stack = np.stack(bands, axis=-1).reshape(-1, len(features))
+            # rows_per_block is in output cells; keep it small, since every
+            # assignment is scored at once at full resolution.
+            logit = np.clip(stack @ W.astype(np.float32) + B.astype(np.float32), -50, 50)
+            probs = (1.0 / (1.0 + np.exp(-logit))).astype(np.float32)
+            probs[invalid.ravel()] = 0.0
+            good = (~invalid).astype(np.float64)
+            r0 = row_start // factor
+            nr = rows // factor
+            probs = probs.reshape(nr, factor, out_w, factor, len(fits))
+            good = good.reshape(nr, factor, out_w, factor)
+            sums[r0:r0 + nr] += probs.sum(axis=(1, 3))
+            counts[r0:r0 + nr] += good.sum(axis=(1, 3))
+        transform = ref.transform * ref.transform.scale(factor, factor)
+        crs = ref.crs
+    finally:
+        for src in sources.values():
+            src.close()
+
+    hazard = sums / np.maximum(counts, 1)[..., None]
+    with rasterio.open(raw_dir / "s1_flood_frequency.tif") as src:
+        observed = np.zeros((out_h, out_w), dtype=np.float32)
+        reproject(source=rasterio.band(src, 1), destination=observed,
+                  dst_transform=transform, dst_crs=crs, resampling=Resampling.average)
+    valid = ((counts >= 0.5 * factor * factor) & np.isfinite(observed)
+             & ~foreign_mask(cfg, (out_h, out_w), transform, crs))
+    n_events = len(cfg.get("sentinel1", {}).get("events", [])) or 1
+    min_events = labels_cfg.get("min_events", 1)
+    flooded = observed >= flood_threshold_pct(min_events, n_events)
+
+    # Each cell's block, from its centre in the projected grid.
+    cols, rows_ = np.meshgrid(np.arange(out_w) + 0.5, np.arange(out_h) + 0.5)
+    xs, ys = rasterio.transform.xy(transform, rows_.ravel() - 0.5, cols.ravel() - 0.5)
+    cell_blocks = np.floor(np.column_stack([xs, ys]) / block_m).astype(np.int64)
+
+    per_seed = []
+    for i, fit in enumerate(fits):
+        in_test = np.array([tuple(c) in fit["test_blocks"] for c in cell_blocks]).reshape(out_h, out_w)
+        held = valid & in_test
+        row = {"seed": fit["seed"], "n_test_cells": int(held.sum())}
+        if len(np.unique(flooded[held])) == 2:
+            row["heldout_auc"] = float(roc_auc_score(flooded[held], hazard[..., i][held]))
+        if len(np.unique(flooded[valid])) == 2:
+            row["whole_grid_auc"] = float(roc_auc_score(flooded[valid], hazard[..., i][valid]))
+        per_seed.append(row)
+
+    summary = {}
+    for key in ("heldout_auc", "whole_grid_auc"):
+        vals = np.array([r[key] for r in per_seed if key in r])
+        if len(vals):
+            summary[key] = {"mean": float(vals.mean()),
+                            "sd": float(vals.std(ddof=1)) if len(vals) > 1 else None,
+                            "n_seeds": int(len(vals))}
+    result = {"features": features, "cell_m": cell_m, "seeds": list(seeds),
+              "per_seed": per_seed, "summary": summary}
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "hazard_heldout.json").write_text(json.dumps(result, indent=2))
+    logger.info(f"Wrote {output_dir / 'hazard_heldout.json'}")
+    return result
