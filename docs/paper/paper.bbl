@@ -25,6 +25,11 @@ Beven, K.~J. and Kirkby, M.~J. (1979).
   l'hydrologie du bassin versant}.
 \newblock {\em Hydrological Sciences Bulletin}, 24(1):43--69.
 
+\bibitem[Chung and Fabbri, 2003]{chung2003}
+Chung, C.-J.~F. and Fabbri, A.~G. (2003).
+\newblock Validation of spatial prediction models for landslide hazard mapping.
+\newblock {\em Natural Hazards}, 30:451--472.
+
 \bibitem[Dadhich et~al., 2026]{dadhich2026}
 Dadhich, G., Babel, M., Miyazaki, H., Pal, I., Tripathi, N.~K., and Virdis, S.
   G.~P. (2026).
@@ -38,11 +43,39 @@ Dadhich, G., Babel, M., Miyazaki, H., Pal, I., Tripathi, N.~K., and Virdis, S.
   Version 2017}.
 \newblock Technical report, Publications Office of the European Union.
 
+\bibitem[Giezendanner et~al., 2023]{giezendanner2023}
+Giezendanner, J., Mukherjee, R., Purri, M., Thomas, M., Mauerman, M., Islam, A.
+  K. M.~S., and Tellman, B. (2023).
+\newblock Inferring the past: a combined {CNN--LSTM} deep learning framework to
+  fuse satellites for historical inundation mapping.
+\newblock In {\em Proceedings of the IEEE/CVF Conference on Computer Vision and
+  Pattern Recognition Workshops}, pages 2155--2165.
+
+\bibitem[Guzzetti et~al., 2006]{guzzetti2006}
+Guzzetti, F., Reichenbach, P., Ardizzone, F., Cardinali, M., and Galli, M.
+  (2006).
+\newblock Estimating the quality of landslide susceptibility models.
+\newblock {\em Geomorphology}, 81:166--184.
+
+\bibitem[Haghighi, 2022]{haghighi2022}
+Haghighi, M.~H. (2022).
+\newblock Large-scale mapping of flood using {Sentinel-1} radar remote sensing.
+\newblock In {\em The International Archives of the Photogrammetry, Remote
+  Sensing and Spatial Information Sciences}, volume XLIII-B3-2022, pages
+  1097--1102.
+
 \bibitem[Hamilton et~al., 2017]{hamilton2017}
 Hamilton, W.~L., Ying, R., and Leskovec, J. (2017).
 \newblock {Inductive Representation Learning on Large Graphs}.
 \newblock Advances in Neural Information Processing Systems 30;
   arXiv:1706.02216.
+
+\bibitem[Hawker et~al., 2020]{hawker2020}
+Hawker, L., Neal, J., Tellman, B., Liang, J., Schumann, G., Doyle, C.,
+  Sullivan, J.~A., Savage, J., and Tshimanga, R. (2020).
+\newblock Comparing earth observation and inundation models to map flood
+  hazards.
+\newblock {\em Environmental Research Letters}, 15:124032.
 
 \bibitem[Hawker et~al., 2022]{hawker2022}
 Hawker, L., Uhe, P., Paulo, L., Sosa, J., Savage, J., Sampson, C., and Neal, J.
@@ -76,6 +109,12 @@ Koks, E.~E., Rozenberg, J., Zorn, C., Tariverdi, M., Vousdoukas, M., Fraser,
 \newblock {A global multi-hazard risk analysis of road and railway
   infrastructure assets}.
 \newblock {\em Nature Communications}, 10(1):2677.
+
+\bibitem[Liu et~al., 2026]{liu2026}
+Liu, J., Zhao, G., Xiong, J., and Kinouchi, T. (2026).
+\newblock A graph-based deep learning approach for daily flash flood
+  susceptibility modeling in {China}.
+\newblock {\em Water Resources Research}, 62:e2025WR041360.
 
 \bibitem[Ma et~al., 2025]{ma2025}
 Ma, J., Han, Z., Liu, F., Wang, X., Hu, J., and Zhang, P. (2025).
@@ -142,11 +181,24 @@ Schotten, R. and Bachmann, D. (2023).
   Approach and proof of concept in Accra, Ghana}.
 \newblock {\em Journal of Flood Risk Management}, 16(3):e12913.
 
+\bibitem[Sharma and Sharma, 2026]{sharma2026}
+Sharma, P. and Sharma, S. (2026).
+\newblock Flood risk follows valleys, not grids: Graph neural networks for
+  flash flood susceptibility mapping in {Himachal Pradesh} with conformal
+  uncertainty quantification.
+\newblock arXiv preprint 2603.15681, not peer reviewed.
+
 \bibitem[Sherpa and Shirzaei, 2022]{sherpa2022}
 Sherpa, S.~F. and Shirzaei, M. (2022).
 \newblock {Country-wide flood exposure analysis using Sentinel-1 synthetic
   aperture radar data: Case study of 2019 Iran flood}.
 \newblock {\em Journal of Flood Risk Management}, 15(1):e12770.
+
+\bibitem[Swarup and Nury, 2026]{swarup2026}
+Swarup, S.~D. and Nury, A.~H. (2026).
+\newblock Flood risk prioritization in data-scarce regions: a tri-dimensional
+  {GIS-AHP} framework for northeastern {Bangladesh}.
+\newblock {\em Journal of Water and Climate Change}, 17:1229--1256.
 
 \bibitem[Talukdar et~al., 2020]{talukdar2020}
 Talukdar, S., Ghose, B., Shahfahad, Salam, R., Mahato, S., Pham, Q.~B., Linh,
@@ -162,6 +214,14 @@ Tellman, B., Sullivan, J.~A., Kuhn, C., Kettner, A.~J., Doyle, C.~S.,
 \newblock {Satellite imaging reveals increased proportion of population exposed
   to floods}.
 \newblock {\em Nature}, 596(7870):80--86.
+
+\bibitem[Thomas et~al., 2023]{thomas2023}
+Thomas, M., Tellman, E., Osgood, D., DeVries, B., Islam, A., Steckler, M.,
+  Goodman, M., and Billah, M. (2023).
+\newblock A framework to assess remote sensing algorithms for satellite-based
+  flood index insurance.
+\newblock {\em IEEE Journal of Selected Topics in Applied Earth Observations
+  and Remote Sensing}, 16:2589--2604.
 
 \bibitem[Twele et~al., 2016]{twele2016}
 Twele, A., Cao, W., Plank, S., and Martinis, S. (2016).
@@ -194,11 +254,17 @@ Waleed, M. and Sajjad, M. (2025).
   intelligence in high-risk regions of Pakistan}.
 \newblock {\em Journal of Flood Risk Management}, 18(1):e13047.
 
-\bibitem[Wang et~al., 2023]{wang2023}
-Wang, X., Du, A., Hu, F., Liu, Z., Zhang, X., Wang, L., and Guo, H. (2023).
+\bibitem[Wang et~al., 2023a]{wang2023}
+Wang, X., Du, A., Hu, F., Liu, Z., Zhang, X., Wang, L., and Guo, H. (2023a).
 \newblock {Landslide susceptibility evaluation based on active deformation and
   graph convolutional network algorithm}.
 \newblock {\em Frontiers in Earth Science}, 11:1132722.
+
+\bibitem[Wang et~al., 2023b]{wanggat2023}
+Wang, Z., Lyu, H., and Zhang, C. (2023b).
+\newblock Pluvial flood susceptibility mapping for data-scarce urban areas
+  using graph attention network and basic flood conditioning factors.
+\newblock {\em Geocarto International}, 38:2275692.
 
 \bibitem[Williams et~al., 2025]{williams2025}
 Williams, J.~H., Vu, H.~N., Paulik, R., Zorn, C., and Wotherspoon, L. (2025).
