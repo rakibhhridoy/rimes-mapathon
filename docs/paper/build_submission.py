@@ -95,6 +95,41 @@ def to_markdown(tex: str) -> str:
     return out
 
 
+def for_review(path: Path) -> None:
+    """Double spacing, continuous line numbers and page numbers, so that
+    reviewers can point to an exact line. The journal does not ask for them,
+    but they cost nothing and are what reviewers expect."""
+    from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    doc = Document(str(path))
+    for style in doc.styles:
+        if style.type == 1 and style.name in ("Normal", "Body Text", "First Paragraph",
+                                              "Compact", "Bibliography"):
+            style.paragraph_format.line_spacing = 2.0
+    for section in doc.sections:
+        numbering = OxmlElement("w:lnNumType")
+        numbering.set(qn("w:countBy"), "1")
+        numbering.set(qn("w:restart"), "continuous")
+        section._sectPr.append(numbering)
+        footer = section.footer.paragraphs[0]
+        footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        footer._p.get_or_add_pPr().append(OxmlElement("w:suppressLineNumbers"))
+        run = footer.add_run()
+        for kind, text in (("begin", None), (None, "PAGE"), ("end", None)):
+            if kind:
+                field = OxmlElement("w:fldChar")
+                field.set(qn("w:fldCharType"), kind)
+            else:
+                field = OxmlElement("w:instrText")
+                field.set(qn("xml:space"), "preserve")
+                field.text = text
+            run._r.append(field)
+    doc.save(str(path))
+
+
 def main():
     nums, labs = macros(), labels()
     tex = (HERE / "paper.tex").read_text()
@@ -150,6 +185,7 @@ def main():
                     "--citeproc", f"--bibliography={BIB}", f"--csl={CSL}",
                     "--number-sections", "--metadata", "link-citations=false"],
                    check=True)
+    for_review(OUT / "manuscript.docx")
 
     title_md = (f"# {title}\n\n"
                 f"**Running title:** {running}\n\n"
