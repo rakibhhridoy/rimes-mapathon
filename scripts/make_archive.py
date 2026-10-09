@@ -10,6 +10,7 @@ them.
 Usage:
     python scripts/make_archive.py                 # all regions with results
     python scripts/make_archive.py --regions cht   # one region
+    python scripts/make_archive.py --regions jamuna_east_validation
     python scripts/make_archive.py --out dist/zenodo
 """
 
@@ -64,9 +65,28 @@ def _licence_for(path: Path) -> str:
     return "see README"
 
 
+# Regions run only to validate the paper's comparison with the flood record,
+# which are not on the website: id, name, hazard and config.
+VALIDATION_REGIONS = {
+    "jamuna_east_validation": ("Jamuna east (validation)", "Riverine & flash flood",
+                               "configs/validation/jamuna_east.yaml"),
+}
+
+
+def _paths_from_config(config_file: str) -> dict:
+    from pipeline.cli import _load_config
+
+    paths = _load_config(str(ROOT / config_file)).get("paths", {}) or {}
+    return {kind: ROOT / paths[f"{kind}_dir"] for kind in ("raw", "processed", "output")}
+
+
 def archive_region(region_id: str, out_dir: Path) -> Path:
-    paths = region_paths(region_id)
-    name, hazard, _ = REGION_CONFIGS[region_id]
+    if region_id in VALIDATION_REGIONS:
+        name, hazard, config_file = VALIDATION_REGIONS[region_id]
+        paths = _paths_from_config(config_file)
+    else:
+        paths = region_paths(region_id)
+        name, hazard, _ = REGION_CONFIGS[region_id]
     # raw_s1a holds the events re-mapped from Sentinel-1A alone
     # (scripts/remap_s1a.py), for the single-satellite check of the paper.
     paths = dict(paths, raw_s1a=paths["raw"].with_name(paths["raw"].name + "_s1a"))
