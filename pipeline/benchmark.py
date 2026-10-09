@@ -1236,3 +1236,183 @@ def run_hazard_surface_heldout(cfg: dict, processed_dir: Path, raw_dir: Path,
     (output_dir / "hazard_heldout.json").write_text(json.dumps(result, indent=2))
     logger.info(f"Wrote {output_dir / 'hazard_heldout.json'}")
     return result
+
+
+# Asset groups a planner would read the two lists for.
+PLANNING_GROUPS = {
+    "facilities": ("hospital", "school", "flood_shelter"),
+    "transport": ("road", "bridge", "railway"),
+}
+
+
+def run_record_checks(cfg: dict, processed_dir: Path, raw_dir: Path,
+                      output_dir: Path, infra_path: Path, seeds=SEEDS,
+                      cutoff_year: int = 2022, folds: int = 10) -> dict:
+    """How long a record has to be, and what the record changes for a planner.
+
+    Record length: the record and the model are both rebuilt from every subset
+    of k earlier events, for k from one to all of them, and scored on the
+    held-out blocks against the later floods as in the temporal test. The
+    model's label follows the region's rule capped at k, so at full length the
+    two match the temporal test. A record of one event can only say flooded or
+    not, so its ranking is coarse, while the model still ranks every asset.
+
+    Planning lists: every asset is scored once out of fold, by a model trained
+    on the other 10 km blocks, so the whole region has held-out scores. The
+    record's own list is every asset an earlier flood reached; the model and
+    the model given the record as a feature each list the same number of
+    assets, their highest scores. Each list is scored by the share of the
+    assets the later floods reached that it holds, overall and for facilities
+    and transport links.
+    """
+    from itertools import combinations
+
+    import geopandas as gpd
+    from sklearn.metrics import roc_auc_score
+
+    from pipeline.asset_model import _fit_tabular, model_type
+    from pipeline.feature_extract import (compute_centroids, extract_features,
+                                          project_coords, sample_raster_at_points)
+    from pipeline.graph_build import spatial_block_split_three
+
+    kind = model_type(cfg)
+    if kind == "graph_sage":
+        raise ValueError("Record checks expect a tabular asset model.")
+    events = sorted((cfg.get("sentinel1") or {}).get("events", []),
+                    key=lambda e: e["start"])
+    early = [e for e in events if int(e["start"][:4]) <= cutoff_year]
+    late = [e for e in events if int(e["start"][:4]) > cutoff_year]
+    if len(early) < 2 or not late:
+        raise ValueError(f"Need two events up to {cutoff_year} and one after.")
+
+    infra = gpd.read_file(str(infra_path))
+    X, coords, _, _ = extract_features(cfg, infra, processed_dir)
+    X = np.ascontiguousarray(X, dtype=np.float32)
+    centroids = compute_centroids(gpd.read_file(str(infra_path)))
+    points = list(zip(centroids["lon"], centroids["lat"]))
+    flooded = {e["name"]: (np.nan_to_num(sample_raster_at_points(
+        str(raw_dir / f"s1_flood_{e['name']}.tif"), points)) > 0.5).astype(int)
+        for e in events}
+
+    def count(evts):
+        return np.sum([flooded[e["name"]] for e in evts], axis=0)
+
+    rule = (cfg.get("data", {}).get("labels", {}) or {}).get("min_events", 1)
+    y_late = (count(late) >= 1).astype(int)
+    coords_m = project_coords(np.asarray(coords), cfg["aoi"]["crs"])
+    block_m = cfg["graph"].get("block_size_m", 10_000)
+    train_ratio = cfg["graph"].get("train_split", 0.8)
+
+    # --- Record length ----------------------------------------------------
+    splits = []
+    for seed in seeds:
+        train_mask, _, test_mask = spatial_block_split_three(
+            coords_m, train_ratio=train_ratio, block_size_m=block_m, seed=seed)
+        test = test_mask.numpy().astype(bool)
+        if len(np.unique(y_late[test])) == 2:
+            splits.append((seed, train_mask.numpy().astype(bool), test))
+    length = []
+    for k in range(1, len(early) + 1):
+        for subset in combinations(early, k):
+            past = count(subset) / k
+            y_k = (count(subset) >= min(rule, k)).astype(int)
+            rec, mod = [], []
+            for seed, train, test in splits:
+                rec.append(roc_auc_score(y_late[test], past[test]))
+                if len(np.unique(y_k[train])) == 2:
+                    model = _fit_tabular(kind, X, y_k, train, seed)
+                    mod.append(roc_auc_score(y_late[test],
+                                             model.predict_proba(X[test])[:, 1]))
+            length.append({"k": k, "events": [e["name"] for e in subset],
+                           "record_auc": float(np.mean(rec)),
+                           "model_auc": float(np.mean(mod)) if mod else None,
+                           "n_seeds": len(rec)})
+    by_k = {}
+    for k in range(1, len(early) + 1):
+        rows = [r for r in length if r["k"] == k]
+        models = [r["model_auc"] for r in rows if r["model_auc"] is not None]
+        by_k[str(k)] = {"record_auc": float(np.mean([r["record_auc"] for r in rows])),
+                        "model_auc": float(np.mean(models)) if models else None,
+                        "n_subsets": len(rows)}
+
+    # --- Planning lists ---------------------------------------------------
+    block_ids = np.floor(coords_m / block_m).astype(np.int64)
+    _, block_of = np.unique(block_ids, axis=0, return_inverse=True)
+    block_of = block_of.ravel()
+    fold_of_block = np.random.default_rng(42).permutation(block_of.max() + 1) % folds
+    fold = fold_of_block[block_of]
+
+    record = count(early) / len(early)
+    y_early = (count(early) >= min(rule, len(early))).astype(int)
+    # The model with the record as a feature, trained as in the past-flooding
+    # test: the last year up to the cutoff from the years before it.
+    target_year = int(early[-1]["start"][:4])
+    history = [e for e in early if int(e["start"][:4]) < target_year]
+    target = [e for e in early if int(e["start"][:4]) == target_year]
+    y_target = (count(target) >= 1).astype(int)
+    past_train = count(history) / len(history)
+    mu, sd = past_train.mean(), past_train.std() or 1.0
+    X_hist = np.column_stack([X, (past_train - mu) / sd]).astype(np.float32)
+    X_full = np.column_stack([X, (record - mu) / sd]).astype(np.float32)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    model_score = np.full(len(X), np.nan)
+    combined_score = np.full(len(X), np.nan)
+    for f in range(folds):
+        test = fold == f
+        train = ~test
+        if not test.any():
+            continue
+        model_score[test] = _fit_tabular(kind, X, y_early, train, 42) \
+            .predict_proba(X[test])[:, 1]
+        combined_score[test] = _fit_tabular(kind, X_hist, y_target, train, 42) \
+            .predict_proba(X_full[test])[:, 1]
+
+    np.savez_compressed(output_dir / "record_checks_scores.npz", model=model_score,
+                        model_with_record=combined_score, record=record,
+                        flooded_later=y_late, fold=fold)
+    listed = {"record": record > 0}
+    n_listed = int(listed["record"].sum())
+    for name, score in (("model", model_score), ("model_with_record", combined_score)):
+        top = np.zeros(len(X), dtype=bool)
+        top[np.argsort(-score)[:n_listed]] = True
+        listed[name] = top
+
+    types = infra["asset_type"].to_numpy()
+    groups = {"all": np.ones(len(X), dtype=bool)}
+    groups.update({g: np.isin(types, t) for g, t in PLANNING_GROUPS.items()})
+    planning = {"n_listed": n_listed, "listed_share": n_listed / len(X), "groups": {}}
+    for g, in_group in groups.items():
+        hit = (y_late == 1) & in_group
+        entry = {"n_assets": int(in_group.sum()), "n_flooded": int(hit.sum())}
+        for name, lst in listed.items():
+            entry[f"{name}_caught"] = int((lst & hit).sum())
+            entry[f"{name}_caught_share"] = float((lst & hit).sum() / max(hit.sum(), 1))
+        entry["model_only"] = int((listed["model"] & ~listed["record"] & hit).sum())
+        entry["record_only"] = int((listed["record"] & ~listed["model"] & hit).sum())
+        planning["groups"][g] = entry
+    # Lists of fixed length, as a share of all assets. The record has few
+    # distinct values, so its ties are broken at random.
+    record_ranked = record + np.random.default_rng(0).random(len(X)) * 1e-6
+    later = max(int(y_late.sum()), 1)
+    planning["by_list_share"] = {}
+    for share in (0.05, 0.10, 0.20, 0.30):
+        n = int(round(share * len(X)))
+        planning["by_list_share"][f"{share:.2f}"] = {
+            name: float(y_late[np.argsort(-score)[:n]].sum() / later)
+            for name, score in (("record", record_ranked), ("model", model_score),
+                                ("model_with_record", combined_score))}
+    planning["model_auc_out_of_fold"] = float(roc_auc_score(y_late, model_score))
+    planning["record_auc_region"] = float(roc_auc_score(y_late, record))
+    planning["model_with_record_auc_out_of_fold"] = float(
+        roc_auc_score(y_late, combined_score))
+
+    result = {"model": kind, "cutoff_year": cutoff_year, "seeds": list(seeds),
+              "early_events": [e["name"] for e in early],
+              "late_events": [e["name"] for e in late], "label_rule": rule,
+              "record_length": {"subsets": length, "by_k": by_k},
+              "planning": planning}
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "record_checks.json").write_text(json.dumps(result, indent=2))
+    logger.info(f"Wrote {output_dir / 'record_checks.json'}")
+    return result

@@ -607,6 +607,23 @@ def crosscheck(ctx):
                    f"CSI {r['csi']:.3f} | {r['n_cells']:,} cells")
 
 
+@cli.command("record-checks")
+@click.pass_context
+def record_checks(ctx):
+    """Record length against model skill, and the planner's lists."""
+    from pipeline.benchmark import run_record_checks
+
+    cfg = ctx.obj["config"]
+    r = run_record_checks(cfg, _dir(cfg, "processed"), _dir(cfg, "raw"),
+                          _dir(cfg, "output"), _infra_path(cfg))
+    for k, v in r["record_length"]["by_k"].items():
+        click.echo(f"{k} earlier event(s): record {v['record_auc']:.3f}, "
+                   f"model {v['model_auc']:.3f}")
+    for g, v in r["planning"]["groups"].items():
+        click.echo(f"{g}: {v['n_flooded']} flooded; record caught {v['record_caught']}, "
+                   f"model {v['model_caught']}, model+record {v['model_with_record_caught']}")
+
+
 @cli.command("refresh-pvalues")
 @click.pass_context
 def refresh_pvalues(ctx):
@@ -631,7 +648,8 @@ def benchmark(ctx, seeds):
     from pipeline.benchmark import (SEEDS, run_benchmark, run_feature_importance,
                                     run_label_comparison, run_past_flooding_feature,
                                     run_block_size_check, run_persistence_check,
-                                    run_target_variants, run_temporal_holdout)
+                                    run_record_checks, run_target_variants,
+                                    run_temporal_holdout)
 
     cfg = ctx.obj["config"]
     chosen = tuple(int(s) for s in seeds.split(",")) if seeds else SEEDS
@@ -662,6 +680,8 @@ def benchmark(ctx, seeds):
                              _dir(cfg, "output"), _infra_path(cfg), seeds=chosen)
         run_target_variants(cfg, _dir(cfg, "processed"), _dir(cfg, "raw"),
                             _dir(cfg, "output"), _infra_path(cfg), seeds=chosen)
+        run_record_checks(cfg, _dir(cfg, "processed"), _dir(cfg, "raw"),
+                          _dir(cfg, "output"), _infra_path(cfg), seeds=chosen)
         w = past["summary"].get("with_past") or {}
         if w:
             click.echo(f"with past flooding as a feature: AUC {w['auc_mean']:.3f}")

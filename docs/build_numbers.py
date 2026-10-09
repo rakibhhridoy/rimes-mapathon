@@ -22,6 +22,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -102,6 +104,23 @@ def _gap(value):
 
 def _pct(value):
     return None if value is None else _Fixed(100 * float(value), 1)
+
+
+def _record_skill(rows, model, record):
+    """Skill over the record, (AUC_model - AUC_record) / (1 - AUC_record).
+
+    Like a forecast skill score against persistence, it is the share of the
+    record's remaining ranking error that the model removes: zero when the
+    model only matches the record, negative when it falls behind. It is taken
+    from the mean AUCs over the block assignments, since a ratio per
+    assignment swings without bound where the record is nearly perfect.
+    """
+    pairs = [(r["scores"][model]["auc_roc"], r["scores"][record]["auc_roc"])
+             for r in rows if model in r["scores"] and record in r["scores"]]
+    if not pairs:
+        return None
+    m, b = np.mean(pairs, axis=0)
+    return float((m - b) / (1 - b)) if b < 1 else None
 
 
 def _raw_events_path(paths: dict) -> Path:
@@ -487,6 +506,43 @@ def region_numbers(region_id: str) -> list[str]:
         _macro(f"{prefix}PastFeatUnseenShare", _pct((psum.get("with_past_on_unseen_ground") or {}).get("share_of_assets"))),
         _macro(f"{prefix}PastFeatUnseenPos", _pct((psum.get("with_past_on_unseen_ground") or {}).get("share_of_positives"))),
     ]
+
+    # Skill over the record, and the record checks (length and planning lists).
+    temporal_rows = (_read_json(paths["output"] / "temporal_holdout.json") or {}).get("per_seed") or []
+    lines += [
+        _macro(f"{prefix}SkillModel", _record_skill(temporal_rows, "temporal", "past_flooding")),
+        _macro(f"{prefix}SkillPastFeat", _record_skill(pastf.get("per_seed") or [], "with_past", "past_only")),
+    ]
+    rc = _read_json(paths["output"] / "record_checks.json") or {}
+    by_k = (rc.get("record_length") or {}).get("by_k") or {}
+    for k, word in ((1, "One"), (2, "Two"), (3, "Three")):
+        row = by_k.get(str(k))
+        if row is None:             # Sylhet has two events before the cutoff
+            continue
+        lines += [
+            _macro(f"{prefix}RecordLen{word}Rec", row.get("record_auc")),
+            _macro(f"{prefix}RecordLen{word}Model", row.get("model_auc")),
+        ]
+    plan = rc.get("planning") or {}
+    lines.append(_macro(f"{prefix}PlanListShare", _pct(plan.get("listed_share"))))
+    curve = plan.get("by_list_share") or {}
+    for share, word in (("0.05", "Five"), ("0.10", "Ten"), ("0.20", "Twenty"), ("0.30", "Thirty")):
+        row = curve.get(share) or {}
+        lines += [
+            _macro(f"{prefix}List{word}Rec", _pct(row.get("record"))),
+            _macro(f"{prefix}List{word}Model", _pct(row.get("model"))),
+            _macro(f"{prefix}List{word}Both", _pct(row.get("model_with_record"))),
+        ]
+    for g, word in (("all", "All"), ("facilities", "Facil"), ("transport", "Trans")):
+        e = (plan.get("groups") or {}).get(g) or {}
+        lines += [
+            _macro(f"{prefix}Plan{word}Flooded", e.get("n_flooded")),
+            _macro(f"{prefix}Plan{word}Record", _pct(e.get("record_caught_share"))),
+            _macro(f"{prefix}Plan{word}Model", _pct(e.get("model_caught_share"))),
+            _macro(f"{prefix}Plan{word}Both", _pct(e.get("model_with_record_caught_share"))),
+            _macro(f"{prefix}Plan{word}ModelOnly", e.get("model_only")),
+            _macro(f"{prefix}Plan{word}RecordOnly", e.get("record_only")),
+        ]
 
     # Weight sensitivity of the composite risk.
     sens = _read_json(paths["output"] / "sensitivity.json") or {}

@@ -123,3 +123,25 @@ class TestPValues:
         assert _p(0.215) == "=0.215"
         assert _p(0.08) == "=0.080"
         assert _p(None) is None
+
+
+class TestRecordSkill:
+    @staticmethod
+    def _rows(pairs):
+        return [{"scores": {"model": {"auc_roc": m}, "record": {"auc_roc": r}}}
+                for m, r in pairs]
+
+    def test_skill_is_the_share_of_the_record_error_removed(self):
+        from build_numbers import _record_skill
+        # Mean AUCs 0.9 and 0.8: the model removes half the remaining error.
+        rows = self._rows([(0.85, 0.75), (0.95, 0.85)])
+        assert _record_skill(rows, "model", "record") == pytest.approx(0.5)
+
+    def test_falling_behind_the_record_is_negative(self):
+        from build_numbers import _record_skill
+        assert _record_skill(self._rows([(0.7, 0.8)]), "model", "record") < 0
+
+    def test_a_perfect_record_or_no_rows_gives_none(self):
+        from build_numbers import _record_skill
+        assert _record_skill(self._rows([(0.9, 1.0)]), "model", "record") is None
+        assert _record_skill([], "model", "record") is None

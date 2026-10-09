@@ -121,6 +121,42 @@ Target: flood fraction & \RRTargetFracAUC{} / \RRTempPastAUC{} ($p\RRTargetFracP
 \end{table*}
 
 
+\section{Record length, skill over the record and planning lists}
+\label{si:record}
+
+Three further analyses ask what the record offers a flood manager, using the same events and the same temporal split as the main text. The first rebuilds both the record and the model from every subset of $k$ earlier events, for $k$ from one to all of them, and scores each on the held-out 10\,km blocks against the 2024 floods over \RRBenchSeeds{} assignments, with the model's label following the region's rule capped at $k$. A record of one event can only say flooded or not, so it ranks coarsely, while the model still ranks every asset. Rebuilt from a single earlier flood, the record already led the model in Rangpur and Rajshahi, whereas in Sylhet it needed both earlier floods, and on the coast it trailed at every length (Table~\ref{tab:record}).
+
+The second expresses each model's AUC as skill over the record, $(\mathrm{AUC}_{\mathrm{model}}-\mathrm{AUC}_{\mathrm{record}})/(1-\mathrm{AUC}_{\mathrm{record}})$, the share of the record's remaining ranking error that the model removes, in the way weather forecasts are scored against persistence. It is computed from the mean AUCs over the block assignments, because a ratio taken per assignment swings without bound where the record is nearly perfect. A score of zero means the model only matches the record, and a negative score that it falls behind.
+
+The third turns the rankings into the list a planner would act on. Every asset is scored once out of fold, by models trained on the other nine of ten folds of 10\,km blocks, so the whole region carries held-out scores. The record's own list is every asset an earlier flood reached, \RRPlanListShare{}\,\% of assets in Rangpur and Rajshahi, \SylhetPlanListShare{}\,\% in Sylhet and \CoastalPlanListShare{}\,\% on the coast, and the model and the model given the record each list the same number of their highest-scoring assets. Each list is scored by the share of the assets the 2024 floods reached that it holds. Facilities are hospitals, schools and flood shelters, and transport links are roads, bridges and railways. Facilities flooded in 2024 number only \RRPlanFacilFlooded{}, \SylhetPlanFacilFlooded{} and \CoastalPlanFacilFlooded{} in the three regions, so their shares are indicative only. Ranking the out-of-fold scores within each fold rather than across the region did not change which list held more of the flooded assets in any region. On the coast the record's lead holds for short lists only, since the top 5\,\% of assets it ranks held \CoastalListFiveRec{}\,\% of the flooded assets against \CoastalListFiveModel{}\,\% for the model, whereas the top 30\,\% held \CoastalListThirtyRec{}\,\% against \CoastalListThirtyModel{}\,\%, consistent with the model's higher AUC over the region as a whole.
+
+\begin{table*}[tp]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+ & Rangpur \& Rajshahi & Sylhet & South-west coast \\
+\midrule
+\multicolumn{4}{l}{\emph{AUC against the 2024 floods, record / model, by number of earlier events}} \\
+One event & \RRRecordLenOneRec{} / \RRRecordLenOneModel{} & \SylhetRecordLenOneRec{} / \SylhetRecordLenOneModel{} & \CoastalRecordLenOneRec{} / \CoastalRecordLenOneModel{} \\
+Two events & \RRRecordLenTwoRec{} / \RRRecordLenTwoModel{} & \SylhetRecordLenTwoRec{} / \SylhetRecordLenTwoModel{} & \CoastalRecordLenTwoRec{} / \CoastalRecordLenTwoModel{} \\
+Three events & \RRRecordLenThreeRec{} / \RRRecordLenThreeModel{} & -- & \CoastalRecordLenThreeRec{} / \CoastalRecordLenThreeModel{} \\
+\midrule
+\multicolumn{4}{l}{\emph{Skill over the record}} \\
+Model & \RRSkillModel{} & \SylhetSkillModel{} & \CoastalSkillModel{} \\
+Model given the record & \RRSkillPastFeat{} & \SylhetSkillPastFeat{} & \CoastalSkillPastFeat{} \\
+\midrule
+\multicolumn{4}{l}{\emph{Share of assets flooded in 2024 held by each list (\%), record / model / model given the record}} \\
+All assets & \RRPlanAllRecord{} / \RRPlanAllModel{} / \RRPlanAllBoth{} & \SylhetPlanAllRecord{} / \SylhetPlanAllModel{} / \SylhetPlanAllBoth{} & \CoastalPlanAllRecord{} / \CoastalPlanAllModel{} / \CoastalPlanAllBoth{} \\
+Facilities & \RRPlanFacilRecord{} / \RRPlanFacilModel{} / \RRPlanFacilBoth{} & \SylhetPlanFacilRecord{} / \SylhetPlanFacilModel{} / \SylhetPlanFacilBoth{} & \CoastalPlanFacilRecord{} / \CoastalPlanFacilModel{} / \CoastalPlanFacilBoth{} \\
+Transport links & \RRPlanTransRecord{} / \RRPlanTransModel{} / \RRPlanTransBoth{} & \SylhetPlanTransRecord{} / \SylhetPlanTransModel{} / \SylhetPlanTransBoth{} & \CoastalPlanTransRecord{} / \CoastalPlanTransModel{} / \CoastalPlanTransBoth{} \\
+Assets flooded in 2024 & \RRPlanAllFlooded{} & \SylhetPlanAllFlooded{} & \CoastalPlanAllFlooded{} \\
+\bottomrule
+\end{tabular}
+\caption{Record length, skill over the record and planning lists. Record-length AUCs are means over every subset of that many earlier events and over the block assignments; Sylhet has two events before 2022. Skill is the share of the record's remaining ranking error that a model removes. The lists hold as many assets as an earlier flood reached in each region, with every asset scored out of fold.}
+\label{tab:record}
+\end{table*}
+
 \bibliographystyle{apalike}
 \bibliography{references}
 
