@@ -62,3 +62,6 @@ docs/paper/submission/figures/*.png
 docs/paper/submission/*.md
 data/backup_*/
 web/apps.conf
+
+# Downloaded source PDFs for checking citations (publisher copyright)
+docs/paper/sources/
