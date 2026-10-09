@@ -89,7 +89,7 @@ Every metric that compares two models or two label sources is repeated over seve
 \section{Robustness of the comparison with the flood record}
 \label{si:robust}
 
-The temporal test of the main text trains the asset model on the floods up to 2022 and scores it, and the record of earlier flooding, against the ground the 2024 floods reached, on held-out 10\,km blocks over \RRBenchSeeds{} assignments. Table~\ref{tab:robust} repeats it under seven changes, each aimed at one way the comparison could favour the record or the model.
+The temporal test of the main text trains the asset model on the floods up to 2022 and scores it, and the record of earlier flooding, against the ground the 2024 floods reached, on held-out 10\,km blocks over \RRBenchSeeds{} assignments. Table~\ref{tab:robust} repeats it under seven changes, each aimed at one way the comparison could favour the record or the model. The validation region east of the Jamuna is checked the same way. Its national region shares \JamunaSharedAssets{} mapped assets with the Rangpur and Rajshahi box, which crosses the Jamuna, and these are left out so that no asset is scored in both, leaving \JamunaIndAssets{}. Its October 2024 flood was a flash flood from the Meghalaya hills, and the first Sentinel-1 pass came five days after it began, so the fastest flooding in Sherpur may have drained unseen and the mask counts few flooded assets.
 
 The first two checks leave the models alone and narrow the test set, because the record and the 2024 floods come from the same change detection, so ground that radar mistakes for water every monsoon, such as wet paddy, would count as flooded in both. Surfaces that stay dark in the dry season, such as sand bars and permanent wetland, are already rejected, since a pixel must darken against its dry-season baseline. The comparison is therefore repeated without the ground flagged in every earlier event, and without the ground the JRC record has ever seen under water, which removes seasonal wetland. Both removals also take away genuinely flood-prone ground, so they can only work against the record. In Sylhet the second leaves \SylhetPersistWaterAssetShare{}\,\% of assets, holding \SylhetPersistWaterPosShare{}\,\% of the ground the 2024 floods reached.
 
@@ -102,21 +102,22 @@ The last two widen the blocks, since the 10\,km blocks are narrower than the fit
 \begin{table*}[tp]
 \centering
 \small
-\begin{tabular}{llll}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
 \toprule
-Check & Rangpur \& Rajshahi & Sylhet & South-west coast \\
+Check & Rangpur \& Rajshahi & Sylhet & South-west coast & Jamuna east \\
 \midrule
-As published & \RRTempAUC{} / \RRTempPastAUC{} ($p\RRTempMinusPastP{}$) & \SylhetTempAUC{} / \SylhetTempPastAUC{} ($p\SylhetTempMinusPastP{}$) & \CoastalTempAUC{} / \CoastalTempPastAUC{} ($p\CoastalTempMinusPastP{}$) \\
-Without always-flooded ground & \RRPersistAlwaysModelAUC{} / \RRPersistAlwaysRecordAUC{} ($p\RRPersistAlwaysP{}$) & \SylhetPersistAlwaysModelAUC{} / \SylhetPersistAlwaysRecordAUC{} ($p\SylhetPersistAlwaysP{}$) & \CoastalPersistAlwaysModelAUC{} / \CoastalPersistAlwaysRecordAUC{} ($p\CoastalPersistAlwaysP{}$) \\
-Outside recorded water & \RRPersistWaterModelAUC{} / \RRPersistWaterRecordAUC{} ($p\RRPersistWaterP{}$) & \SylhetPersistWaterModelAUC{} / \SylhetPersistWaterRecordAUC{} ($p\SylhetPersistWaterP{}$) & \CoastalPersistWaterModelAUC{} / \CoastalPersistWaterRecordAUC{} ($p\CoastalPersistWaterP{}$) \\
-Sentinel-1A masks only & \RRSingleSatModelAUC{} / \RRSingleSatRecordAUC{} ($p\RRSingleSatP{}$) & \SylhetSingleSatModelAUC{} / \SylhetSingleSatRecordAUC{} ($p\SylhetSingleSatP{}$) & \CoastalSingleSatModelAUC{} / \CoastalSingleSatRecordAUC{} ($p\CoastalSingleSatP{}$) \\
-Target: any earlier flood & \RRTargetAnyAUC{} / \RRTempPastAUC{} ($p\RRTargetAnyP{}$) & \SylhetTargetAnyAUC{} / \SylhetTempPastAUC{} ($p\SylhetTargetAnyP{}$) & \CoastalTargetAnyAUC{} / \CoastalTempPastAUC{} ($p\CoastalTargetAnyP{}$) \\
-Target: flood fraction & \RRTargetFracAUC{} / \RRTempPastAUC{} ($p\RRTargetFracP{}$) & \SylhetTargetFracAUC{} / \SylhetTempPastAUC{} ($p\SylhetTargetFracP{}$) & \CoastalTargetFracAUC{} / \CoastalTempPastAUC{} ($p\CoastalTargetFracP{}$) \\
-20\,km blocks & \RRBlockTwentyModelAUC{} / \RRBlockTwentyRecordAUC{} ($p\RRBlockTwentyTempP{}$) & \SylhetBlockTwentyModelAUC{} / \SylhetBlockTwentyRecordAUC{} ($p\SylhetBlockTwentyTempP{}$) & \CoastalBlockTwentyModelAUC{} / \CoastalBlockTwentyRecordAUC{} ($p\CoastalBlockTwentyTempP{}$) \\
-40\,km blocks & \RRBlockFortyModelAUC{} / \RRBlockFortyRecordAUC{} ($p\RRBlockFortyTempP{}$) & \SylhetBlockFortyModelAUC{} / \SylhetBlockFortyRecordAUC{} ($p\SylhetBlockFortyTempP{}$) & \CoastalBlockFortyModelAUC{} / \CoastalBlockFortyRecordAUC{} ($p\CoastalBlockFortyTempP{}$) \\
+As published & \RRTempAUC{} / \RRTempPastAUC{} ($p\RRTempMinusPastP{}$) & \SylhetTempAUC{} / \SylhetTempPastAUC{} ($p\SylhetTempMinusPastP{}$) & \CoastalTempAUC{} / \CoastalTempPastAUC{} ($p\CoastalTempMinusPastP{}$) & \JamunaTempAUC{} / \JamunaTempPastAUC{} ($p\JamunaTempMinusPastP{}$) \\
+Without always-flooded ground & \RRPersistAlwaysModelAUC{} / \RRPersistAlwaysRecordAUC{} ($p\RRPersistAlwaysP{}$) & \SylhetPersistAlwaysModelAUC{} / \SylhetPersistAlwaysRecordAUC{} ($p\SylhetPersistAlwaysP{}$) & \CoastalPersistAlwaysModelAUC{} / \CoastalPersistAlwaysRecordAUC{} ($p\CoastalPersistAlwaysP{}$) & \JamunaPersistAlwaysModelAUC{} / \JamunaPersistAlwaysRecordAUC{} ($p\JamunaPersistAlwaysP{}$) \\
+Outside recorded water & \RRPersistWaterModelAUC{} / \RRPersistWaterRecordAUC{} ($p\RRPersistWaterP{}$) & \SylhetPersistWaterModelAUC{} / \SylhetPersistWaterRecordAUC{} ($p\SylhetPersistWaterP{}$) & \CoastalPersistWaterModelAUC{} / \CoastalPersistWaterRecordAUC{} ($p\CoastalPersistWaterP{}$) & \JamunaPersistWaterModelAUC{} / \JamunaPersistWaterRecordAUC{} ($p\JamunaPersistWaterP{}$) \\
+Sentinel-1A masks only & \RRSingleSatModelAUC{} / \RRSingleSatRecordAUC{} ($p\RRSingleSatP{}$) & \SylhetSingleSatModelAUC{} / \SylhetSingleSatRecordAUC{} ($p\SylhetSingleSatP{}$) & \CoastalSingleSatModelAUC{} / \CoastalSingleSatRecordAUC{} ($p\CoastalSingleSatP{}$) & -- \\
+Target: any earlier flood & \RRTargetAnyAUC{} / \RRTempPastAUC{} ($p\RRTargetAnyP{}$) & \SylhetTargetAnyAUC{} / \SylhetTempPastAUC{} ($p\SylhetTargetAnyP{}$) & \CoastalTargetAnyAUC{} / \CoastalTempPastAUC{} ($p\CoastalTargetAnyP{}$) & \JamunaTargetAnyAUC{} / \JamunaTempPastAUC{} ($p\JamunaTargetAnyP{}$) \\
+Target: flood fraction & \RRTargetFracAUC{} / \RRTempPastAUC{} ($p\RRTargetFracP{}$) & \SylhetTargetFracAUC{} / \SylhetTempPastAUC{} ($p\SylhetTargetFracP{}$) & \CoastalTargetFracAUC{} / \CoastalTempPastAUC{} ($p\CoastalTargetFracP{}$) & \JamunaTargetFracAUC{} / \JamunaTempPastAUC{} ($p\JamunaTargetFracP{}$) \\
+20\,km blocks & \RRBlockTwentyModelAUC{} / \RRBlockTwentyRecordAUC{} ($p\RRBlockTwentyTempP{}$) & \SylhetBlockTwentyModelAUC{} / \SylhetBlockTwentyRecordAUC{} ($p\SylhetBlockTwentyTempP{}$) & \CoastalBlockTwentyModelAUC{} / \CoastalBlockTwentyRecordAUC{} ($p\CoastalBlockTwentyTempP{}$) & \JamunaBlockTwentyModelAUC{} / \JamunaBlockTwentyRecordAUC{} ($p\JamunaBlockTwentyTempP{}$) \\
+40\,km blocks & \RRBlockFortyModelAUC{} / \RRBlockFortyRecordAUC{} ($p\RRBlockFortyTempP{}$) & \SylhetBlockFortyModelAUC{} / \SylhetBlockFortyRecordAUC{} ($p\SylhetBlockFortyTempP{}$) & \CoastalBlockFortyModelAUC{} / \CoastalBlockFortyRecordAUC{} ($p\CoastalBlockFortyTempP{}$) & \JamunaBlockFortyModelAUC{} / \JamunaBlockFortyRecordAUC{} ($p\JamunaBlockFortyTempP{}$) \\
 \bottomrule
-\end{tabular}
-\caption{The model trained on floods up to 2022 against the record of earlier flooding, each scored by AUC against the 2024 floods on held-out blocks, as model / record, with the corrected resampled t-test of their paired difference over the block assignments.}
+\end{tabular}}
+\caption{The model trained on floods up to 2022 against the record of earlier flooding, each scored by AUC against the 2024 floods on held-out blocks, as model / record, with the corrected resampled t-test of their paired difference over the block assignments. The validation region east of the Jamuna was not re-mapped from Sentinel-1A, and its few flooded assets leave only some assignments with both classes in the test blocks.}
 \label{tab:robust}
 \end{table*}
 
@@ -128,29 +129,35 @@ Three further analyses ask what the record offers a flood manager, using the sam
 
 The second expresses each model's AUC as skill over the record, $(\mathrm{AUC}_{\mathrm{model}}-\mathrm{AUC}_{\mathrm{record}})/(1-\mathrm{AUC}_{\mathrm{record}})$, the share of the record's remaining ranking error that the model removes, in the way weather forecasts are scored against persistence. It is computed from the mean AUCs over the block assignments, because a ratio taken per assignment swings without bound where the record is nearly perfect. A score of zero means the model only matches the record, and a negative score that it falls behind.
 
-The third turns the rankings into the list a planner would act on. Every asset is scored once out of fold, by models trained on the other nine of ten folds of 10\,km blocks, so the whole region carries held-out scores. The record's own list is every asset an earlier flood reached, \RRPlanListShare{}\,\% of assets in Rangpur and Rajshahi, \SylhetPlanListShare{}\,\% in Sylhet and \CoastalPlanListShare{}\,\% on the coast, and the model and the model given the record each list the same number of their highest-scoring assets. Each list is scored by the share of the assets the 2024 floods reached that it holds. Facilities are hospitals, schools and flood shelters, and transport links are roads, bridges and railways. Facilities flooded in 2024 number only \RRPlanFacilFlooded{}, \SylhetPlanFacilFlooded{} and \CoastalPlanFacilFlooded{} in the three regions, so their shares are indicative only. Ranking the out-of-fold scores within each fold rather than across the region did not change which list held more of the flooded assets in any region. On the coast the record's lead holds for short lists only, since the top 5\,\% of assets it ranks held \CoastalListFiveRec{}\,\% of the flooded assets against \CoastalListFiveModel{}\,\% for the model, whereas the top 30\,\% held \CoastalListThirtyRec{}\,\% against \CoastalListThirtyModel{}\,\%, consistent with the model's higher AUC over the region as a whole.
+The third turns the rankings into the list a planner would act on. Every asset is scored once out of fold, by models trained on the other nine of ten folds of 10\,km blocks, so the whole region carries held-out scores. The record's own list is every asset an earlier flood reached, \RRPlanListShare{}\,\% of assets in Rangpur and Rajshahi, \SylhetPlanListShare{}\,\% in Sylhet and \CoastalPlanListShare{}\,\% on the coast, and the model and the model given the record each list the same number of their highest-scoring assets. Each list is scored by the share of the assets the 2024 floods reached that it holds. Facilities are hospitals, schools and flood shelters, and transport links are roads, bridges and railways. Facilities flooded in 2024 number only \RRPlanFacilFlooded{}, \SylhetPlanFacilFlooded{} and \CoastalPlanFacilFlooded{} in the three regions, so their shares are indicative only. Ranking the out-of-fold scores within each fold rather than across the region did not change which list held more of the flooded assets in any region. On the coast the record's lead holds for short lists only, since the top 5\,\% of assets it ranks held \CoastalListFiveRec{}\,\% of the flooded assets against \CoastalListFiveModel{}\,\% for the model, whereas the top 30\,\% held \CoastalListThirtyRec{}\,\% against \CoastalListThirtyModel{}\,\%, consistent with the model's higher AUC over the region as a whole. The uncertainty of the out-of-fold comparison is estimated by resampling whole 10\,km blocks 1,000 times, so that neighbouring assets stay together. The interval for the model's AUC minus the record's excludes zero in every study region, below it in the riverine regions and above it on the coast, and east of the Jamuna it reaches \JamunaOofGapHigh{}, so the lead there is probable rather than established.
 
 \begin{table*}[tp]
 \centering
 \small
-\begin{tabular}{lccc}
+\footnotesize
+\begin{tabular}{lcccc}
 \toprule
- & Rangpur \& Rajshahi & Sylhet & South-west coast \\
+ & Rangpur \& Rajshahi & Sylhet & South-west coast & Jamuna east \\
 \midrule
-\multicolumn{4}{l}{\emph{AUC against the 2024 floods, record / model, by number of earlier events}} \\
-One event & \RRRecordLenOneRec{} / \RRRecordLenOneModel{} & \SylhetRecordLenOneRec{} / \SylhetRecordLenOneModel{} & \CoastalRecordLenOneRec{} / \CoastalRecordLenOneModel{} \\
-Two events & \RRRecordLenTwoRec{} / \RRRecordLenTwoModel{} & \SylhetRecordLenTwoRec{} / \SylhetRecordLenTwoModel{} & \CoastalRecordLenTwoRec{} / \CoastalRecordLenTwoModel{} \\
-Three events & \RRRecordLenThreeRec{} / \RRRecordLenThreeModel{} & -- & \CoastalRecordLenThreeRec{} / \CoastalRecordLenThreeModel{} \\
+\multicolumn{5}{l}{\emph{AUC against the 2024 floods, record / model, by number of earlier events}} \\
+One event & \RRRecordLenOneRec{} / \RRRecordLenOneModel{} & \SylhetRecordLenOneRec{} / \SylhetRecordLenOneModel{} & \CoastalRecordLenOneRec{} / \CoastalRecordLenOneModel{} & \JamunaRecordLenOneRec{} / \JamunaRecordLenOneModel{} \\
+Two events & \RRRecordLenTwoRec{} / \RRRecordLenTwoModel{} & \SylhetRecordLenTwoRec{} / \SylhetRecordLenTwoModel{} & \CoastalRecordLenTwoRec{} / \CoastalRecordLenTwoModel{} & \JamunaRecordLenTwoRec{} / \JamunaRecordLenTwoModel{} \\
+Three events & \RRRecordLenThreeRec{} / \RRRecordLenThreeModel{} & -- & \CoastalRecordLenThreeRec{} / \CoastalRecordLenThreeModel{} & \JamunaRecordLenThreeRec{} / \JamunaRecordLenThreeModel{} \\
 \midrule
-\multicolumn{4}{l}{\emph{Skill over the record}} \\
-Model & \RRSkillModel{} & \SylhetSkillModel{} & \CoastalSkillModel{} \\
-Model given the record & \RRSkillPastFeat{} & \SylhetSkillPastFeat{} & \CoastalSkillPastFeat{} \\
+\multicolumn{5}{l}{\emph{Skill over the record}} \\
+Model & \RRSkillModel{} & \SylhetSkillModel{} & \CoastalSkillModel{} & \JamunaSkillModel{} \\
+Model given the record & \RRSkillPastFeat{} & \SylhetSkillPastFeat{} & \CoastalSkillPastFeat{} & \JamunaSkillPastFeat{} \\
 \midrule
-\multicolumn{4}{l}{\emph{Share of assets flooded in 2024 held by each list (\%), record / model / model given the record}} \\
-All assets & \RRPlanAllRecord{} / \RRPlanAllModel{} / \RRPlanAllBoth{} & \SylhetPlanAllRecord{} / \SylhetPlanAllModel{} / \SylhetPlanAllBoth{} & \CoastalPlanAllRecord{} / \CoastalPlanAllModel{} / \CoastalPlanAllBoth{} \\
-Facilities & \RRPlanFacilRecord{} / \RRPlanFacilModel{} / \RRPlanFacilBoth{} & \SylhetPlanFacilRecord{} / \SylhetPlanFacilModel{} / \SylhetPlanFacilBoth{} & \CoastalPlanFacilRecord{} / \CoastalPlanFacilModel{} / \CoastalPlanFacilBoth{} \\
-Transport links & \RRPlanTransRecord{} / \RRPlanTransModel{} / \RRPlanTransBoth{} & \SylhetPlanTransRecord{} / \SylhetPlanTransModel{} / \SylhetPlanTransBoth{} & \CoastalPlanTransRecord{} / \CoastalPlanTransModel{} / \CoastalPlanTransBoth{} \\
-Assets flooded in 2024 & \RRPlanAllFlooded{} & \SylhetPlanAllFlooded{} & \CoastalPlanAllFlooded{} \\
+\multicolumn{5}{l}{\emph{Share of assets flooded in 2024 held by each list (\%), record / model / model given the record}} \\
+All assets & \RRPlanAllRecord{} / \RRPlanAllModel{} / \RRPlanAllBoth{} & \SylhetPlanAllRecord{} / \SylhetPlanAllModel{} / \SylhetPlanAllBoth{} & \CoastalPlanAllRecord{} / \CoastalPlanAllModel{} / \CoastalPlanAllBoth{} & \JamunaPlanAllRecord{} / \JamunaPlanAllModel{} / \JamunaPlanAllBoth{} \\
+Facilities & \RRPlanFacilRecord{} / \RRPlanFacilModel{} / \RRPlanFacilBoth{} & \SylhetPlanFacilRecord{} / \SylhetPlanFacilModel{} / \SylhetPlanFacilBoth{} & \CoastalPlanFacilRecord{} / \CoastalPlanFacilModel{} / \CoastalPlanFacilBoth{} & \JamunaPlanFacilRecord{} / \JamunaPlanFacilModel{} / \JamunaPlanFacilBoth{} \\
+Transport links & \RRPlanTransRecord{} / \RRPlanTransModel{} / \RRPlanTransBoth{} & \SylhetPlanTransRecord{} / \SylhetPlanTransModel{} / \SylhetPlanTransBoth{} & \CoastalPlanTransRecord{} / \CoastalPlanTransModel{} / \CoastalPlanTransBoth{} & \JamunaPlanTransRecord{} / \JamunaPlanTransModel{} / \JamunaPlanTransBoth{} \\
+\midrule
+\multicolumn{5}{l}{\emph{Out-of-fold AUC, record / model / model given the record, and 95\,\% block-bootstrap interval of model minus record}} \\
+AUC & \RROofRecordAUC{} / \RROofModelAUC{} / \RROofBothAUC{} & \SylhetOofRecordAUC{} / \SylhetOofModelAUC{} / \SylhetOofBothAUC{} & \CoastalOofRecordAUC{} / \CoastalOofModelAUC{} / \CoastalOofBothAUC{} & \JamunaOofRecordAUC{} / \JamunaOofModelAUC{} / \JamunaOofBothAUC{} \\
+Interval & \RROofGapLow{} to \RROofGapHigh{} & \SylhetOofGapLow{} to \SylhetOofGapHigh{} & \CoastalOofGapLow{} to \CoastalOofGapHigh{} & \JamunaOofGapLow{} to \JamunaOofGapHigh{} \\
+\midrule
+Assets flooded in 2024 & \RRPlanAllFlooded{} & \SylhetPlanAllFlooded{} & \CoastalPlanAllFlooded{} & \JamunaPlanAllFlooded{} \\
 \bottomrule
 \end{tabular}
 \caption{Record length, skill over the record and planning lists. Record-length AUCs are means over every subset of that many earlier events and over the block assignments; Sylhet has two events before 2022. Skill is the share of the record's remaining ranking error that a model removes. The lists hold as many assets as an earlier flood reached in each region, with every asset scored out of fold.}

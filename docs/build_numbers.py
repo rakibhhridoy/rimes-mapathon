@@ -37,6 +37,19 @@ REGION_MACRO = {
     "cht": "CHT",
 }
 
+# Regions run only to validate the comparison with the flood record, which do
+# not appear on the website: prefix and config.
+VALIDATION_REGIONS = {
+    "jamuna_east_ind": ("Jamuna", "configs/validation/jamuna_east.yaml"),
+}
+
+
+def _validation_paths(config_file: str) -> dict:
+    from pipeline.cli import _load_config
+
+    paths = _load_config(str(ROOT / config_file)).get("paths", {}) or {}
+    return {kind: ROOT / paths[f"{kind}_dir"] for kind in ("raw", "processed", "output")}
+
 
 def _read_json(path: Path):
     if not path.exists():
@@ -74,6 +87,9 @@ def _macro(name: str, value) -> str:
         body = f"{value:,}"
     else:
         body = str(value)
+    if isinstance(value, float) and body.startswith("-"):
+        # A true minus sign, which works in text and in mathematics alike.
+        body = r"\ensuremath{-}" + body[1:]
     return rf"\newcommand{{\{name}}}{{{body}}}"
 
 
@@ -141,10 +157,11 @@ def _mapped_cell_share(output_dir: Path):
     return float((grid["exposure"] > 0).mean()) if len(grid) else None
 
 
-def region_numbers(region_id: str) -> list[str]:
+def region_numbers(region_id: str, prefix: str | None = None,
+                   paths: dict | None = None) -> list[str]:
     """Macros for one region, named e.g. \\RRvalAUC."""
-    prefix = REGION_MACRO[region_id]
-    paths = region_paths(region_id)
+    prefix = prefix or REGION_MACRO[region_id]
+    paths = paths or region_paths(region_id)
     lines = [f"% ---- {region_id} ----"]
 
     meta = _read_json(paths["output"] / "pipeline_metadata.json") or {}
@@ -507,6 +524,12 @@ def region_numbers(region_id: str) -> list[str]:
         _macro(f"{prefix}PastFeatUnseenPos", _pct((psum.get("with_past_on_unseen_ground") or {}).get("share_of_positives"))),
     ]
 
+    # A validation region's assets, after those shared with a study box are dropped.
+    vreg = _read_json(paths["output"] / "validation_region.json")
+    if vreg:
+        lines += [_macro(f"{prefix}SharedAssets", vreg.get("assets_shared_with_study_box")),
+                  _macro(f"{prefix}IndAssets", vreg.get("assets_kept"))]
+
     # Skill over the record, and the record checks (length and planning lists).
     temporal_rows = (_read_json(paths["output"] / "temporal_holdout.json") or {}).get("per_seed") or []
     lines += [
@@ -525,6 +548,18 @@ def region_numbers(region_id: str) -> list[str]:
         ]
     plan = rc.get("planning") or {}
     lines.append(_macro(f"{prefix}PlanListShare", _pct(plan.get("listed_share"))))
+    boot = plan.get("block_bootstrap") or {}
+    gap = boot.get("model_minus_record") or {}
+    both = boot.get("model_with_record_minus_record") or {}
+    lines += [
+        _macro(f"{prefix}OofModelAUC", plan.get("model_auc_out_of_fold")),
+        _macro(f"{prefix}OofRecordAUC", plan.get("record_auc_region")),
+        _macro(f"{prefix}OofBothAUC", plan.get("model_with_record_auc_out_of_fold")),
+        _macro(f"{prefix}OofGapLow", (gap.get("ci95") or [None, None])[0]),
+        _macro(f"{prefix}OofGapHigh", (gap.get("ci95") or [None, None])[1]),
+        _macro(f"{prefix}OofBothGapLow", (both.get("ci95") or [None, None])[0]),
+        _macro(f"{prefix}OofBothGapHigh", (both.get("ci95") or [None, None])[1]),
+    ]
     curve = plan.get("by_list_share") or {}
     for share, word in (("0.05", "Five"), ("0.10", "Ten"), ("0.20", "Twenty"), ("0.30", "Thirty")):
         row = curve.get(share) or {}
@@ -610,6 +645,9 @@ def build(out_path: Path) -> Path:
     # since (docs/national/) appear on the website, not in these documents.
     for region_id in (r for r in REGION_CONFIGS if r in REGION_MACRO):
         lines += region_numbers(region_id) + [""]
+    for region_id, (prefix, config_file) in VALIDATION_REGIONS.items():
+        if (ROOT / config_file).exists():
+            lines += region_numbers(region_id, prefix, _validation_paths(config_file)) + [""]
     lines += _shared_p_values(lines) + [""]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)

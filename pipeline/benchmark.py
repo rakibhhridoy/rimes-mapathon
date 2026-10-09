@@ -1402,6 +1402,22 @@ def run_record_checks(cfg: dict, processed_dir: Path, raw_dir: Path,
             name: float(y_late[np.argsort(-score)[:n]].sum() / later)
             for name, score in (("record", record_ranked), ("model", model_score),
                                 ("model_with_record", combined_score))}
+    # Uncertainty of the out-of-fold differences, by resampling whole 10 km
+    # blocks so that neighbouring assets stay together.
+    rng = np.random.default_rng(1)
+    members = [np.flatnonzero(block_of == b) for b in range(block_of.max() + 1)]
+    diffs = {"model_minus_record": [], "model_with_record_minus_record": []}
+    for _ in range(1000):
+        s = np.concatenate([members[b] for b in rng.integers(0, len(members), len(members))])
+        if len(np.unique(y_late[s])) < 2:
+            continue
+        base = roc_auc_score(y_late[s], record[s])
+        diffs["model_minus_record"].append(roc_auc_score(y_late[s], model_score[s]) - base)
+        diffs["model_with_record_minus_record"].append(
+            roc_auc_score(y_late[s], combined_score[s]) - base)
+    planning["block_bootstrap"] = {
+        name: {"mean": float(np.mean(v)), "ci95": [float(x) for x in np.percentile(v, [2.5, 97.5])],
+               "n": len(v)} for name, v in diffs.items()}
     planning["model_auc_out_of_fold"] = float(roc_auc_score(y_late, model_score))
     planning["record_auc_region"] = float(roc_auc_score(y_late, record))
     planning["model_with_record_auc_out_of_fold"] = float(

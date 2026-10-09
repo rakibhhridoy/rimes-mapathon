@@ -237,6 +237,14 @@ def fig_study_frequency():
         ax_over.text(w + 0.08, n - 0.1, letters[region], ha="left", va="top",
                      fontsize=7.5, fontweight="bold", color=INK, zorder=6)
     country.boundary.plot(ax=ax_over, color="#6f6d66", linewidth=0.4, zorder=4)
+    # The validation region east of the Jamuna, defined by its districts.
+    validation = _load_config(str(ROOT / "configs/validation/jamuna_east.yaml"))["aoi"]
+    adm2 = gpd.read_file(ROOT / "data/shared/geoboundaries/BGD_ADM2.geojson")
+    shape = adm2[adm2["shapeName"].isin(validation["districts"])].union_all().simplify(0.005)
+    gpd.GeoSeries([shape], crs=adm2.crs).plot(ax=ax_over, facecolor="none", edgecolor=ORANGE,
+                                               linewidth=0.9, linestyle="--", zorder=6)
+    ax_over.text(shape.centroid.x, shape.centroid.y, "e", ha="center", va="center",
+                 fontsize=7.5, fontweight="bold", color=ORANGE, zorder=6)
     ax_over.text(90.4, 21.0, "Bay of Bengal", ha="center", fontsize=5.5,
                  color="#4F7FB5", style="italic", zorder=6)
     ax_over.set_xlim(overview[0], overview[1]); ax_over.set_ylim(overview[2], overview[3])

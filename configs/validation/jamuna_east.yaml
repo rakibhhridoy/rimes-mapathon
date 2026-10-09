@@ -1,0 +1,10 @@
+# Jamuna east bank (Sherpur, Jamalpur, Mymensingh, Tangail) as an independent
+# validation region for the comparison with the flood record. The national
+# region shares 1,263 mapped assets with the Rangpur-Rajshahi study box, which
+# crosses the Jamuna; those are dropped here, so no asset is scored in both.
+# Built by scripts/make_validation_region.py.
+extends: ../national/jamuna_east.yaml
+paths:
+  raw_dir: data/jamuna_east_ind/raw
+  processed_dir: data/jamuna_east_ind/processed
+  output_dir: data/jamuna_east_ind/output
