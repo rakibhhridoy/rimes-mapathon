@@ -73,6 +73,13 @@ def collect() -> list[dict]:
     return rows
 
 
+def _spearman(x, y) -> dict:
+    from scipy import stats
+
+    rho, p = stats.spearmanr(x, y)
+    return {"rho": float(rho), "p": float(p)}
+
+
 def relation(rows: list[dict], draws: int = 5000) -> dict:
     from scipy import stats
 
@@ -97,10 +104,32 @@ def relation(rows: list[dict], draws: int = 5000) -> dict:
                                    if len(crossing) > 100 else None)}
 
 
+def record_length(rows: list[dict]) -> dict:
+    """New ground falls as the record lengthens, so the record's lead could
+    follow the number of earlier years instead. Partial rank correlations
+    separate the two."""
+    from scipy import stats
+
+    lead = stats.rankdata([r["record_minus_model"] for r in rows])
+    ground = stats.rankdata([r["new_ground_share"] for r in rows])
+    years = stats.rankdata([r["n_earlier_years"] for r in rows])
+
+    def residual(y, x):
+        design = np.column_stack([np.ones(len(x)), x])
+        return y - design @ np.linalg.lstsq(design, y, rcond=None)[0]
+
+    out = {}
+    for name, a, b, given in (("lead_new_ground_given_years", lead, ground, years),
+                              ("lead_years_given_new_ground", lead, years, ground)):
+        r, p = stats.pearsonr(residual(a, given), residual(b, given))
+        out[name] = {"rho": float(r), "p": float(p)}
+    return out
+
+
 def main() -> None:
     rows = collect()
     by_role = {role: [r for r in rows if r["role"] == role] for role in ("study", "validation")}
-    result = {"tests": rows, "all": relation(rows),
+    result = {"tests": rows, "all": relation(rows), "record_length": record_length(rows),
               "verdicts": {v: sum(r["verdict"] == v for r in rows)
                            for v in ("record", "model", "none")}}
     for role, subset in by_role.items():
@@ -114,10 +143,26 @@ def main() -> None:
             "record_ahead_significant": sum(r["hazard_map_minus_record"] < 0
                                             and (r["hazard_map_minus_record_p"] or 1) < P_LEVEL
                                             for r in mapped),
+            "map_ahead_significant": sum(r["hazard_map_minus_record"] > 0
+                                         and (r["hazard_map_minus_record_p"] or 1) < P_LEVEL
+                                         for r in mapped),
             "model_ahead_of_map": sum(r["model_auc"] > r["hazard_map_auc"] for r in mapped),
+            # Does the map, like the model, gain on the record where floods reach new ground?
+            "lead_over_map_vs_new_ground": _spearman(
+                [r["new_ground_share"] for r in mapped],
+                [-r["hazard_map_minus_record"] for r in mapped]),
             "auc_mean": float(np.mean([r["hazard_map_auc"] for r in mapped])),
             "auc_min": float(min(r["hazard_map_auc"] for r in mapped)),
             "auc_max": float(max(r["hazard_map_auc"] for r in mapped))}
+    both = [r for r in rows if "model_with_record_auc" in r]
+    if both:
+        result["model_with_record"] = {
+            "n_tests": len(both),
+            "ahead_of_both": sum(r["model_with_record_auc"] > max(r["record_auc"], r["model_auc"])
+                                 for r in both),
+            "regions_ahead_of_both": sorted({r["region"] for r in both
+                                             if r["model_with_record_auc"]
+                                             > max(r["record_auc"], r["model_auc"])})}
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(result, indent=2))
     for r in rows:

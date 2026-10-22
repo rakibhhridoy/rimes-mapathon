@@ -671,6 +671,12 @@ def rolling_numbers(table_path: Path) -> list[str]:
             word = role.title()
             lines += [_macro(f"Pool{word}Rho", pooled[role]["spearman_rho"]),
                       _macro(f"Pool{word}RhoP", _p(pooled[role]["spearman_p"]))]
+    rl = pooled.get("record_length")
+    if rl:
+        lines += [_macro("PoolPartialRho", rl["lead_new_ground_given_years"]["rho"]),
+                  _macro("PoolPartialP", _p(rl["lead_new_ground_given_years"]["p"])),
+                  _macro("PoolYearsPartialRho", rl["lead_years_given_new_ground"]["rho"]),
+                  _macro("PoolYearsPartialP", _p(rl["lead_years_given_new_ground"]["p"]))]
     shares = [r["new_ground_share"] for r in tests]
     lines += [_macro("PoolNewGroundMin", _pct(min(shares))),
               _macro("PoolNewGroundMax", _pct(max(shares)))]
@@ -678,8 +684,13 @@ def rolling_numbers(table_path: Path) -> list[str]:
     if hm:
         lines += [_macro("MapTests", hm["n_tests"]), _macro("MapRecordAhead", hm["record_ahead"]),
                   _macro("MapRecordAheadSig", hm["record_ahead_significant"]),
+                  _macro("MapAheadSig", hm.get("map_ahead_significant")),
                   _macro("MapModelAhead", hm["model_ahead_of_map"]),
                   _macro("MapAUCMin", hm["auc_min"]), _macro("MapAUCMax", hm["auc_max"])]
+    both = pooled.get("model_with_record")
+    if both:
+        lines += [_macro("CombinedTests", both["n_tests"]),
+                  _macro("CombinedAheadBoth", both["ahead_of_both"])]
     occ = [r for r in tests if "water_occurrence_auc" in r]
     if occ:
         lines += [_macro("OccTests", len(occ)),
