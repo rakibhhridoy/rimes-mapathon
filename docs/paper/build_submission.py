@@ -12,7 +12,7 @@ script writes, into docs/paper/submission/:
                            correspondence, acknowledgments
     figures/FigureN.pdf    each figure as a vector PDF, and FigureN.png at 300 dpi
     supporting_information.pdf
-    cover_letter.docx      from cover_letter.md
+    cover_letter.docx      from cover_letter.md, with a PDF copy
 
 Every number comes from docs/numbers.tex and every figure, table and section
 number from paper.aux, so the Word file matches the compiled PDF. Compile
@@ -204,6 +204,11 @@ def main():
 
     subprocess.run(["pandoc", str(HERE / "cover_letter.md"), "-o", str(OUT / "cover_letter.docx")],
                    check=True)
+    # A PDF copy as well, for upload forms that take one; Times carries the Greek letters.
+    subprocess.run(["pandoc", str(HERE / "cover_letter.md"), "-o", str(OUT / "cover_letter.pdf"),
+                    "--pdf-engine=xelatex", "-V", "mainfont=Times New Roman", "-V", "fontsize=11pt",
+                    "-V", "geometry:top=1.5cm,bottom=1.5cm,left=2cm,right=2cm",
+                    "-V", "pagestyle=empty", "-V", "linestretch=0.96"], check=True)
 
     si = HERE / "supporting_information.pdf"
     if si.exists():
