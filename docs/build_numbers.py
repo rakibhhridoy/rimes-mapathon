@@ -683,6 +683,18 @@ def rolling_numbers() -> list[str]:
                   _macro("PoolPartialP", _p(rl["lead_new_ground_given_years"]["p"])),
                   _macro("PoolYearsPartialRho", rl["lead_years_given_new_ground"]["rho"]),
                   _macro("PoolYearsPartialP", _p(rl["lead_years_given_new_ground"]["p"]))]
+    br = pooled.get("by_region")
+    if br:
+        lines += [_macro("RegionLeftOutRhoMin", br["left_out_rho_range"][0]),
+                  _macro("RegionLeftOutRhoMax", br["left_out_rho_range"][1]),
+                  _macro("RegionLeftOutPMax", _p(br["left_out_p_max"])),
+                  _macro("RegionBootRhoLow", br["resampled_rho_ci95"][0]),
+                  _macro("RegionBootRhoHigh", br["resampled_rho_ci95"][1]),
+                  _macro("RegionBootNegative", _pct(br["resampled_rho_negative_share"])),
+                  _macro("RegionBootCrossingLow", _pct(br["resampled_crossing_ci95"][0])),
+                  _macro("RegionBootCrossingHigh", _pct(br["resampled_crossing_ci95"][1])),
+                  _macro("RegionSeveralTests", br["regions_with_several_tests"]),
+                  _macro("RegionLeadFalls", br["regions_lead_falls"])]
     shares = [r["new_ground_share"] for r in tests]
     lines += [_macro("PoolNewGroundMin", _pct(min(shares))),
               _macro("PoolNewGroundMax", _pct(max(shares)))]

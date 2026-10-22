@@ -126,10 +126,56 @@ def record_length(rows: list[dict]) -> dict:
     return out
 
 
+def by_region(rows: list[dict], draws: int = 5000) -> dict:
+    """Tests in one region share its assets and terrain, so they are not
+    independent. The relation is checked with each region left out in turn,
+    with whole regions resampled, and within each region on its own."""
+    from scipy import stats
+
+    regions = sorted({r["region"] for r in rows})
+    left_out = []
+    for region in regions:
+        kept = [r for r in rows if r["region"] != region]
+        rho, p = stats.spearmanr([r["new_ground_share"] for r in kept],
+                                 [r["record_minus_model"] for r in kept])
+        left_out.append({"region": region, "rho": float(rho), "p": float(p)})
+    rng = np.random.default_rng(0)
+    rhos, crossings = [], []
+    for _ in range(draws):
+        picked = [r for region in rng.choice(regions, len(regions))
+                  for r in rows if r["region"] == region]
+        x = np.array([r["new_ground_share"] for r in picked])
+        y = np.array([r["record_minus_model"] for r in picked])
+        if len(np.unique(x)) < 3:
+            continue
+        rhos.append(stats.spearmanr(x, y)[0])
+        slope, intercept = np.polyfit(x, y, 1)
+        if slope < 0:
+            crossings.append(-intercept / slope)
+    # Within a region the lead should fall from its test with the least new
+    # ground to its test with the most.
+    within = []
+    for region in regions:
+        own = sorted((r for r in rows if r["region"] == region),
+                     key=lambda r: r["new_ground_share"])
+        if len(own) >= 2:
+            within.append(own[-1]["record_minus_model"] < own[0]["record_minus_model"])
+    return {"left_out": left_out,
+            "left_out_rho_range": [min(r["rho"] for r in left_out),
+                                   max(r["rho"] for r in left_out)],
+            "left_out_p_max": max(r["p"] for r in left_out),
+            "resampled_rho_ci95": [float(v) for v in np.percentile(rhos, [2.5, 97.5])],
+            "resampled_rho_negative_share": float(np.mean(np.array(rhos) < 0)),
+            "resampled_crossing_ci95": [float(v) for v in np.percentile(crossings, [2.5, 97.5])],
+            "regions_with_several_tests": len(within),
+            "regions_lead_falls": int(sum(within))}
+
+
 def main() -> None:
     rows = collect()
     by_role = {role: [r for r in rows if r["role"] == role] for role in ("study", "validation")}
     result = {"tests": rows, "all": relation(rows), "record_length": record_length(rows),
+              "by_region": by_region(rows),
               "verdicts": {v: sum(r["verdict"] == v for r in rows)
                            for v in ("record", "model", "none")}}
     for role, subset in by_role.items():
