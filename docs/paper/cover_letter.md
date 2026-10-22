@@ -3,7 +3,7 @@ Department of Soil, Water and Environment, University of Dhaka, Dhaka-1000, Bang
 Fermium Systems, Dhaka-1207, Bangladesh
 rakibhhridoy@fermium.systems · ORCID 0009-0002-4007-7590
 
-26 September 2026
+23 October 2026
 
 The Editor
 Journal of Flood Risk Management
