@@ -66,3 +66,6 @@ web/apps.conf
 
 # Downloaded source PDFs for checking citations (publisher copyright)
 docs/paper/sources/
+
+# Copyrighted reference PDFs, kept locally only
+docs/paper/refs/
