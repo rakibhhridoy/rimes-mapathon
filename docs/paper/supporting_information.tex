@@ -25,7 +25,7 @@
 \begin{document}
 \maketitle
 
-This file gives the pipeline settings with a map of the two hazard surfaces (Fig.~S1), the construction of the composite risk and the sensitivity of its weights, which the main text summarises. Section, figure and table numbers without the prefix S refer to the main text. The code that produces every number here is at \url{https://github.com/rakibhhridoy/rimes-mapathon}, and the data at \url{https://doi.org/10.5281/zenodo.23267002}.
+This file gives the pipeline settings with a map of the two hazard surfaces (Fig.~S1), the construction of the composite risk and the sensitivity of its weights, the robustness checks of the comparison with the flood record, and the comparison of the graph network with tabular models and of the hazard surfaces with observed flooding, which the main text summarises or leaves out. Section, figure and table numbers without the prefix S refer to the main text. The code that produces every number here is at \url{https://github.com/rakibhhridoy/rimes-mapathon}, and the data at \url{https://doi.org/10.5281/zenodo.23267002}.
 
 \section{Pipeline and model settings}
 \label{si:settings}
@@ -70,6 +70,13 @@ Composite risk is the geometric mean of hazard, exposure and vulnerability, whic
 
 Grid results are summarised for every union, upazila and district from geoBoundaries, and each summary carries the mean and maximum of both composites, counts of exposed assets by type, and a flag stating whether the unit holds any mapped assets at all, and units without mapped assets have their risk left undefined. In Rangpur and Rajshahi \RRNUnionsScored{} of the \RRNUnions{} unions hold mapped assets and carry a score. Unit names repeat across Bangladesh, so each unit also carries a label naming its parent, such as ``Abdullahpur (Gangachara)''. Hotspots are detected with the Getis--Ord $G_i^*$ statistic on $k=8$ nearest-neighbour weights, at 95\,\% confidence, over the cells that carry non-zero composite risk. Restricting the statistic to those cells keeps the weights matrix small enough to compute and avoids treating the empty majority of the grid as a sea of low values against which any occupied cell would look hot. Figure~\ref{fig:unionrisk} maps the mean composite risk of every union in the three flood regions.
 
+\begin{figure}[tp]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/fig_union_risk.pdf}
+\caption{Mean infrastructure composite risk of each union in the three flood regions, in five relative classes by quintile of the unions scored in each region. Unions without mapped assets carry no score and are shaded as missing data, not as low risk. On the south-west coast the hazard term is close to chance against observed flooding (Section~\ref{sec:validation}), so that panel reflects mapped exposure and vulnerability more than flood hazard.}
+\label{fig:unionrisk}
+\end{figure}
+
 \section{Sensitivity of the composite to its weights}
 \label{si:sensitivity}
 
@@ -89,7 +96,7 @@ Every metric that compares two models or two label sources is repeated over seve
 \section{Robustness of the comparison with the flood record}
 \label{si:robust}
 
-The temporal test of the main text trains the asset model on the floods up to 2022 and scores it, and the record of earlier flooding, against the ground the 2024 floods reached, on held-out 10\,km blocks over \RRBenchSeeds{} assignments. Table~\ref{tab:robust} repeats it under seven changes, each aimed at one way the comparison could favour the record or the model. The validation region east of the Jamuna is checked the same way. Its national region shares \JamunaSharedAssets{} mapped assets with the Rangpur and Rajshahi box, which crosses the Jamuna, and these are left out so that no asset is scored in both, leaving \JamunaIndAssets{}. Its October 2024 flood was a flash flood from the Meghalaya hills, and the first Sentinel-1 pass came five days after it began, so the fastest flooding in Sherpur may have drained unseen and the mask counts few flooded assets.
+The temporal test of the main text trains the asset model on the floods up to 2022 and scores it, and the record of earlier flooding, against the ground the 2024 floods reached, on held-out 10\,km blocks over \RRBenchSeeds{} assignments. Table~\ref{tab:robust} repeats it under seven changes, each aimed at one way the comparison could favour the record or the model. The validation region east of the Jamuna is checked the same way. Its national region shares \JamunaSharedById{} mapped assets with the Rangpur and Rajshahi box, which crosses the Jamuna, and \JamunaSharedByLocation{} with the Sylhet box, and these are left out so that no asset is scored in both, leaving \JamunaIndAssets{} of \JamunaNationalAssets{}. Its October 2024 flood was a flash flood from the Meghalaya hills, and the first Sentinel-1 pass came five days after it began, so the fastest flooding in Sherpur may have drained unseen and the mask counts few flooded assets.
 
 The first two checks leave the models alone and narrow the test set, because the record and the 2024 floods come from the same change detection, so ground that radar mistakes for water every monsoon, such as wet paddy, would count as flooded in both. Surfaces that stay dark in the dry season, such as sand bars and permanent wetland, are already rejected, since a pixel must darken against its dry-season baseline. The comparison is therefore repeated without the ground flagged in every earlier event, and without the ground the JRC record has ever seen under water, which removes seasonal wetland. Both removals also take away genuinely flood-prone ground, so they can only work against the record. In Sylhet the second leaves \SylhetPersistWaterAssetShare{}\,\% of assets, holding \SylhetPersistWaterPosShare{}\,\% of the ground the 2024 floods reached.
 
@@ -163,6 +170,47 @@ Assets flooded in 2024 & \RRPlanAllFlooded{} & \SylhetPlanAllFlooded{} & \Coasta
 \caption{Record length, skill over the record and planning lists. Record-length AUCs are means over every subset of that many earlier events and over the block assignments; Sylhet has two events before 2022. Skill is the share of the record's remaining ranking error that a model removes. The lists hold as many assets as an earlier flood reached in each region, with every asset scored out of fold.}
 \label{tab:record}
 \end{table*}
+
+\section{Graph network and tabular models}
+\label{sec:benchmark}
+
+Graph neural networks, the design this system began with, learn from a node's neighbours and, in the inductive form used here, generalise to nodes unseen in training \citep{hamilton2017}. In hazard mapping they appeared first for landslides \citep{wang2023, ma2025} and have since been applied to flood susceptibility on graphs of urban cells \citep{wanggat2023} and of catchments linked by their topology \citep{liu2026}, and a preprint reported a gain of 0.097 in AUC over the best tabular model on sub-watersheds linked by river connectivity \citep{sharma2026}. A review of 58 deep-learning flood studies found convolutional models usually the more accurate \citep{bentivoglio2022}, and the searches made for this review found no graph model of the flood susceptibility of mapped infrastructure, nor one that links assets by proximity rather than by the flow of water.
+
+A graph neural network is set against logistic regression, a random forest and gradient boosting on the same features, assets and blocks, with the wetness index alone as a model-free reference, over \RRBenchSeeds{} assignments (Table~\ref{tab:benchmark}, Fig.~\ref{fig:benchmark}). Gradient boosting scores best in every region, and the graph network trails it measurably only in Rangpur and Rajshahi, by \RRBenchGap{} in AUC ($p\RRBenchDiffP{}$), while the wetness index alone ranks close to chance, at \RRBenchTwiAUC{}, \SylhetBenchTwiAUC{} and \CoastalBenchTwiAUC{}. Gradient boosting is therefore the default for every region, since choosing a model per region would fit the model to the split. Its AUC varies by \SylhetBenchBoostingSD{} to \CoastalBenchBoostingSD{} from one assignment to the next, so each single-assignment figure, including those in Table~\ref{tab:validation}, is one draw from a distribution of that width.
+
+\begin{table*}[tp]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+Model & Rangpur \& Rajshahi & Sylhet & South-west coast \\
+\midrule
+Graph model (GraphSAGE) & \RRBenchGraphAUC{} $\pm$ \RRBenchGraphSD{} & \SylhetBenchGraphAUC{} $\pm$ \SylhetBenchGraphSD{} & \CoastalBenchGraphAUC{} $\pm$ \CoastalBenchGraphSD{} \\
+Gradient boosting & \RRBenchBoostingAUC{} $\pm$ \RRBenchBoostingSD{} & \SylhetBenchBoostingAUC{} $\pm$ \SylhetBenchBoostingSD{} & \CoastalBenchBoostingAUC{} $\pm$ \CoastalBenchBoostingSD{} \\
+Random forest & \RRBenchForestAUC{} $\pm$ \RRBenchForestSD{} & \SylhetBenchForestAUC{} $\pm$ \SylhetBenchForestSD{} & \CoastalBenchForestAUC{} $\pm$ \CoastalBenchForestSD{} \\
+Logistic regression & \RRBenchLogisticAUC{} $\pm$ \RRBenchLogisticSD{} & \SylhetBenchLogisticAUC{} $\pm$ \SylhetBenchLogisticSD{} & \CoastalBenchLogisticAUC{} $\pm$ \CoastalBenchLogisticSD{} \\
+Wetness index alone & \RRBenchTwiAUC{} $\pm$ \RRBenchTwiSD{} & \SylhetBenchTwiAUC{} $\pm$ \SylhetBenchTwiSD{} & \CoastalBenchTwiAUC{} $\pm$ \CoastalBenchTwiSD{} \\
+\midrule
+Graph minus best baseline & \RRBenchDiff{} & \SylhetBenchDiff{} & \CoastalBenchDiff{} \\
+\bottomrule
+\end{tabular}
+\caption{AUC on held-out test blocks, as mean $\pm$ standard deviation over \RRBenchSeeds{} block assignments. Every model sees the same features at the same assets and the same blocks, so the only difference is the model. The last row is the paired difference between the graph network and whichever other model scores best in that region. Gradient boosting is the system's default.}
+\label{tab:benchmark}
+\end{table*}
+
+\begin{figure*}[tp]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_benchmark.pdf}
+\caption{AUC of each model on the held-out test blocks, one circle per block assignment and a vertical bar at the mean. The graph network is in blue, the other models in orange, and the dotted line marks a random ranking. The graph network sits inside the range of the ordinary models in every region.}
+\label{fig:benchmark}
+\end{figure*}
+
+On identical features and blocks the graph network trailed the best tabular model in every region, measurably only in Rangpur and Rajshahi. It linked each asset to its nearest neighbours, whereas the graphs reported to help elsewhere linked catchments along the flow of water \citep{liu2026, sharma2026}, so the result bears only on proximity graphs of assets. Kriging fared no better, ranking observed flooding over the whole Sylhet grid at \SylhetSurfaceKrigedObsAUC{} against \SylhetSurfaceTerrainObsAUC{} for the terrain surface.
+
+\section{Hazard surfaces against observed flooding}
+\label{si:surfaces}
+
+On the coast the asset model still ranks flooded ground above dry ground (AUC \CoastalValAUC{}), but both hazard surfaces are weak. Over the whole grid, training ground included, the terrain surface reaches \CoastalSurfaceTerrainObsAUC{} and the Kriged one \CoastalSurfaceKrigedObsAUC{}, against \RRSurfaceTerrainObsAUC{} and \RRSurfaceKrigedObsAUC{} in Rangpur and Rajshahi and \SylhetSurfaceTerrainObsAUC{} and \SylhetSurfaceKrigedObsAUC{} in Sylhet. Refitted for each assignment and scored only on the cells of its test blocks, which hold only ground near mapped assets, the terrain surface reaches \RRHazardHeldoutAUC{}, \SylhetHazardHeldoutAUC{} and \CoastalHazardHeldoutAUC{}, so the whole-grid figure overstated it in Sylhet. Surge flooding is governed by polder embankments, tidal channels and landfall position, none of which elevation describes.
 
 \bibliographystyle{apalike}
 \bibliography{references}
