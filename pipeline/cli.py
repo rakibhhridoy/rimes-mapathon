@@ -624,6 +624,22 @@ def record_checks(ctx):
                    f"model {v['model_caught']}, model+record {v['model_with_record_caught']}")
 
 
+@cli.command("rolling-origin")
+@click.pass_context
+def rolling_origin(ctx):
+    """Each flood year predicted from the years before it, against the record."""
+    from pipeline.benchmark import run_rolling_origin
+
+    cfg = ctx.obj["config"]
+    r = run_rolling_origin(cfg, _dir(cfg, "processed"), _dir(cfg, "raw"),
+                           _dir(cfg, "output"), _infra_path(cfg))
+    for t in r["tests"]:
+        s = t["summary"]
+        click.echo(f"{t['test_year']}: model {s['model']['auc_roc_mean']:.3f}, "
+                   f"record {s['record']['auc_roc_mean']:.3f}, "
+                   f"new ground {t['new_ground_share']:.1%}")
+
+
 @cli.command("refresh-pvalues")
 @click.pass_context
 def refresh_pvalues(ctx):

@@ -527,7 +527,10 @@ def region_numbers(region_id: str, prefix: str | None = None,
     # A validation region's assets, after those shared with a study box are dropped.
     vreg = _read_json(paths["output"] / "validation_region.json")
     if vreg:
-        lines += [_macro(f"{prefix}SharedAssets", vreg.get("assets_shared_with_study_box")),
+        lines += [_macro(f"{prefix}SharedAssets", vreg.get("assets_shared_with_study_boxes")),
+                  _macro(f"{prefix}SharedById", vreg.get("shared_by_osm_id")),
+                  _macro(f"{prefix}SharedByLocation", vreg.get("shared_by_location")),
+                  _macro(f"{prefix}NationalAssets", vreg.get("assets_national")),
                   _macro(f"{prefix}IndAssets", vreg.get("assets_kept"))]
 
     # Skill over the record, and the record checks (length and planning lists).
@@ -614,6 +617,100 @@ def region_numbers(region_id: str, prefix: str | None = None,
     return lines
 
 
+# Region of each rolling-origin test: macro prefix, display name and role.
+ROLLING_REGIONS = {
+    "rangpur_rajshahi": ("RR", "Rangpur \\& Rajshahi", "study"),
+    "sylhet": ("Sylhet", "Sylhet", "study"),
+    "sw_coastal": ("Coastal", "South-west coast", "study"),
+    "jamuna_east_ind": ("Jamuna", "Jamuna east", "validation"),
+    "central_ind": ("Central", "Central", "validation"),
+    "chattogram_coast_ind": ("Chattogram", "Chattogram coast", "validation"),
+    "west_central_ind": ("WestCentral", "West-central", "validation"),
+}
+# LaTeX macro names hold letters only, so test years are spelled out.
+YEAR_WORD = {2019: "Nineteen", 2020: "Twenty", 2021: "TwentyOne", 2022: "TwentyTwo",
+             2023: "TwentyThree", 2024: "TwentyFour", 2025: "TwentyFive"}
+
+
+def rolling_numbers(table_path: Path) -> list[str]:
+    """Macros from the pooled rolling-origin tests, and the table that lists them.
+
+    Each test predicts one flood year from the years before it
+    (pipeline.benchmark.run_rolling_origin); scripts/pool_rolling_origin.py
+    gathers them and relates the record's lead to the share of new ground.
+    """
+    pooled = _read_json(ROOT / "data" / "pooled" / "rolling_origin_pooled.json")
+    if not pooled:
+        return [_macro("PoolTests", None)]
+    tests = pooled["tests"]
+    lines = []
+    for r in tests:
+        prefix, _, _ = ROLLING_REGIONS[r["region"]]
+        stem = f"{prefix}Roll{YEAR_WORD[r['test_year']]}"
+        lines += [_macro(f"{stem}Model", r["model_auc"]), _macro(f"{stem}Record", r["record_auc"]),
+                  _macro(f"{stem}NewGround", _pct(r["new_ground_share"])),
+                  _macro(f"{stem}P", _p(r["p_value"])),
+                  _macro(f"{stem}Map", r.get("hazard_map_auc"))]
+    a = pooled["all"]
+    lines += [
+        _macro("PoolTests", a["n_tests"]),
+        _macro("PoolRegions", len({r["region"] for r in tests})),
+        _macro("PoolStudyTests", sum(r["role"] == "study" for r in tests)),
+        _macro("PoolValidationTests", sum(r["role"] == "validation" for r in tests)),
+        _macro("PoolRho", a["spearman_rho"]), _macro("PoolRhoP", _p(a["spearman_p"])),
+        _macro("PoolSlope", a["slope"]),
+        _macro("PoolCrossing", _pct(a["zero_crossing"])),
+        _macro("PoolCrossingLow", _pct((a["zero_crossing_ci95"] or [None])[0])),
+        _macro("PoolCrossingHigh", _pct((a["zero_crossing_ci95"] or [None, None])[1])),
+        _macro("PoolRecordWins", pooled["verdicts"]["record"]),
+        _macro("PoolModelWins", pooled["verdicts"]["model"]),
+        _macro("PoolTies", pooled["verdicts"]["none"]),
+    ]
+    for role in ("study", "validation"):
+        if role in pooled:
+            word = role.title()
+            lines += [_macro(f"Pool{word}Rho", pooled[role]["spearman_rho"]),
+                      _macro(f"Pool{word}RhoP", _p(pooled[role]["spearman_p"]))]
+    shares = [r["new_ground_share"] for r in tests]
+    lines += [_macro("PoolNewGroundMin", _pct(min(shares))),
+              _macro("PoolNewGroundMax", _pct(max(shares)))]
+    hm = pooled.get("hazard_map")
+    if hm:
+        lines += [_macro("MapTests", hm["n_tests"]), _macro("MapRecordAhead", hm["record_ahead"]),
+                  _macro("MapRecordAheadSig", hm["record_ahead_significant"]),
+                  _macro("MapModelAhead", hm["model_ahead_of_map"]),
+                  _macro("MapAUCMin", hm["auc_min"]), _macro("MapAUCMax", hm["auc_max"])]
+    occ = [r for r in tests if "water_occurrence_auc" in r]
+    if occ:
+        lines += [_macro("OccTests", len(occ)),
+                  _macro("OccBelowRecord", sum(r["water_occurrence_auc"] < r["record_auc"] for r in occ)),
+                  _macro("OccAUCMin", min(r["water_occurrence_auc"] for r in occ)),
+                  _macro("OccAUCMax", max(r["water_occurrence_auc"] for r in occ))]
+    ass = [r for r in tests if r.get("record_ass") is not None and r.get("model_ass") is not None]
+    if ass:
+        agree = sum((r["record_ass"] > r["model_ass"]) == (r["record_auc"] > r["model_auc"])
+                    for r in ass)
+        lines += [_macro("AssAgree", agree), _macro("AssTests", len(ass))]
+
+    # The table: one row per test, in region order, then year.
+    order = list(ROLLING_REGIONS)
+    rows = []
+    for r in sorted(tests, key=lambda r: (order.index(r["region"]), r["test_year"])):
+        _, name, role = ROLLING_REGIONS[r["region"]]
+        mark = "$^{a}$" if role == "validation" else ""
+        fmt = lambda v: "--" if v is None else f"{v:.3f}"
+        p = r["p_value"]
+        rows.append(" & ".join([
+            f"{name}{mark}", str(r["test_year"]), str(r["n_earlier_years"]),
+            f"{100 * r['new_ground_share']:.1f}", fmt(r["record_auc"]), fmt(r["model_auc"]),
+            fmt(r.get("model_with_record_auc")), fmt(r.get("hazard_map_auc")),
+            fmt(r.get("water_occurrence_auc")),
+            "--" if p is None else ("$<$0.001" if p < 0.001 else f"{p:.3f}")]) + r" \\")
+    table_path.write_text("% Generated by docs/build_numbers.py from "
+                          "data/pooled/rolling_origin_pooled.json.\n" + "\n".join(rows) + "\n")
+    return lines
+
+
 def _shared_p_values(lines: list[str]) -> list[str]:
     r"""p-values of one comparison across the three flood regions, in a single
     macro: "all $p<0.001$" when every region gives the same value, otherwise
@@ -649,6 +746,7 @@ def build(out_path: Path) -> Path:
         if (ROOT / config_file).exists():
             lines += region_numbers(region_id, prefix, _validation_paths(config_file)) + [""]
     lines += _shared_p_values(lines) + [""]
+    lines += rolling_numbers(out_path.parent / "paper" / "rolling_table.tex") + [""]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(lines) + "\n")

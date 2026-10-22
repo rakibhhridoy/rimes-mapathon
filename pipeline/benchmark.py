@@ -1432,3 +1432,205 @@ def run_record_checks(cfg: dict, processed_dir: Path, raw_dir: Path,
     (output_dir / "record_checks.json").write_text(json.dumps(result, indent=2))
     logger.info(f"Wrote {output_dir / 'record_checks.json'}")
     return result
+
+
+def molchan(y_true: np.ndarray, scores: np.ndarray, points: int = 101) -> dict:
+    """Molchan trajectory and area skill score of a ranking (Zechar and Jordan 2008).
+
+    Assets are flagged from the highest score down, and the trajectory gives
+    the share of the later-flooded assets missed against the share of assets
+    flagged, every asset weighing the same. The area skill score is the area
+    above it, the mean share caught over every list length: 1/2 for a random
+    ranking and 1 - p/2 for a perfect one, where p is the share of assets
+    flooded, since even a perfect list must grow to hold them all. Tied
+    scores, which the record has many
+    of, are flagged together, with the expected catch of a random order
+    within the tie.
+    """
+    y = np.asarray(y_true, dtype=float)
+    s = np.asarray(scores, dtype=float)
+    n, positives = len(y), y.sum()
+    if n == 0 or positives == 0:
+        return {"area_skill_score": None}
+    levels, inverse = np.unique(-s, return_inverse=True)
+    size = np.bincount(inverse, minlength=len(levels)).astype(float)
+    caught = np.bincount(inverse, weights=y, minlength=len(levels))
+    before = np.concatenate([[0.0], np.cumsum(caught)[:-1]])
+    # Sum over list lengths k of the catch at k, inside each tie linear in k.
+    total = np.sum(size * before + caught * (size + 1) / 2)
+    flagged = np.concatenate([[0.0], np.cumsum(size)]) / n
+    missed = 1.0 - np.concatenate([[0.0], np.cumsum(caught)]) / positives
+    grid = np.linspace(0, 1, points)
+    return {"area_skill_score": float(total / (n * positives)),
+            "flagged": grid.tolist(),
+            "missed": np.interp(grid, flagged, missed).tolist()}
+
+
+def prediction_accuracy_index(y_true, scores, share: float) -> float | None:
+    """Share of the later-flooded assets caught by the top `share` of a ranking,
+    divided by that share (Chainey et al. 2008). Ties are broken at random."""
+    y = np.asarray(y_true)
+    n = int(round(share * len(y)))
+    if n == 0 or y.sum() == 0:
+        return None
+    jitter = np.random.default_rng(0).random(len(y)) * 1e-9
+    top = np.argsort(-(np.asarray(scores, dtype=float) + jitter))[:n]
+    return float(y[top].sum() / y.sum() / (n / len(y)))
+
+
+def run_rolling_origin(cfg: dict, processed_dir: Path, raw_dir: Path,
+                       output_dir: Path, infra_path: Path, seeds=SEEDS) -> dict:
+    """Every flood year predicted from the years before it.
+
+    The temporal test trains on the floods up to 2022 and scores against 2024,
+    a single later year. Here each year with an earlier event becomes a test in
+    turn: the model learns from the earlier years only, the record is the
+    share of those years' events in which the ground flooded, and both are
+    scored on the held-out blocks against that year's floods. The model given
+    the record as a feature, where at least two earlier years allow it, and
+    two published maps (pipeline.reference_maps) are scored on the same
+    assets. The JRC water occurrence counts only for years after 2021, since
+    it was built from observations up to then.
+
+    Each test also records how much of that year's flooding stood on ground
+    no earlier flood had reached, the quantity expected to decide whether the
+    record or the model ranks better.
+    """
+    import geopandas as gpd
+
+    from pipeline.asset_model import _fit_tabular, model_type
+    from pipeline.feature_extract import (compute_centroids, extract_features,
+                                          project_coords, sample_raster_at_points)
+    from pipeline.graph_build import spatial_block_split_three
+    from pipeline.reference_maps import (OCCURRENCE_LAST_YEAR, hazard_map_scores,
+                                         occurrence_scores)
+
+    kind = model_type(cfg)
+    if kind == "graph_sage":
+        raise ValueError("The rolling-origin test expects a tabular asset model.")
+    events = sorted((cfg.get("sentinel1") or {}).get("events", []),
+                    key=lambda e: e["start"])
+    years = sorted({int(e["start"][:4]) for e in events})
+    if len(years) < 2:
+        raise ValueError(f"Need flood events in two years; got {years}.")
+
+    infra = gpd.read_file(str(infra_path))
+    X, coords, _, _ = extract_features(cfg, infra, processed_dir)
+    X = np.ascontiguousarray(X, dtype=np.float32)
+    centroids = compute_centroids(gpd.read_file(str(infra_path)))
+    points = list(zip(centroids["lon"], centroids["lat"]))
+    flooded = {e["name"]: (np.nan_to_num(sample_raster_at_points(
+        str(raw_dir / f"s1_flood_{e['name']}.tif"), points)) > 0.5).astype(int)
+        for e in events}
+    published = {"hazard_map": hazard_map_scores(points),
+                 "water_occurrence": occurrence_scores(raw_dir, points)}
+
+    def count(evts):
+        return np.sum([flooded[e["name"]] for e in evts], axis=0)
+
+    rule = (cfg.get("data", {}).get("labels", {}) or {}).get("min_events", 1)
+    coords_m = project_coords(np.asarray(coords), cfg["aoi"]["crs"])
+    block_m = cfg["graph"].get("block_size_m", 10_000)
+    train_ratio = cfg["graph"].get("train_split", 0.8)
+    splits = []
+    for seed in seeds:
+        train_mask, _, test_mask = spatial_block_split_three(
+            coords_m, train_ratio=train_ratio, block_size_m=block_m, seed=seed)
+        splits.append((seed, train_mask.numpy().astype(bool),
+                       test_mask.numpy().astype(bool)))
+
+    tests = []
+    for year in years[1:]:
+        early = [e for e in events if int(e["start"][:4]) < year]
+        late = [e for e in events if int(e["start"][:4]) == year]
+        y_late = (count(late) >= 1).astype(int)
+        record = count(early) / len(early)
+        y_early = (count(early) >= min(rule, len(early))).astype(int)
+        early_years = sorted({int(e["start"][:4]) for e in early})
+        X_hist = X_full = y_target = None
+        if len(early_years) >= 2:
+            history = [e for e in early if int(e["start"][:4]) < early_years[-1]]
+            target = [e for e in early if int(e["start"][:4]) == early_years[-1]]
+            y_target = (count(target) >= 1).astype(int)
+            past_train = count(history) / len(history)
+            mu, sd = past_train.mean(), past_train.std() or 1.0
+            X_hist = np.column_stack([X, (past_train - mu) / sd]).astype(np.float32)
+            X_full = np.column_stack([X, (record - mu) / sd]).astype(np.float32)
+        maps = {k: v for k, v in published.items() if v is not None
+                and (k != "water_occurrence" or year > OCCURRENCE_LAST_YEAR)}
+        list_share = float((record > 0).mean())
+
+        per_seed, curves = [], None
+        for seed, train, test in splits:
+            if len(np.unique(y_late[test])) < 2 or len(np.unique(y_early[train])) < 2:
+                continue
+            scores = {"model": _fit_tabular(kind, X, y_early, train, seed)
+                      .predict_proba(X[test])[:, 1],
+                      "record": record[test]}
+            if X_hist is not None and len(np.unique(y_target[train])) == 2:
+                scores["model_with_record"] = (_fit_tabular(kind, X_hist, y_target, train, seed)
+                                               .predict_proba(X_full[test])[:, 1])
+            scores.update({k: v[test] for k, v in maps.items()})
+            row = {"seed": seed, "n_test": int(test.sum()), "n_train": int(train.sum()),
+                   "scores": {}}
+            molchans = {}
+            for name, s in scores.items():
+                molchans[name] = molchan(y_late[test], s)
+                row["scores"][name] = {
+                    **_metrics(y_late[test], s),
+                    "area_skill_score": molchans[name]["area_skill_score"],
+                    "pai_at_record_share": prediction_accuracy_index(
+                        y_late[test], s, list_share)}
+            per_seed.append(row)
+            if curves is None:
+                curves = {"seed": seed, "flagged": molchans["record"]["flagged"],
+                          **{k: m["missed"] for k, m in molchans.items()}}
+
+        summary = {}
+        names = sorted({k for r in per_seed for k in r["scores"]})
+        for name in names:
+            rows = [r["scores"][name] for r in per_seed if name in r["scores"]]
+            entry = {"n_seeds": len(rows)}
+            for metric in ("auc_roc", "area_skill_score", "pai_at_record_share", "ap_lift"):
+                vals = np.array([m[metric] for m in rows if m[metric] is not None])
+                if len(vals):
+                    entry[f"{metric}_mean"] = float(vals.mean())
+                    entry[f"{metric}_sd"] = float(vals.std(ddof=1)) if len(vals) > 1 else None
+            summary[name] = entry
+        for name in [n for n in names if n != "record"]:
+            rows = [r for r in per_seed if name in r["scores"]]
+            diff = np.array([r["scores"][name]["auc_roc"] - r["scores"]["record"]["auc_roc"]
+                             for r in rows])
+            if len(diff) > 1:
+                summary[f"{name}_minus_record"] = {
+                    "mean": float(diff.mean()), "sd": float(diff.std(ddof=1)),
+                    "seeds_ahead": int((diff > 0).sum()), "n_seeds": int(len(diff)),
+                    "p_value": corrected_p_value(diff, [r["n_test"] / r["n_train"] for r in rows]),
+                    "p_value_uncorrected": _uncorrected_p_value(diff)}
+        r_auc = summary.get("record", {}).get("auc_roc_mean")
+        m_auc = summary.get("model", {}).get("auc_roc_mean")
+        tests.append({
+            "test_year": year, "test_events": [e["name"] for e in late],
+            "earlier_events": [e["name"] for e in early],
+            "n_earlier_years": len(early_years), "label_rule": int(min(rule, len(early))),
+            "test_positive_rate": float(y_late.mean()),
+            "train_positive_rate": float(y_early.mean()),
+            "new_ground_share": float(((record == 0) & (y_late == 1)).sum()
+                                      / max(y_late.sum(), 1)),
+            "record_list_share": list_share,
+            "skill_over_record": (None if r_auc is None or m_auc is None or r_auc >= 1
+                                  else (m_auc - r_auc) / (1 - r_auc)),
+            "n_seeds": len(per_seed), "summary": summary, "per_seed": per_seed,
+            "molchan_curves": curves})
+        logger.info(f"{cfg['aoi']['name']} {year}: " + ", ".join(
+            f"{k} {v.get('auc_roc_mean', float('nan')):.3f}" for k, v in summary.items()
+            if "auc_roc_mean" in v))
+
+    result = {"model": kind, "region": cfg["aoi"]["name"], "seeds": list(seeds),
+              "years": years, "published_maps": sorted(k for k, v in published.items()
+                                                       if v is not None),
+              "tests": tests}
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "rolling_origin.json").write_text(json.dumps(result, indent=2))
+    logger.info(f"Wrote {output_dir / 'rolling_origin.json'}")
+    return result

@@ -78,14 +78,23 @@ def project_coords(lonlat: np.ndarray, crs: str) -> np.ndarray:
 
 def compute_distances_to_features(infra: gpd.GeoDataFrame,
                                    target_types: list[str],
-                                   all_coords: np.ndarray) -> np.ndarray:
-    """Compute distance from each node to nearest feature of given types."""
-    mask = infra["asset_type"].isin(target_types)
+                                   all_coords: np.ndarray,
+                                   facilities: gpd.GeoDataFrame | None = None,
+                                   facility_coords: np.ndarray | None = None) -> np.ndarray:
+    """Compute distance from each node to nearest feature of given types.
+
+    The features are searched among the nodes themselves unless a separate
+    facility inventory is given, as for a validation region whose scored
+    assets leave out some of the hospitals and shelters its people use.
+    """
+    if facilities is None:
+        facilities, facility_coords = infra, all_coords
+    mask = facilities["asset_type"].isin(target_types)
     if mask.sum() == 0:
         logger.warning(f"No features of types {target_types} found. Returning max dist.")
         return np.full(len(infra), 50000.0)  # 50km default
 
-    target_coords = all_coords[mask.values]
+    target_coords = facility_coords[mask.values]
     tree = cKDTree(target_coords)
     dists, _ = tree.query(all_coords, k=1)
     return dists
@@ -136,23 +145,19 @@ def extract_features(cfg: dict, infra: gpd.GeoDataFrame,
         features["pop_density"] = np.zeros(len(infra))
 
     # --- Distance-based features (metres, projected CRS) ---
-    features["dist_hospital"] = compute_distances_to_features(
-        infra, ["hospital"], coords_m
-    )
-    features["dist_school"] = compute_distances_to_features(
-        infra, ["school"], coords_m
-    )
-    features["dist_shelter"] = compute_distances_to_features(
-        infra, ["flood_shelter"], coords_m
-    )
-    features["dist_road"] = compute_distances_to_features(
-        infra, ["road"], coords_m
-    )
-
-    # Distance to nearest mapped irrigation channel (proxy for surface water)
-    features["dist_water"] = compute_distances_to_features(
-        infra, ["irrigation"], coords_m
-    )
+    facilities = facility_coords = None
+    facilities_path = cfg.get("data", {}).get("facilities_path")
+    if facilities_path:
+        facilities = compute_centroids(gpd.read_file(str(facilities_path)))
+        facility_coords = project_coords(
+            np.column_stack([facilities["lon"].values, facilities["lat"].values]),
+            cfg["aoi"]["crs"])
+    for name, types in (("dist_hospital", ["hospital"]), ("dist_school", ["school"]),
+                        ("dist_shelter", ["flood_shelter"]), ("dist_road", ["road"]),
+                        # nearest mapped irrigation channel, a proxy for surface water
+                        ("dist_water", ["irrigation"])):
+        features[name] = compute_distances_to_features(
+            infra, types, coords_m, facilities, facility_coords)
 
     # --- Categorical encoding ---
     asset_codes = infra["asset_type"].astype("category").cat.codes.values.astype(np.float32)

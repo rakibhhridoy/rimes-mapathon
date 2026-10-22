@@ -1,0 +1,13 @@
+# The national central region as an independent validation region for the
+# comparison with the flood record. Assets the study boxes also hold are
+# dropped, so no asset is scored in both. Built by
+# scripts/make_validation_region.py.
+extends: ../national/central.yaml
+paths:
+  raw_dir: data/central_ind/raw
+  processed_dir: data/central_ind/processed
+  output_dir: data/central_ind/output
+data:
+  # Distances run to the facilities of the whole national region, not only
+  # to those among the assets kept here.
+  facilities_path: data/central/raw/infrastructure_raw.gpkg

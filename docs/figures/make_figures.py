@@ -237,14 +237,17 @@ def fig_study_frequency():
         ax_over.text(w + 0.08, n - 0.1, letters[region], ha="left", va="top",
                      fontsize=7.5, fontweight="bold", color=INK, zorder=6)
     country.boundary.plot(ax=ax_over, color="#6f6d66", linewidth=0.4, zorder=4)
-    # The validation region east of the Jamuna, defined by its districts.
-    validation = _load_config(str(ROOT / "configs/validation/jamuna_east.yaml"))["aoi"]
+    # The validation regions, defined by their districts.
     adm2 = gpd.read_file(ROOT / "data/shared/geoboundaries/BGD_ADM2.geojson")
-    shape = adm2[adm2["shapeName"].isin(validation["districts"])].union_all().simplify(0.005)
-    gpd.GeoSeries([shape], crs=adm2.crs).plot(ax=ax_over, facecolor="none", edgecolor=ORANGE,
-                                               linewidth=0.9, linestyle="--", zorder=6)
-    ax_over.text(shape.centroid.x, shape.centroid.y, "e", ha="center", va="center",
-                 fontsize=7.5, fontweight="bold", color=ORANGE, zorder=6)
+    for letter, name in zip("efgh", ("jamuna_east", "central", "chattogram_coast",
+                                    "west_central")):
+        validation = _load_config(str(ROOT / f"configs/validation/{name}.yaml"))["aoi"]
+        shape = adm2[adm2["shapeName"].isin(validation["districts"])].union_all().simplify(0.005)
+        gpd.GeoSeries([shape], crs=adm2.crs).plot(ax=ax_over, facecolor="none", edgecolor=ORANGE,
+                                                   linewidth=0.9, linestyle="--", zorder=6)
+        spot = shape.representative_point()
+        ax_over.text(spot.x, spot.y, letter, ha="center", va="center",
+                     fontsize=7.5, fontweight="bold", color=ORANGE, zorder=6)
     ax_over.text(90.4, 21.0, "Bay of Bengal", ha="center", fontsize=5.5,
                  color="#4F7FB5", style="italic", zorder=6)
     ax_over.set_xlim(overview[0], overview[1]); ax_over.set_ylim(overview[2], overview[3])
@@ -612,6 +615,63 @@ def fig_union_risk():
     plt.close(fig)
 
 
+# ── Paper figure: the record's lead against new ground ──────────────────────
+def fig_record_lead():
+    """(a) In every rolling-origin test, the record's lead over the model in
+    AUC against the share of that year's flooded assets standing on ground no
+    earlier flood had reached, with the least-squares line of the pooled
+    tests. Study regions are filled, validation regions open. (b, c) Molchan
+    trajectories of the 2024 tests in Rangpur and Rajshahi and on the coast,
+    for one block assignment: the share of flooded assets missed against the
+    share of assets flagged, lower being better."""
+    pooled = json.loads((ROOT / "data/pooled/rolling_origin_pooled.json").read_text())
+    tests = pooled["tests"]
+    fig, axes = plt.subplots(1, 3, figsize=(FULL_W, FULL_W * 0.36),
+                             gridspec_kw={"width_ratios": [1.35, 1, 1], "wspace": 0.32})
+    ax = axes[0]
+    ax.axhline(0, color=INK2, linewidth=0.6, linestyle=":")
+    x = np.array([r["new_ground_share"] for r in tests]) * 100
+    y = np.array([r["record_minus_model"] for r in tests])
+    line = np.linspace(0, 100, 50)
+    a = pooled["all"]
+    ax.plot(line, a["intercept"] + a["slope"] * line / 100, color=INK2, linewidth=0.8)
+    for r, xi, yi in zip(tests, x, y):
+        study = r["role"] == "study"
+        ax.scatter(xi, yi, s=22, zorder=3, linewidths=0.9,
+                   facecolor=BLUE if study else "white", edgecolor=BLUE)
+    ax.set_xlabel("Flooded assets on new ground (%)")
+    ax.set_ylabel("Record AUC minus model AUC")
+    ax.set_xlim(0, 100)
+    ax.set_title(f"(a) {a['n_tests']} tests, Spearman $\\rho$ = {a['spearman_rho']:.2f}", color=INK)
+    ax.scatter([], [], s=22, facecolor=BLUE, edgecolor=BLUE, label="study region")
+    ax.scatter([], [], s=22, facecolor="white", edgecolor=BLUE, label="validation region")
+    ax.legend(frameon=False, loc="upper right")
+    ax.grid(True, zorder=0); ax.set_axisbelow(True)
+
+    styles = {"record": (ORANGE, "-", "record"), "model": (BLUE, "-", "model"),
+              "model_with_record": (BLUE, "--", "model + record"),
+              "hazard_map": (INK2, ":", "JRC hazard map")}
+    for ax, (region, out, title) in zip(axes[1:], (
+            ("rangpur_rajshahi", "data/output", "(b) Rangpur & Rajshahi, 2024"),
+            ("sw_coastal", "data/sw_coastal/output", "(c) South-west coast, 2024"))):
+        result = json.loads((ROOT / out / "rolling_origin.json").read_text())
+        curves = next(t for t in result["tests"] if t["test_year"] == 2024)["molchan_curves"]
+        flagged = np.array(curves["flagged"]) * 100
+        ax.plot([0, 100], [100, 0], color=GRID, linewidth=0.8)
+        for name, (colour, dash, label) in styles.items():
+            if name in curves:
+                ax.plot(flagged, np.array(curves[name]) * 100, color=colour, linestyle=dash,
+                        linewidth=1.1, label=label)
+        ax.set_xlim(0, 100); ax.set_ylim(0, 100); ax.set_aspect("equal")
+        ax.set_xlabel("Assets flagged (%)")
+        ax.set_ylabel("Flooded assets missed (%)")
+        ax.set_title(title, color=INK)
+        ax.grid(True, zorder=0); ax.set_axisbelow(True)
+    axes[1].legend(frameon=False, loc="upper right", fontsize=6)
+    fig.savefig(OUT / "fig_record_lead.pdf", bbox_inches="tight", pad_inches=0.03)
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     fig_chain(); print("fig_chain.pdf")
     fig_study_area(); print("fig_study_area.pdf")
@@ -626,3 +686,4 @@ if __name__ == "__main__":
     fig_benchmark(); print("fig_benchmark.pdf")
     fig_importance(); print("fig_importance.pdf")
     fig_union_risk(); print("fig_union_risk.pdf")
+    fig_record_lead(); print("fig_record_lead.pdf")
