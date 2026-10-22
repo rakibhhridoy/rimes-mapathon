@@ -30,6 +30,15 @@ This file gives the pipeline settings with a map of the two hazard surfaces (Fig
 \section{Pipeline and model settings}
 \label{si:settings}
 
+The pipeline runs as the chain of steps in Fig.~\ref{fig:chain}.
+
+\begin{figure*}[tp]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_chain_flood.pdf}
+\caption{The processing chain of the main text, top to bottom. Source counts are totals over the three flood regions. Each asset enters the models as a vector of terrain, population, access-distance and asset-type features, with a label from the Sentinel-1 flood frequency. The asset model is expanded, with the graph network it replaced shown as the alternative it now is. Both models train on the same spatial blocks, and dashed connectors mark what the validation scores on the test blocks.}
+\label{fig:chain}
+\end{figure*}
+
 \subsection*{Infrastructure, terrain and features}
 
 Assets are fetched from the Overpass API by bounding box, in tiles of 0.75$^\circ$, and clipped to the region afterwards. The boxes cross Bangladesh's land border, so assets in India, or on land more than about 1\,km outside the geoBoundaries border, are then dropped, keeping those on chars, coastal ground and offshore, and the risk grid and the grid-level validation are restricted the same way. Tiling avoids the timeouts that a query for a whole division produces. Three tag groups are requested, with lifeline assets covering hospitals, clinics, schools, colleges, shelters, bridges, embankments and dams, transport assets covering primary to trunk roads, railways and tagged bridges, and agricultural assets covering farmland, aquaculture, canals, ditches and marketplaces. Each feature is classified into one asset type from its tags and labelled with the district it falls in.
@@ -215,7 +224,7 @@ On the coast the asset model still ranks flooded ground above dry ground (AUC \C
 \section{Tests that share a region}
 \label{si:regions}
 
-The \PoolTests{} rolling-origin tests come from \PoolRegions{} regions, and tests in one region share its assets, terrain and record, so the correlation between new ground and the record's lead in the main text treats them as more independent than they are. Three checks take the region as the unit instead. With each region left out in turn, the Spearman correlation stayed between \RegionLeftOutRhoMin{} and \RegionLeftOutRhoMax{} ($p\RegionLeftOutPMax{}$ at the weakest), so no single region carries the relation. Resampling whole regions with replacement 5,000 times gave a 95\,\% interval for the correlation of \RegionBootRhoLow{} to \RegionBootRhoHigh{}, negative in \RegionBootNegative{}\,\% of draws, while the interval for the share of new ground at which the record and the model are level widened to \RegionBootCrossingLow{}--\RegionBootCrossingHigh{}\,\%, which places the crossover less precisely than resampling tests does. Within each of the \RegionSeveralTests{} regions with more than one test, the record's lead was smaller on the test with the most new ground than on the test with the least in \RegionLeadFalls{}, so the relation also holds inside regions rather than only between them.
+The \PoolTests{} rolling-origin tests come from \PoolRegions{} regions, and tests in one region share its assets, terrain and record, so the correlation between new ground and the record's lead in the main text treats them as more independent than they are. Three checks take the region as the unit instead. With each region left out in turn, the Spearman correlation stayed between \RegionLeftOutRhoMin{} and \RegionLeftOutRhoMax{} ($p\RegionLeftOutPMax{}$ at the weakest), so no single region carries the relation. Resampling whole regions with replacement 5,000 times gave a 95\,\% interval for the correlation of \RegionBootRhoLow{} to \RegionBootRhoHigh{}, negative in \RegionBootNegative{}\,\% of draws, while the interval for the share of new ground at which the record and the model are level widened to \RegionBootCrossingLow{}--\RegionBootCrossingHigh{}\,\%, which places the crossover less precisely than resampling tests does. Within each of the \RegionSeveralTests{} regions with more than one test, the record's lead was smaller on the test with the most new ground than on the test with the least in \RegionLeadFalls{}, so the relation also holds inside regions rather than only between them. A small flood could reach only ground that always floods, so the size of the flood, the share of assets it reached, was also held fixed. It was unrelated to new ground ($\rho=\PoolGroundSizeRho{}$), the relation between new ground and the record's lead was unchanged with it held fixed (partial $\rho=\PoolSizePartialRho{}$, $p\PoolSizePartialP{}$), and size added nothing once new ground was known ($\rho=\PoolSizeOnlyRho{}$, $p\PoolSizeOnlyP{}$).
 
 \bibliographystyle{apalike}
 \bibliography{references}

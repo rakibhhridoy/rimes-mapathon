@@ -106,13 +106,16 @@ def relation(rows: list[dict], draws: int = 5000) -> dict:
 
 def record_length(rows: list[dict]) -> dict:
     """New ground falls as the record lengthens, so the record's lead could
-    follow the number of earlier years instead. Partial rank correlations
-    separate the two."""
+    follow the number of earlier years instead, or the size of the flood.
+    Partial rank correlations separate each from new ground."""
     from scipy import stats
 
     lead = stats.rankdata([r["record_minus_model"] for r in rows])
     ground = stats.rankdata([r["new_ground_share"] for r in rows])
     years = stats.rankdata([r["n_earlier_years"] for r in rows])
+    # A small flood may fall only on ground that always floods, so the share
+    # of assets the flood reached is held fixed as well.
+    size = stats.rankdata([r["test_positive_rate"] for r in rows])
 
     def residual(y, x):
         design = np.column_stack([np.ones(len(x)), x])
@@ -120,9 +123,12 @@ def record_length(rows: list[dict]) -> dict:
 
     out = {}
     for name, a, b, given in (("lead_new_ground_given_years", lead, ground, years),
-                              ("lead_years_given_new_ground", lead, years, ground)):
+                              ("lead_years_given_new_ground", lead, years, ground),
+                              ("lead_new_ground_given_size", lead, ground, size),
+                              ("lead_size_given_new_ground", lead, size, ground)):
         r, p = stats.pearsonr(residual(a, given), residual(b, given))
         out[name] = {"rho": float(r), "p": float(p)}
+    out["new_ground_vs_size"] = _spearman(ground, size)
     return out
 
 

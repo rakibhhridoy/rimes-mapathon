@@ -683,6 +683,12 @@ def rolling_numbers() -> list[str]:
                   _macro("PoolPartialP", _p(rl["lead_new_ground_given_years"]["p"])),
                   _macro("PoolYearsPartialRho", rl["lead_years_given_new_ground"]["rho"]),
                   _macro("PoolYearsPartialP", _p(rl["lead_years_given_new_ground"]["p"]))]
+        if "lead_new_ground_given_size" in rl:
+            lines += [_macro("PoolSizePartialRho", rl["lead_new_ground_given_size"]["rho"]),
+                      _macro("PoolSizePartialP", _p(rl["lead_new_ground_given_size"]["p"])),
+                      _macro("PoolSizeOnlyRho", rl["lead_size_given_new_ground"]["rho"]),
+                      _macro("PoolSizeOnlyP", _p(rl["lead_size_given_new_ground"]["p"])),
+                      _macro("PoolGroundSizeRho", rl["new_ground_vs_size"]["rho"])]
     br = pooled.get("by_region")
     if br:
         lines += [_macro("RegionLeftOutRhoMin", br["left_out_rho_range"][0]),
