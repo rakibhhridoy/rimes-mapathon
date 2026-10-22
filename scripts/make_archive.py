@@ -11,6 +11,7 @@ Usage:
     python scripts/make_archive.py                 # all regions with results
     python scripts/make_archive.py --regions cht   # one region
     python scripts/make_archive.py --regions jamuna_east_validation
+    python scripts/make_archive.py --regions rolling_origin   # rolling-origin outputs
     python scripts/make_archive.py --out dist/zenodo
 """
 
@@ -70,7 +71,16 @@ def _licence_for(path: Path) -> str:
 VALIDATION_REGIONS = {
     "jamuna_east_validation": ("Jamuna east (validation)", "Riverine & flash flood",
                                "configs/validation/jamuna_east.yaml"),
+    "central_validation": ("Central (validation)", "Riverine flood",
+                           "configs/validation/central.yaml"),
+    "chattogram_coast_validation": ("Chattogram coast (validation)", "Flash flood & surge",
+                                    "configs/validation/chattogram_coast.yaml"),
+    "west_central_validation": ("West-central (validation)", "Waterlogging",
+                                "configs/validation/west_central.yaml"),
 }
+# National administrative layers, identical in every region and already in the
+# study-region archives, are left out of the validation archives.
+SHARED_LAYERS = ("bgd_union.gpkg", "bgd_upazila.gpkg", "bgd_district.gpkg")
 
 
 def _paths_from_config(config_file: str) -> dict:
@@ -96,8 +106,11 @@ def archive_region(region_id: str, out_dir: Path) -> Path:
         if not base.exists():
             continue
         for path in sorted(base.rglob("*")):
-            if path.is_file() and not _excluded(path):
-                files.append((kind, path))
+            if not path.is_file() or _excluded(path):
+                continue
+            if region_id in VALIDATION_REGIONS and path.name in SHARED_LAYERS:
+                continue
+            files.append((kind, path))
 
     manifest = {
         "region": region_id,
@@ -107,10 +120,13 @@ def archive_region(region_id: str, out_dir: Path) -> Path:
         "code": "https://github.com/rakibhhridoy/rimes-mapathon",
         "files": [],
     }
+    if region_id in VALIDATION_REGIONS:
+        manifest["not_included"] = (f"{', '.join(SHARED_LAYERS)}: national layers, identical "
+                                    "to those in the study-region archives")
     out_dir.mkdir(parents=True, exist_ok=True)
     archive_path = out_dir / f"hazmapper_{region_id}.tar.gz"
 
-    with tarfile.open(archive_path, "w:gz") as tar:
+    with tarfile.open(archive_path, "w:gz", dereference=True) as tar:
         for kind, path in files:
             arcname = f"{region_id}/{kind}/{path.relative_to(paths[kind])}"
             tar.add(path, arcname=arcname)
@@ -129,6 +145,33 @@ def archive_region(region_id: str, out_dir: Path) -> Path:
     return archive_path
 
 
+def archive_rolling_origin(out_dir: Path) -> Path:
+    """The rolling-origin outputs of the study regions, which their v5 archives
+    predate, and the pooled summary across all regions."""
+    sources = [ROOT / "data" / "pooled" / "rolling_origin_pooled.json"]
+    sources += [region_paths(r)["output"] / "rolling_origin.json"
+                for r in ("rangpur_rajshahi", "sylhet", "sw_coastal")]
+    out_dir.mkdir(parents=True, exist_ok=True)
+    archive_path = out_dir / "hazmapper_rolling_origin.tar.gz"
+    manifest = {"name": "Rolling-origin tests of the record against the model",
+                "built": date.today().isoformat(),
+                "code": "https://github.com/rakibhhridoy/rimes-mapathon", "files": []}
+    with tarfile.open(archive_path, "w:gz") as tar:
+        for path in sources:
+            region = "pooled" if path.parent.name == "pooled" else path.parent.parent.name
+            region = "rangpur_rajshahi" if region == "data" else region
+            arcname = f"rolling_origin/{region}/{path.name}"
+            tar.add(path, arcname=arcname)
+            manifest["files"].append({"path": arcname, "bytes": path.stat().st_size,
+                                      "sha256": _sha256(path),
+                                      "licence": "Pipeline output, CC BY 4.0"})
+        manifest_path = out_dir / "hazmapper_rolling_origin_manifest.json"
+        manifest_path.write_text(json.dumps(manifest, indent=2))
+        tar.add(manifest_path, arcname="rolling_origin/MANIFEST.json")
+    print(f"rolling_origin: {len(sources)} files → {archive_path}")
+    return archive_path
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--regions", nargs="*", default=None)
@@ -137,6 +180,9 @@ if __name__ == "__main__":
 
     regions = args.regions or [r for r in REGION_CONFIGS if has_results(r)]
     for region in regions:
-        archive_region(region, Path(args.out))
+        if region == "rolling_origin":
+            archive_rolling_origin(Path(args.out))
+        else:
+            archive_region(region, Path(args.out))
     print("Upload the archives and manifests to Zenodo as a new version of the "
           "data record (scripts/zenodo_upload.py --new-version), and cite the DOI it assigns.")
