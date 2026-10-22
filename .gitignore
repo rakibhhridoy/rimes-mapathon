@@ -20,6 +20,7 @@ data/*/raw_s1a/
 data/*/processed/
 data/*/output/
 data/*/cache/
+data/pooled/
 data/shared/
 data.zip
 /tmp/
