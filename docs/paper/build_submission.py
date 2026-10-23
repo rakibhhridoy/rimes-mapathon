@@ -13,6 +13,7 @@ script writes, into docs/paper/submission/:
     figures/FigureN.pdf    each figure as a vector PDF, and FigureN.png at 300 dpi
     supporting_information.pdf
     cover_letter.docx      from cover_letter.md, with a PDF copy
+    upload/                only the files to upload, numbered in upload order
 
 Every number comes from docs/numbers.tex and every figure, table and section
 number from paper.aux, so the Word file matches the compiled PDF. Compile
@@ -213,6 +214,17 @@ def main():
     si = HERE / "supporting_information.pdf"
     if si.exists():
         shutil.copy(si, OUT / "supporting_information.pdf")
+
+    # Only the files the journal's form takes, numbered in upload order.
+    upload = OUT / "upload"
+    shutil.rmtree(upload, ignore_errors=True)
+    upload.mkdir()
+    files = (["cover_letter.pdf", "title_page.docx", "manuscript.docx"]
+             + [f"figures/Figure{i}.pdf" for i in range(1, figure_no + 1)]
+             + ["supporting_information.pdf"])
+    for i, name in enumerate(files, 1):
+        if (OUT / name).exists():
+            shutil.copy(OUT / name, upload / f"{i:02d}_{Path(name).name}")
     print(f"wrote {OUT}: manuscript.docx, title_page.docx, {figure_no} figures, "
           f"{len(tables)} tables")
 
