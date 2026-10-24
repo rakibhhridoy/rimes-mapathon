@@ -136,6 +136,19 @@ def reference_doc(path: Path) -> Path:
     return path
 
 
+def justify(path: Path) -> None:
+    """Justify running text; lines split by manual breaks (address, date)
+    stay left-aligned, as Word would stretch them."""
+    from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+    doc = Document(str(path))
+    for p in doc.paragraphs:
+        if not p._p.xpath(".//w:br | .//w:numPr") and len(p.text.split()) > 12:
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    doc.save(str(path))
+
+
 def for_review(path: Path) -> None:
     """Double spacing, continuous line numbers and page numbers, so that
     reviewers can point to an exact line. The journal does not ask for them,
@@ -283,11 +296,12 @@ def main():
 
     subprocess.run(["pandoc", str(HERE / "cover_letter.md"), "-o", str(OUT / "cover_letter.docx")]
                    + style, check=True)
+    justify(OUT / "cover_letter.docx")
     # A PDF copy as well, for upload forms that take one; Times carries the Greek letters.
     subprocess.run(["pandoc", str(HERE / "cover_letter.md"), "-o", str(OUT / "cover_letter.pdf"),
                     "--pdf-engine=xelatex", "-V", "mainfont=Times New Roman", "-V", "fontsize=11pt",
                     "-V", "geometry:top=1.5cm,bottom=1.5cm,left=2cm,right=2cm",
-                    "-V", "pagestyle=empty", "-V", "header-includes=\\usepackage[none]{hyphenat}\\raggedright", "-V", "linestretch=0.96"], check=True)
+                    "-V", "pagestyle=empty", "-V", "header-includes=\\usepackage{microtype}\\usepackage{xurl}", "-V", "linestretch=0.96"], check=True)
 
     si = HERE / "supporting_information.pdf"
     if si.exists():

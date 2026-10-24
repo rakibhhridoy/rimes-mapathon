@@ -13,14 +13,18 @@ Across 15 tests in seven regions, the record's lead fell as the share of a flood
 
 The paper suits the Journal because its conclusions concern how flood risk is managed. It recommends that agencies publish the radar flood record as a planning baseline, and that the choice between record and model follow how much of past flooding fell on new ground. Its limits are stated plainly: scores measure agreement with flooding as radar sees it, 10 of the 15 tests cannot separate record from model, and all regions lie in one country. The code is at https://github.com/rakibhhridoy/rimes-mapathon and the data at https://doi.org/10.5281/zenodo.23573843.
 
-The main text runs to just under 6,000 words with 5 figures and 7 tables, plus a Supporting Information file. The manuscript is original and not under consideration elsewhere. The software it uses is described in a separate manuscript under review at SoftwareX (SOFTX-D-26-01375), which reports the software rather than these findings. I am the sole author, declare an affiliation with Fermium Systems, which hosts the public dashboard, and received no specific funding.
+The main text runs to just under 6,000 words with 5 figures and 7 tables, plus a Supporting Information file. The manuscript is original and not under consideration elsewhere. I am the sole author, declare an affiliation with Fermium Systems, which hosts the public dashboard, and received no specific funding.
 
 Suggested reviewers:
 
-- Dr Beth Tellman, Nelson Institute for Environmental Studies, University of Wisconsin–Madison, USA. Beth.tellman@wisc.edu
-- Dr Sandro Martinis, German Remote Sensing Data Center, German Aerospace Center (DLR), Germany. Sandro.Martinis@dlr.de
-- Prof. Hanna Meyer, Institute of Landscape Ecology, University of Münster, Germany. hanna.meyer@uni-muenster.de
-- Dr Alexandre Wadoux, James Cook University, Australia. alexandre.wadoux@yahoo.fr
+- Dr Beth Tellman, Nelson Institute for Environmental Studies, University of Wisconsin–Madison, USA.\
+  <Beth.tellman@wisc.edu>
+- Dr Sandro Martinis, German Remote Sensing Data Center, German Aerospace Center (DLR), Germany.\
+  <Sandro.Martinis@dlr.de>
+- Prof. Hanna Meyer, Institute of Landscape Ecology, University of Münster, Germany.\
+  <hanna.meyer@uni-muenster.de>
+- Dr Alexandre Wadoux, James Cook University, Australia.\
+  <alexandre.wadoux@yahoo.fr>
 
 Thank you for considering the manuscript.
 
