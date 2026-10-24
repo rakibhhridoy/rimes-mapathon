@@ -96,6 +96,46 @@ def to_markdown(tex: str) -> str:
     return out
 
 
+def reference_doc(path: Path) -> Path:
+    """pandoc's default Word styles with Times New Roman 12 pt throughout and
+    black headings; the defaults use theme fonts and blue headings."""
+    import zipfile
+
+    from docx import Document
+    from docx.shared import Pt
+
+    default = subprocess.run(["pandoc", "--print-default-data-file", "reference.docx"],
+                             capture_output=True, check=True).stdout
+    raw = path.with_suffix(".raw.docx")
+    raw.write_bytes(default)
+    with zipfile.ZipFile(raw) as src, zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as dst:
+        for item in src.infolist():
+            data = src.read(item.filename)
+            if item.filename == "word/styles.xml":
+                xml = data.decode()
+                xml = re.sub(r"<w:rFonts\b[^>]*/>", '<w:rFonts w:ascii="Times New Roman" '
+                             'w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" '
+                             'w:cs="Times New Roman" />', xml)
+                xml = re.sub(r"<w:color\b[^>]*/>", '<w:color w:val="000000" />', xml)
+                data = xml.encode()
+            dst.writestr(item, data)
+    raw.unlink()
+    doc = Document(str(path))
+    for style in doc.styles:
+        if style.type != 1:
+            continue
+        font = style.font
+        font.name = "Times New Roman"
+        if style.name.startswith("Heading") or style.name in ("Title", "Subtitle"):
+            font.size = Pt(14 if style.name == "Title" else 12)
+            font.bold = style.name in ("Title", "Heading 1", "Heading 2")
+            font.italic = style.name in ("Heading 2", "Heading 3")
+        elif font.size and font.size > Pt(12):
+            font.size = Pt(12)
+    doc.save(str(path))
+    return path
+
+
 def for_review(path: Path) -> None:
     """Double spacing, continuous line numbers and page numbers, so that
     reviewers can point to an exact line. The journal does not ask for them,
@@ -131,11 +171,45 @@ def for_review(path: Path) -> None:
     doc.save(str(path))
 
 
+def turnitin(main_tex: str, nums: dict, labs: dict, style: list) -> None:
+    """Main text and Supporting Information in one Word file for a similarity
+    check: no title, author, affiliation, figures, legends, declarations or
+    reference list. Citations stay in the text."""
+    si = (HERE / "supporting_information.tex").read_text()
+    si = si[si.index(r"\maketitle") + len(r"\maketitle"):si.index(r"\bibliographystyle")]
+    si_labs = dict(labs)
+    for line in (HERE / "supporting_information.aux").read_text().splitlines():
+        m = re.match(r"\\newlabel\{([^}]*)\}\{\{([^}]*)\}", line)
+        if m:
+            si_labs[m.group(1)] = m.group(2)
+    si = re.sub(r"\\begin\{figure\*?\}.*?\\end\{figure\*?\}\n*", "", si, flags=re.S)
+
+    def table(m):
+        t = simplify_table(m.group(0))
+        n = si_labs[re.search(r"\\label\{([^}]*)\}", t).group(1)]
+        return re.sub(r"\\caption\{", f"\\\\caption{{Table {n}. ", t, count=1)
+    si = re.sub(r"\\begin\{table\*?\}.*?\\end\{table\*?\}", table, si, flags=re.S)
+    # Supporting Information sections keep their S numbers, unnumbered by pandoc.
+    count = iter(range(1, 100))
+    si = re.sub(r"\\section\{", lambda m: f"\\section*{{S{next(count)} ", si)
+    md = [to_markdown(expand(main_tex, nums, labs)),
+          "# Supporting Information {.unnumbered}\n",
+          to_markdown(expand(si, nums, si_labs))]
+    path = OUT / "turnitin.md"
+    path.write_text("\n".join(md))
+    subprocess.run(["pandoc", str(path), "-o", str(OUT / "turnitin.docx"),
+                    "--citeproc", f"--bibliography={BIB}", f"--csl={CSL}",
+                    "--number-sections", "--metadata", "link-citations=false",
+                    "--metadata", "suppress-bibliography=true"] + style, check=True)
+
+
 def main():
     nums, labs = macros(), labels()
     tex = (HERE / "paper.tex").read_text()
     OUT.mkdir(exist_ok=True)
     (OUT / "figures").mkdir(exist_ok=True)
+    work = Path(tempfile.mkdtemp())
+    style = ["--reference-doc", str(reference_doc(work / "reference.docx"))]
 
     title = re.search(r"\{\\LARGE\\bfseries (.*?)\\par\}", tex).group(1)
     running = re.search(r"Running title: (.*?)\\par", tex).group(1)
@@ -174,22 +248,25 @@ def main():
     main_tex = (f"\\section*{{Abstract}}\n\n{abstract}\n\n"
                 f"\\textbf{{Keywords:}} {keywords}\n\n"
                 + body)
-    md = [f"# {title} {{.unnumbered}}\n", to_markdown(expand(main_tex, nums, labs)),
+    md = [to_markdown(expand(main_tex, nums, labs)),
           "# References {.unnumbered}\n\n::: {#refs}\n:::\n",
           "# Tables {.unnumbered}\n",
           to_markdown(expand("\n\n".join(t for _, t in tables), nums, labs)),
           "# Figure legends {.unnumbered}\n",
           to_markdown(expand("".join(legends), nums, labs))]
+    # The similarity check reads the text and tables only, without declarations.
+    turnitin(main_tex[:main_tex.index(r"\section*{Data availability statement}")]
+             + "\n\n" + "\n\n".join(t for _, t in tables), nums, labs, style)
     manuscript_md = OUT / "manuscript.md"
     manuscript_md.write_text("\n".join(md))
     subprocess.run(["pandoc", str(manuscript_md), "-o", str(OUT / "manuscript.docx"),
                     "--citeproc", f"--bibliography={BIB}", f"--csl={CSL}",
-                    "--number-sections", "--metadata", "link-citations=false"],
+                    "--number-sections", "--metadata", "link-citations=false",
+                    "--metadata", f"title={title}"] + style,
                    check=True)
     for_review(OUT / "manuscript.docx")
 
-    title_md = (f"# {title}\n\n"
-                f"**Running title:** {running}\n\n"
+    title_md = (f"**Running title:** {running}\n\n"
                 "**Author:** Md Rakib Hasan^1,2^\n\n"
                 "^1^ Department of Soil, Water and Environment, University of Dhaka, Dhaka-1000, Bangladesh\n\n"
                 "^2^ Fermium Systems, Dhaka-1207, Bangladesh\n\n"
@@ -201,15 +278,16 @@ def main():
     title_page.write_text(title_md)
     subprocess.run(["pandoc", str(title_page), "-o", str(OUT / "title_page.docx"),
                     "--citeproc", f"--bibliography={BIB}", f"--csl={CSL}",
-                    "--metadata", "suppress-bibliography=true"], check=True)
+                    "--metadata", "suppress-bibliography=true",
+                    "--metadata", f"title={title}"] + style, check=True)
 
-    subprocess.run(["pandoc", str(HERE / "cover_letter.md"), "-o", str(OUT / "cover_letter.docx")],
-                   check=True)
+    subprocess.run(["pandoc", str(HERE / "cover_letter.md"), "-o", str(OUT / "cover_letter.docx")]
+                   + style, check=True)
     # A PDF copy as well, for upload forms that take one; Times carries the Greek letters.
     subprocess.run(["pandoc", str(HERE / "cover_letter.md"), "-o", str(OUT / "cover_letter.pdf"),
                     "--pdf-engine=xelatex", "-V", "mainfont=Times New Roman", "-V", "fontsize=11pt",
                     "-V", "geometry:top=1.5cm,bottom=1.5cm,left=2cm,right=2cm",
-                    "-V", "pagestyle=empty", "-V", "linestretch=0.96"], check=True)
+                    "-V", "pagestyle=empty", "-V", "header-includes=\\usepackage[none]{hyphenat}\\raggedright", "-V", "linestretch=0.96"], check=True)
 
     si = HERE / "supporting_information.pdf"
     if si.exists():
