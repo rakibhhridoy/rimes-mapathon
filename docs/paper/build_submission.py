@@ -102,6 +102,7 @@ def reference_doc(path: Path) -> Path:
     import zipfile
 
     from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.shared import Pt
 
     default = subprocess.run(["pandoc", "--print-default-data-file", "reference.docx"],
@@ -132,20 +133,24 @@ def reference_doc(path: Path) -> Path:
             font.italic = style.name in ("Heading 2", "Heading 3")
         elif font.size and font.size > Pt(12):
             font.size = Pt(12)
+        # Running text is justified; references, table cells and captions are not.
+        if style.name in ("Body Text", "First Paragraph", "Abstract"):
+            style.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     doc.save(str(path))
     return path
 
 
-def justify(path: Path) -> None:
-    """Justify running text; lines split by manual breaks (address, date)
-    stay left-aligned, as Word would stretch them."""
+def left_align_breaks(path: Path) -> None:
+    """Running text is justified by style, but Word stretches every line that
+    ends in a manual break, so paragraphs split by breaks (address, date) and
+    list items stay left-aligned."""
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH
 
     doc = Document(str(path))
     for p in doc.paragraphs:
-        if not p._p.xpath(".//w:br | .//w:numPr") and len(p.text.split()) > 12:
-            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        if p._p.xpath(".//w:br | .//w:numPr"):
+            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     doc.save(str(path))
 
 
@@ -296,7 +301,7 @@ def main():
 
     subprocess.run(["pandoc", str(HERE / "cover_letter.md"), "-o", str(OUT / "cover_letter.docx")]
                    + style, check=True)
-    justify(OUT / "cover_letter.docx")
+    left_align_breaks(OUT / "cover_letter.docx")
     # A PDF copy as well, for upload forms that take one; Times carries the Greek letters.
     subprocess.run(["pandoc", str(HERE / "cover_letter.md"), "-o", str(OUT / "cover_letter.pdf"),
                     "--pdf-engine=xelatex", "-V", "mainfont=Times New Roman", "-V", "fontsize=11pt",
