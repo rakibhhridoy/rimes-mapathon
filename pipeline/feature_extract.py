@@ -163,6 +163,13 @@ def extract_features(cfg: dict, infra: gpd.GeoDataFrame,
     asset_codes = infra["asset_type"].astype("category").cat.codes.values.astype(np.float32)
     features["asset_type_code"] = asset_codes
 
+    # --- Optional covariates, off by default (data.extra_features: {name: path}) ---
+    # Appended last so the default feature order never changes. See
+    # pipeline/covariates.py for the vegetation, soil and rainfall layers.
+    for name, path in (cfg.get("data", {}).get("extra_features") or {}).items():
+        values = sample_raster_at_points(str(path), coord_list, fill=np.nan)
+        features[name] = np.where(np.isfinite(values), values, np.nanmedian(values))
+
     # --- Assemble feature matrix ---
     feature_names = list(features.keys())
     X = np.column_stack([features[name] for name in feature_names])

@@ -640,6 +640,35 @@ def rolling_origin(ctx):
                    f"new ground {t['new_ground_share']:.1%}")
 
 
+@cli.command("covariates")
+@click.pass_context
+def covariates(ctx):
+    """Download the optional NDVI, soil-clay and rainfall layers from Earth Engine."""
+    from pipeline.covariates import download_covariates
+
+    cfg = ctx.obj["config"]
+    for name, path in download_covariates(cfg, _dir(cfg, "raw")).items():
+        click.echo(f"{name}: {path}")
+
+
+@cli.command("covariate-ablation")
+@click.option("--seeds", default=None,
+              help="Comma-separated block-split seeds (default: twenty seeds).")
+@click.pass_context
+def covariate_ablation(ctx, seeds):
+    """The default model with and without the covariates, on identical held-out blocks."""
+    from pipeline.benchmark import SEEDS
+    from pipeline.covariates import run_covariate_ablation
+
+    cfg = ctx.obj["config"]
+    chosen = tuple(int(s) for s in seeds.split(",")) if seeds else SEEDS
+    s = run_covariate_ablation(cfg, _dir(cfg, "processed"), _dir(cfg, "raw"),
+                               _dir(cfg, "output"), _infra_path(cfg), seeds=chosen)["summary"]
+    click.echo(f"AUC {s['default_auc_mean']:.3f} -> {s['with_covariates_auc_mean']:.3f} "
+               f"(difference {s['auc_difference_mean']:+.3f}, covariates ahead in "
+               f"{s['seeds_covariates_ahead']}/{s['n_seeds']}, p = {s['p_value']})")
+
+
 @cli.command("threshold-metrics")
 @click.option("--seeds", default=None,
               help="Comma-separated block-split seeds (default: twenty seeds).")
