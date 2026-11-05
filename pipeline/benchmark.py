@@ -205,6 +205,137 @@ def run_benchmark(cfg: dict, processed_dir: Path, output_dir: Path,
     logger.info(f"Wrote {output_dir / 'benchmark.json'}")
     return result
 
+def _best_f1_threshold(y_true: np.ndarray, scores: np.ndarray) -> float:
+    """The score threshold that maximises F1 on the given points."""
+    from sklearn.metrics import precision_recall_curve
+
+    precision, recall, thresholds = precision_recall_curve(y_true, scores)
+    f1 = 2 * precision * recall / np.clip(precision + recall, 1e-12, None)
+    # precision_recall_curve returns one more precision/recall than thresholds.
+    return float(thresholds[int(np.argmax(f1[:-1]))])
+
+
+def _threshold_metrics(y_true: np.ndarray, scores: np.ndarray,
+                       threshold: float) -> dict:
+    from sklearn.metrics import f1_score, precision_score, recall_score
+
+    predicted = (scores >= threshold).astype(int)
+    return {
+        "threshold": float(threshold),
+        "precision": float(precision_score(y_true, predicted, zero_division=0)),
+        "recall": float(recall_score(y_true, predicted, zero_division=0)),
+        "f1": float(f1_score(y_true, predicted, zero_division=0)),
+        "predicted_positive_rate": float(predicted.mean()),
+    }
+
+
+def run_threshold_metrics(cfg: dict, processed_dir: Path, output_dir: Path,
+                          infra_path: Path, seeds=SEEDS) -> dict:
+    """Precision, recall and F1 on the held-out blocks, beside the AUC.
+
+    Repeats the benchmark's block assignments and models. Each model's
+    threshold is the one that maximises F1 on the calibration blocks, which
+    neither training nor testing uses, so the test blocks never choose it.
+    The AUCs are recomputed and compared with benchmark.json, so this file
+    describes the same fits the benchmark reports. benchmark.json is not
+    touched.
+    """
+    import geopandas as gpd
+    import torch
+
+    import pandas as pd
+
+    from pipeline.feature_extract import extract_features, project_coords
+    from pipeline.gnn_model import train_model
+    from pipeline.graph_build import build_spatial_graph, spatial_block_split_three
+
+    infra = gpd.read_file(str(infra_path))
+    X, coords, y, _ = extract_features(cfg, infra, processed_dir)
+    X = np.ascontiguousarray(X, dtype=np.float32)
+    y = np.ascontiguousarray(y).astype(int)
+    coords = np.asarray(coords)
+    columns = pd.read_parquet(processed_dir / "node_features.parquet").columns
+    skip = {"asset_type", "name", "priority", "lon", "lat", "flood_label"}
+    feature_names = [c for c in columns if c not in skip]
+    coords_m = project_coords(coords, cfg["aoi"]["crs"])
+    graph = build_spatial_graph(X, coords, y, cfg)
+    block_m = cfg["graph"].get("block_size_m", 10_000)
+    train_ratio = cfg["graph"].get("train_split", 0.8)
+
+    reported = {}
+    bench_path = output_dir / "benchmark.json"
+    if bench_path.exists():
+        for row in json.loads(bench_path.read_text())["per_seed"]:
+            reported[row["seed"]] = {k: v["auc_roc"] for k, v in row["models"].items()}
+
+    per_seed, auc_gaps = [], []
+    for seed in seeds:
+        train_mask, calib_mask, test_mask = spatial_block_split_three(
+            coords_m, train_ratio=train_ratio, block_size_m=block_m, seed=seed)
+        train = train_mask.numpy().astype(bool)
+        calib = calib_mask.numpy().astype(bool)
+        test = test_mask.numpy().astype(bool)
+        if len(np.unique(y[test])) < 2 or len(np.unique(y[calib])) < 2:
+            logger.warning(f"seed {seed}: test or calibration blocks hold one class, skipped")
+            continue
+
+        scores = {}
+        graph.train_mask = train_mask
+        graph.calib_mask = calib_mask
+        graph.val_mask = calib_mask
+        graph.test_mask = test_mask
+        seeded = dict(cfg)
+        seeded["gnn"] = {**cfg.get("gnn", {}), "seed": seed}
+        model = train_model(graph, seeded)
+        model.eval()
+        with torch.no_grad():
+            scores["graph_sage"] = torch.sigmoid(
+                model(graph.x, graph.edge_index).squeeze()).numpy()
+        for name, estimator in _tabular_models(seed).items():
+            fitted_on = np.flatnonzero(calib | test)
+            probability = np.zeros(len(y))
+            probability[fitted_on] = _fit_predict(
+                name, estimator, X, y, train, fitted_on, seed)
+            scores[name] = probability
+        if "twi" in feature_names:
+            scores["twi_only"] = X[:, feature_names.index("twi")].astype(float)
+
+        row = {"seed": seed, "n_test": int(test.sum()), "n_calib": int(calib.sum()),
+               "test_positive_rate": float(y[test].mean()), "models": {}}
+        for name, s in scores.items():
+            threshold = _best_f1_threshold(y[calib], s[calib])
+            entry = _metrics(y[test], s[test]) | _threshold_metrics(y[test], s[test], threshold)
+            if seed in reported and name in reported[seed]:
+                gap = abs(entry["auc_roc"] - reported[seed][name])
+                entry["auc_gap_vs_benchmark"] = float(gap)
+                auc_gaps.append(gap)
+            row["models"][name] = entry
+        per_seed.append(row)
+        logger.info(f"seed {seed}: " + ", ".join(
+            f"{k} F1 {v['f1']:.3f}" for k, v in row["models"].items()))
+
+    summary = {}
+    for name in (per_seed[0]["models"] if per_seed else {}):
+        summary[name] = {"n_seeds": len(per_seed)}
+        for metric in ("auc_roc", "ap_lift", "precision", "recall", "f1"):
+            values = np.array([r["models"][name][metric] for r in per_seed], dtype=float)
+            summary[name][metric] = {
+                "mean": float(values.mean()),
+                "sd": float(values.std(ddof=1)) if len(values) > 1 else None,
+                "min": float(values.min()), "max": float(values.max()),
+            }
+
+    result = {"threshold_rule": "maximum F1 on the calibration blocks",
+              "features": list(feature_names), "block_size_m": block_m,
+              "seeds": list(seeds),
+              "max_auc_gap_vs_benchmark": float(max(auc_gaps)) if auc_gaps else None,
+              "per_seed": per_seed, "summary": summary}
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "threshold_metrics.json").write_text(json.dumps(result, indent=2))
+    logger.info(f"Wrote {output_dir / 'threshold_metrics.json'}")
+    return result
+
+
 def run_label_comparison(cfg: dict, processed_dir: Path, output_dir: Path,
                          infra_path: Path, seeds=SEEDS) -> dict:
     """Train the configured model on proxy labels and on observed labels.

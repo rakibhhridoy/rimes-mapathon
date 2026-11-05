@@ -640,6 +640,24 @@ def rolling_origin(ctx):
                    f"new ground {t['new_ground_share']:.1%}")
 
 
+@cli.command("threshold-metrics")
+@click.option("--seeds", default=None,
+              help="Comma-separated block-split seeds (default: twenty seeds).")
+@click.pass_context
+def threshold_metrics(ctx, seeds):
+    """Precision, recall and F1 on held-out blocks, thresholds set on calibration blocks."""
+    from pipeline.benchmark import SEEDS, run_threshold_metrics
+
+    cfg = ctx.obj["config"]
+    chosen = tuple(int(s) for s in seeds.split(",")) if seeds else SEEDS
+    r = run_threshold_metrics(cfg, _dir(cfg, "processed"), _dir(cfg, "output"),
+                              _infra_path(cfg), seeds=chosen)
+    for name, s in r["summary"].items():
+        click.echo(f"{name}: AUC {s['auc_roc']['mean']:.3f} | P {s['precision']['mean']:.3f} | "
+                   f"R {s['recall']['mean']:.3f} | F1 {s['f1']['mean']:.3f}")
+    click.echo(f"Largest AUC gap against benchmark.json: {r['max_auc_gap_vs_benchmark']}")
+
+
 @cli.command("refresh-pvalues")
 @click.pass_context
 def refresh_pvalues(ctx):

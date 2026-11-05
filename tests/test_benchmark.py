@@ -15,7 +15,8 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from pipeline.benchmark import (_fit_predict, _metrics, _tabular_models,
+from pipeline.benchmark import (_best_f1_threshold, _fit_predict, _metrics,
+                                _tabular_models, _threshold_metrics,
                                 _uncorrected_p_value, corrected_p_value)
 from pipeline.sensitivity import (_top_overlap, _weighted_geometric_mean,
                                   _vulnerability_scenarios)
@@ -178,3 +179,22 @@ class TestPastFloodingModel:
         z = np.zeros(50)
         with pytest.raises(ValueError, match="tabular"):
             fit_past_flooding_model(graph, {"asset_model": {"type": "graph_sage"}}, z, z, z.astype(int))
+
+
+class TestThresholdMetrics:
+    """F1 needs a threshold, and the test blocks must not be the ones to pick it."""
+
+    def test_threshold_separates_a_separable_set(self):
+        y = np.array([0, 0, 0, 0, 1, 1])
+        scores = np.array([0.1, 0.2, 0.3, 0.4, 0.8, 0.9])
+        t = _best_f1_threshold(y, scores)
+        assert 0.4 < t <= 0.8
+        m = _threshold_metrics(y, scores, t)
+        assert m["precision"] == m["recall"] == m["f1"] == 1.0
+
+    def test_metrics_at_a_fixed_threshold(self):
+        y = np.array([1, 1, 0, 0])
+        scores = np.array([0.9, 0.2, 0.8, 0.1])
+        m = _threshold_metrics(y, scores, 0.5)
+        assert m["precision"] == 0.5 and m["recall"] == 0.5
+        assert m["predicted_positive_rate"] == 0.5

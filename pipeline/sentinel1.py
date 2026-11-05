@@ -8,9 +8,11 @@ independent of the terrain features, which makes it both an honest training
 label and the basis for validation.
 
 Method follows the UN-SPIDER recommended practice for SAR flood mapping:
-compare a during-flood image against a dry-season baseline of the same
-relative orbit, flag the drop in backscatter that smooth open water produces,
-then remove permanent water and terrain that cannot hold water.
+compare a during-flood image against a dry-season baseline, flag the drop in
+backscatter that smooth open water produces, then remove permanent water and
+terrain that cannot hold water. The composites are not restricted to one
+relative orbit: the event minimum and the baseline median each draw on every
+VV scene in their window.
 
 Outputs (data/raw/):
     s1_flood_<event>.tif    per-event flood mask (1 = flooded)
