@@ -70,3 +70,12 @@ docs/paper/sources/
 # Copyrighted reference PDFs, kept locally only
 docs/paper/refs/
 docs/paper/submission/upload/
+
+# SoftwareX round-1 revision: reviews and response are confidential, kept local.
+# Only the frozen baseline is tracked.
+docs/softwarex/revision/*
+!docs/softwarex/revision/baseline/
+docs/softwarex/SOFTX-D-26-01375-reviews.zip
+docs/softwarex/SOFTX-S-26-01946.pdf.download/
+docs/softwarex/LaTeX_Source.zip
+docs/softwarex/softwarex_MARKED.*
