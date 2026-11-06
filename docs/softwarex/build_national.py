@@ -26,6 +26,7 @@ sys.path.insert(0, str(ROOT))
 from dashboard.data.regions import REGION_CONFIGS, region_paths  # noqa: E402
 
 OUT = Path(__file__).with_name("national.tex")
+TABLE = Path(__file__).with_name("national_table.tex")
 PARTITION = ROOT / "configs" / "national" / "partition.yaml"
 CHAIN = ROOT / "docs" / "figures" / "chain_d3"
 UNIONS = ROOT / "data" / "shared" / "geoboundaries" / "BGD_ADM4.geojson"
@@ -48,6 +49,16 @@ def event_windows(partition: dict) -> int:
         for event in _load_config(str(ROOT / config))["sentinel1"]["events"]:
             windows.add((event["start"], event["end"]))
     return len(windows)
+
+
+def event_years(partition: dict) -> tuple[int, int]:
+    """First and last year of the Sentinel-1 events behind the labels."""
+    from pipeline.cli import _load_config
+
+    years = [int(event["start"][:4])
+             for region in partition
+             for event in _load_config(str(ROOT / REGION_CONFIGS[region][2]))["sentinel1"]["events"]]
+    return min(years), max(years)
 
 
 def write_chain_counts(partition: dict, assets: int) -> None:
@@ -82,7 +93,65 @@ def region_row(region: str, name: str) -> dict:
         "observed": validation["assets_vs_observed"]["held_out_blocks"]["auc_roc"],
         "gain": labels["mean"], "ahead": labels["seeds_observed_ahead"], "seeds": labels["n_seeds"],
         "graph": benchmark["graph_vs_best_baseline"]["auc_difference_mean"],
+        **threshold_fields(out),
     }
+
+
+def threshold_fields(out: Path) -> dict:
+    """Precision, recall and F1 at the calibration-block threshold, and the
+    covariate test, when those stages have been run for the region."""
+    fields = {}
+    path = out / "threshold_metrics.json"
+    if path.exists():
+        t = _json(path)
+        s = t["summary"]
+        fields |= {
+            "share": sum(r["test_positive_rate"] for r in t["per_seed"]) / len(t["per_seed"]),
+            "precision": s["gradient_boosting"]["precision"]["mean"],
+            "recall": s["gradient_boosting"]["recall"]["mean"],
+            "f1": s["gradient_boosting"]["f1"]["mean"], "f1_sd": s["gradient_boosting"]["f1"]["sd"],
+            "twi_auc": s["twi_only"]["auc_roc"]["mean"], "twi_f1": s["twi_only"]["f1"]["mean"],
+            "rf_auc": s["random_forest"]["auc_roc"]["mean"],
+        }
+    path = out / "covariate_ablation.json"
+    if path.exists():
+        c = _json(path)["summary"]
+        fields |= {"cov_gain": c["auc_difference_mean"], "cov_p": c["p_value"],
+                   "cov_ahead": c["seeds_covariates_ahead"], "cov_seeds": c["n_seeds"]}
+        if "variants" in c:
+            fields["xy_gain"] = c["variants"]["+xy_coordinates"]["auc_difference_mean"]
+            for name in ("ndvi_dry", "clay", "rain_annual"):
+                fields[f"{name}_gain"] = c["variants"][f"+{name}"]["auc_difference_mean"]
+    return fields
+
+
+def write_table(rows: list[dict]) -> None:
+    """Held-out skill of the default model by region, beside its baselines."""
+    def f(v, d=3):
+        return "--" if v is None else f"{v:.{d}f}"
+
+    def signed(v):
+        return "--" if v is None else f"{v:+.3f}"
+
+    lines = [
+        "% Written by docs/softwarex/build_national.py from the pipeline outputs; do not edit.",
+        "\\begin{tabular}{@{}lrcccccccrr@{}}",
+        "\\toprule",
+        " & & \\multicolumn{4}{c}{Default model (gradient boosting)} & RF & "
+        "\\multicolumn{2}{c}{Wetness index} & \\multicolumn{2}{c}{$\\Delta$AUC when added} \\\\",
+        "\\cmidrule(lr){3-6}\\cmidrule(lr){7-7}\\cmidrule(lr){8-9}\\cmidrule(l){10-11}",
+        "Region & Floods (\\%) & AUC & Precision & Recall & F1 & AUC & AUC & F1 & "
+        "Covariates & Coordinates \\\\",
+        "\\midrule",
+    ]
+    for i, r in enumerate(rows, 1):
+        lines.append(
+            f"{i} {r['name']} & {100 * r['share']:.1f} & {f(r['auc'])} $\\pm$ {f(r['sd'])} & "
+            f"{f(r['precision'])} & {f(r['recall'])} & {f(r['f1'])} $\\pm$ {f(r['f1_sd'])} & "
+            f"{f(r['rf_auc'])} & {f(r['twi_auc'])} & {f(r['twi_f1'])} & "
+            f"{signed(r.get('cov_gain'))} & {signed(r.get('xy_gain'))} \\\\")
+    lines += ["\\bottomrule", "\\end{tabular}"]
+    TABLE.write_text("\n".join(lines) + "\n")
 
 
 def make_figure(partition: dict, landslide: list[str], rows: list[dict]) -> None:
@@ -195,6 +264,49 @@ def main() -> None:
         f"\\newcommand{{\\NatAUCMin}}{{{min(r['auc'] for r in rows):.3f}}}",
         f"\\newcommand{{\\NatAUCMax}}{{{max(r['auc'] for r in rows):.3f}}}",
     ]
+    import re
+    import subprocess
+
+    collected = subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "-q"],
+                               cwd=ROOT, capture_output=True, text=True).stdout
+    tests = int(re.search(r"(\d+) tests? collected", collected).group(1))
+    lines.append(f"\\newcommand{{\\NatTests}}{{{tests}}}")
+    first, last = event_years(partition)
+    lines += [f"\\newcommand{{\\NatEventWindows}}{{{event_windows(partition)}}}",
+              f"\\newcommand{{\\NatEventFirst}}{{{first}}}",
+              f"\\newcommand{{\\NatEventLast}}{{{last}}}"]
+    if all("f1" in r for r in rows):
+        rf_lead = [r["rf_auc"] - r["auc"] for r in rows]
+        lines += [
+            f"\\newcommand{{\\NatFOneMin}}{{{min(r['f1'] for r in rows):.2f}}}",
+            f"\\newcommand{{\\NatFOneMax}}{{{max(r['f1'] for r in rows):.2f}}}",
+            f"\\newcommand{{\\NatTWIFOneMin}}{{{min(r['twi_f1'] for r in rows):.2f}}}",
+            f"\\newcommand{{\\NatTWIFOneMax}}{{{max(r['twi_f1'] for r in rows):.2f}}}",
+            f"\\newcommand{{\\NatTWIAUCMin}}{{{min(r['twi_auc'] for r in rows):.2f}}}",
+            f"\\newcommand{{\\NatTWIAUCMax}}{{{max(r['twi_auc'] for r in rows):.2f}}}",
+            f"\\newcommand{{\\NatShareMin}}{{{100 * min(r['share'] for r in rows):.0f}}}",
+            f"\\newcommand{{\\NatShareMax}}{{{100 * max(r['share'] for r in rows):.0f}}}",
+            f"\\newcommand{{\\NatRFLeadMin}}{{{min(rf_lead):.3f}}}",
+            f"\\newcommand{{\\NatRFLeadMax}}{{{max(rf_lead):.3f}}}",
+            f"\\newcommand{{\\NatRFAhead}}{{{sum(d > 0 for d in rf_lead)}}}",
+            f"\\newcommand{{\\NatRFWithinSD}}{{{sum(abs(d) < r['sd'] for d, r in zip(rf_lead, rows))}}}",
+        ]
+    if all("xy_gain" in r for r in rows):
+        lines += [
+            f"\\newcommand{{\\NatCovGainMin}}{{{min(r['cov_gain'] for r in rows):.3f}}}",
+            f"\\newcommand{{\\NatCovGainMax}}{{{max(r['cov_gain'] for r in rows):.3f}}}",
+            f"\\newcommand{{\\NatCovSignificant}}{{{sum(r['cov_p'] < 0.05 for r in rows)}}}",
+            f"\\newcommand{{\\NatXYGainMin}}{{{min(r['xy_gain'] for r in rows):.3f}}}",
+            f"\\newcommand{{\\NatXYGainMax}}{{{max(r['xy_gain'] for r in rows):.3f}}}",
+            f"\\newcommand{{\\NatCovBeatsXY}}{{{sum(r['cov_gain'] > r['xy_gain'] for r in rows)}}}",
+            # coordinates' gain as a share of the three layers' gain, over all regions
+            f"\\newcommand{{\\NatXYSharePct}}{{{100 * sum(r['xy_gain'] for r in rows) / sum(r['cov_gain'] for r in rows):.0f}}}",
+            f"\\newcommand{{\\NatNDVILargest}}{{{sum(max(('ndvi_dry', 'clay', 'rain_annual'), key=lambda k: r[k + '_gain']) == 'ndvi_dry' for r in rows)}}}",
+            f"\\newcommand{{\\NatRainLargest}}{{{sum(max(('ndvi_dry', 'clay', 'rain_annual'), key=lambda k: r[k + '_gain']) == 'rain_annual' for r in rows)}}}",
+            f"\\newcommand{{\\NatClayGainMax}}{{{max(r['clay_gain'] for r in rows):.3f}}}",
+            f"\\newcommand{{\\NatClayNegative}}{{{sum(r['clay_gain'] < 0 for r in rows)}}}",
+        ]
+        write_table(rows)
     OUT.write_text("\n".join(lines) + "\n")
     write_chain_counts(partition, total)
     make_figure(partition, config["landslide"]["cht"]["districts"], rows)

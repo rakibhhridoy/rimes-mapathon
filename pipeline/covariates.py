@@ -72,6 +72,12 @@ def run_covariate_ablation(cfg: dict, processed_dir: Path, raw_dir: Path,
     features and once with the three covariates appended, and both are scored
     on the same test blocks. The paired AUC difference is tested with the
     corrected resampled t-test, as elsewhere in the benchmark.
+
+    The same blocks also score each covariate alone and a location control,
+    the default features plus projected x/y coordinates. A covariate that gains
+    no more than the coordinates mostly tells the model where an asset is,
+    which helps between neighbouring held-out blocks without describing the
+    ground.
     """
     import geopandas as gpd
 
@@ -103,6 +109,10 @@ def run_covariate_ablation(cfg: dict, processed_dir: Path, raw_dir: Path,
     X_plus = np.column_stack([X] + extra).astype(np.float32)
 
     coords_m = project_coords(coords, cfg["aoi"]["crs"])
+    xy = [(c - c.mean()) / c.std() for c in coords_m.T]
+    variants = {f"+{name}": np.column_stack([X, col]).astype(np.float32)
+                for name, col in zip(COVARIATES, extra)}
+    variants["+xy_coordinates"] = np.column_stack([X] + xy).astype(np.float32)
     block_m = cfg["graph"].get("block_size_m", 10_000)
     train_ratio = cfg["graph"].get("train_split", 0.8)
 
@@ -122,6 +132,12 @@ def run_covariate_ablation(cfg: dict, processed_dir: Path, raw_dir: Path,
         row = {"seed": seed, "n_test": int(test.sum()), "n_train": int(train.sum()),
                "default": _metrics(y[test], base), "with_covariates": _metrics(y[test], plus)}
         row["auc_difference"] = row["with_covariates"]["auc_roc"] - row["default"]["auc_roc"]
+        row["variants"] = {}
+        for name, Xv in variants.items():
+            score = _fit_predict("gradient_boosting",
+                                 _tabular_models(seed)["gradient_boosting"],
+                                 Xv, y, train, test, seed)
+            row["variants"][name] = _metrics(y[test], score)["auc_roc"] - row["default"]["auc_roc"]
         per_seed.append(row)
         logger.info(f"seed {seed}: default {row['default']['auc_roc']:.3f}, "
                     f"with covariates {row['with_covariates']['auc_roc']:.3f}")
@@ -136,7 +152,16 @@ def run_covariate_ablation(cfg: dict, processed_dir: Path, raw_dir: Path,
         "seeds_covariates_ahead": int((diff > 0).sum()),
         "n_seeds": int(len(diff)),
         "p_value": corrected_p_value(diff, [r["n_test"] / r["n_train"] for r in per_seed]),
+        "variants": {},
     }
+    ratios = [r["n_test"] / r["n_train"] for r in per_seed]
+    for name in variants:
+        d = np.array([r["variants"][name] for r in per_seed])
+        summary["variants"][name] = {
+            "auc_difference_mean": float(d.mean()),
+            "seeds_ahead": int((d > 0).sum()),
+            "p_value": corrected_p_value(d, ratios),
+        }
     result = {"covariates": list(COVARIATES), "scale_m": SCALES_M, "coverage": coverage,
               "model": "gradient_boosting", "block_size_m": block_m, "seeds": list(seeds),
               "per_seed": per_seed, "summary": summary}

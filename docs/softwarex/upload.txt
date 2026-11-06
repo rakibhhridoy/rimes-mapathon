@@ -11,7 +11,7 @@ Original Software Publication
 
 TITLE
 -----
-Fermium Hazard Mapper: an open pipeline for flood and landslide risk mapping, trained and tested on radar-observed floods
+Fermium Hazard Mapper: flood risk mapping trained on radar-observed floods and tested on held-out areas
 
 
 AUTHORS (in order)
@@ -34,14 +34,14 @@ AUTHORS (in order)
      a. Department of Soil, Water and Environment, University of Dhaka, Dhaka 1000, Bangladesh
 
 
-ABSTRACT (156 words)
+ABSTRACT (166 words)
 --------------------
-Flood susceptibility maps for Bangladesh are usually trained on a few hundred surveyed points and scored on a random share of the same points, so their accuracy says little about unmapped ground. Fermium Hazard Mapper is an open Python pipeline and web application that trains flood models on extents mapped from Sentinel-1 radar, scores every model on whole areas held out from training, and publishes risk for each mapped asset and administrative unit, with one configuration file driving each region. Across a national partition of 8 flood regions, covering all 61 lowland districts and 114,569 assets, the default model reaches an AUC of 0.724 to 0.914 on held-out 10 km blocks, and training on radar-observed floods beats training on terrain-threshold labels in every region. Every comparison runs on identical held-out areas and reruns with one command, so another group can check any claim about a model or a data source. Results are served openly at https://fermium.systems/hazmapper.
+Flood susceptibility maps for Bangladesh are usually trained on a few hundred surveyed points and scored on a random share of the same points, so their accuracy says little about unmapped ground. Fermium Hazard Mapper is an open-source Python pipeline and web application that trains flood models on extents mapped from Sentinel-1 radar, scores every model on whole areas held out from training, and publishes risk for each mapped asset and administrative unit. Across 8 flood regions covering all 61 lowland districts and 114,569 assets, the default model reaches an AUC of 0.724 to 0.914 on held-out 10 km blocks, against 0.49 to 0.66 for the wetness index alone, and training on radar-observed floods beats training on terrain-threshold labels in every region. The software’s contribution is a validation suite in which every comparison runs on identical held-out areas, reports its spread and reruns with one command, so another group can check any claim about a model or a data source. Results are served openly at https://fermium.systems/hazmapper.
 
 
-KEYWORDS (6)
+KEYWORDS (7)
 ------------
-flood susceptibility; Sentinel-1; spatial cross-validation; risk mapping; open-source software; Bangladesh
+flood susceptibility; Sentinel-1; spatial cross-validation; machine learning; risk mapping; open-source software; Bangladesh
 
 
 CODE METADATA
@@ -52,7 +52,7 @@ C3  Permanent link to reproducible capsule: Archived release: https://doi.org/10
 C4  Legal code license: MIT
 C5  Code versioning system used: git
 C6  Software code languages, tools and services used: Python 3.11; GeoPandas, Rasterio, GDAL, scikit-learn, PyTorch Geometric, PyKrige, PySAL; Google Earth Engine; FastAPI, SQLite, PMTiles and MapLibre GL
-C7  Compilation requirements, operating environments and dependencies: Python 3.11 on Linux or macOS; minimum versions in requirements.txt and tested versions in requirements-lock.txt; the GDAL command-line tools for the web build; a Google Earth Engine project only for the Sentinel-1 stage
+C7  Compilation requirements, operating environments and dependencies: Python 3.11 on Linux or macOS; minimum versions in requirements.txt and tested versions in requirements-lock.txt; the GDAL command-line tools for the web build; a Google Earth Engine project only for the Sentinel-1 stage and the optional covariates
 C8  Link to developer documentation/manual: https://github.com/rakibhhridoy/rimes-mapathon#readme
 C9  Support email for questions: rakibhhridoy@fermium.systems
 
