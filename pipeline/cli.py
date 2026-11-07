@@ -687,6 +687,22 @@ def threshold_metrics(ctx, seeds):
     click.echo(f"Largest AUC gap against benchmark.json: {r['max_auc_gap_vs_benchmark']}")
 
 
+@cli.command("prediction-spread")
+@click.option("--splits", default=None, type=int,
+              help="Number of block assignments (default: 100).")
+@click.pass_context
+def prediction_spread(ctx, splits):
+    """Per-asset spread of held-out predictions over repeated block assignments."""
+    from pipeline.benchmark import SPREAD_SPLITS, run_prediction_spread
+
+    cfg = ctx.obj["config"]
+    s = run_prediction_spread(cfg, _dir(cfg, "processed"), _dir(cfg, "output"),
+                              _infra_path(cfg), n_splits=splits or SPREAD_SPLITS)["summary"]
+    click.echo(f"{s['assets_scored']}/{s['assets']} assets scored; median SD "
+               f"{s['sd_median']:.3f} (90th pct {s['sd_p90']:.3f}); flag consistent "
+               f"for {s['share_flag_consistent']:.1%}")
+
+
 @cli.command("refresh-pvalues")
 @click.pass_context
 def refresh_pvalues(ctx):

@@ -32,6 +32,7 @@ CHAIN = ROOT / "docs" / "figures" / "chain_d3"
 UNIONS = ROOT / "data" / "shared" / "geoboundaries" / "BGD_ADM4.geojson"
 DISTRICTS = ROOT / "data" / "shared" / "geoboundaries" / "BGD_ADM2.geojson"
 FIGURE = ROOT / "docs" / "figures" / "fig_national.pdf"
+SPREAD_FIGURE = ROOT / "docs" / "figures" / "fig_spread.pdf"
 
 # Okabe-Ito colours, which stay distinct for colour-blind readers, one per
 # flood region; the landslide region is grey and hatched.
@@ -87,7 +88,7 @@ def region_row(region: str, name: str) -> dict:
     meta = _json(out / "pipeline_metadata.json")
     boosting = benchmark["gradient_boosting"]
     return {
-        "name": name, "assets": assets,
+        "key": region, "name": name, "assets": assets,
         "rate": meta["label_positive_rate"],
         "auc": boosting["auc_mean"], "sd": boosting["auc_sd"],
         "observed": validation["assets_vs_observed"]["held_out_blocks"]["auc_roc"],
@@ -113,6 +114,11 @@ def threshold_fields(out: Path) -> dict:
             "twi_auc": s["twi_only"]["auc_roc"]["mean"], "twi_f1": s["twi_only"]["f1"]["mean"],
             "rf_auc": s["random_forest"]["auc_roc"]["mean"],
         }
+    path = out / "prediction_spread.json"
+    if path.exists():
+        p = _json(path)
+        fields |= {"spread_splits": p["n_splits"], "spread_min": p["min_predictions"],
+                   **{f"spread_{k}": v for k, v in p["summary"].items()}}
     path = out / "covariate_ablation.json"
     if path.exists():
         c = _json(path)["summary"]
@@ -123,6 +129,74 @@ def threshold_fields(out: Path) -> dict:
             for name in ("ndvi_dry", "clay", "rain_annual"):
                 fields[f"{name}_gain"] = c["variants"][f"+{name}"]["auc_difference_mean"]
     return fields
+
+
+def _join(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def make_spread_figure(rows: list[dict]) -> None:
+    """(a) per-asset spread of held-out probability over the block assignments;
+    (b) how often an asset's flag holds when the training blocks change."""
+    import geopandas as gpd
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    plt.rcParams.update({"text.usetex": True, "font.family": "serif", "font.size": 8,
+                         "axes.linewidth": 0.6, "xtick.major.width": 0.6,
+                         "ytick.major.width": 0.6})
+    districts = gpd.read_file(DISTRICTS)
+    # about 200 m, invisible at print size; the full outlines make an 8 MB file
+    districts["geometry"] = districts.geometry.simplify(0.002)
+    fig = plt.figure(figsize=(390 / 72, 3.5))
+    ax_map = fig.add_axes([0.0, 0.04, 0.33, 0.86])
+    ax_bar = fig.add_axes([0.62, 0.2, 0.36, 0.7])
+
+    districts.plot(ax=ax_map, facecolor="#f2f2f2", edgecolor="#bdbdbd", linewidth=0.2)
+    lon, lat, sd = [], [], []
+    for r in rows:
+        d = np.load(region_paths(r["key"])["output"] / "prediction_spread.npz")
+        ok = np.isfinite(d["sd"])
+        lon.append(d["lon"][ok]); lat.append(d["lat"][ok]); sd.append(d["sd"][ok])
+    lon, lat, sd = map(np.concatenate, (lon, lat, sd))
+    order = np.argsort(sd)              # widest spreads drawn last, on top
+    points = ax_map.scatter(lon[order], lat[order], c=sd[order], s=0.15, cmap="magma_r",
+                            vmin=0, vmax=0.3, linewidths=0, rasterized=True)
+    ax_map.set_axis_off()
+    ax_map.set_aspect("equal")
+    bar = fig.colorbar(points, ax=ax_map, orientation="horizontal", fraction=0.04, pad=0.0,
+                       shrink=0.8, extend="max")
+    bar.set_label("s.d. of held-out probability", fontsize=7)
+    bar.ax.tick_params(labelsize=6.5)
+    fig.text(0.005, 0.9 + 6 / (3.5 * 72), r"\textbf{a}\enspace Spread of each asset's score",
+             fontsize=8.5, va="bottom")
+
+    y = list(range(len(rows)))[::-1]
+    for yi, r in zip(y, rows):
+        t, f = 100 * r["spread_share_flag_consistent"], 100 * r["spread_fixed_share_consistent"]
+        ax_bar.plot([t, f], [yi, yi], color="#bdbdbd", lw=1.2, zorder=1)
+        ax_bar.plot(t, yi, "o", ms=4.5, mfc="white", mec="black", mew=0.7, zorder=2)
+        ax_bar.plot(f, yi, "o", ms=4.5, color="#3b0f70", mec="black", mew=0.4, zorder=3)
+    ax_bar.set_yticks(y, [rf"{i}\enspace {r['name']}" for i, r in enumerate(rows, start=1)])
+    ax_bar.set_xlim(35, 100)
+    ax_bar.set_xlabel(r"assets whose flag never changes (\%)")
+    ax_bar.grid(axis="x", color="#e5e5e5", lw=0.5)
+    ax_bar.set_axisbelow(True)
+    ax_bar.spines[["top", "right"]].set_visible(False)
+    ax_bar.legend(handles=[
+        plt.Line2D([], [], marker="o", ls="none", mfc="white", mec="black", ms=4.5,
+                   label="threshold from calibration blocks"),
+        plt.Line2D([], [], marker="o", ls="none", color="#3b0f70", mec="black", ms=4.5,
+                   label="fixed share of assets")],
+        loc="upper center", bbox_to_anchor=(0.4, -0.16), ncol=2, fontsize=6.5, frameon=False)
+    ax_bar.set_title(r"\textbf{b}\enspace Stability of the flag", loc="left", fontsize=8.5)
+
+    fig.savefig(SPREAD_FIGURE, bbox_inches="tight", pad_inches=0.02, dpi=400)
+    plt.close(fig)
+    print(f"{SPREAD_FIGURE}")
 
 
 def write_table(rows: list[dict]) -> None:
@@ -306,7 +380,40 @@ def main() -> None:
             f"\\newcommand{{\\NatClayGainMax}}{{{max(r['clay_gain'] for r in rows):.3f}}}",
             f"\\newcommand{{\\NatClayNegative}}{{{sum(r['clay_gain'] < 0 for r in rows)}}}",
         ]
+        use = [r["name"] for r in rows if r["cov_p"] < 0.05 and r["cov_gain"] > r["xy_gain"]]
+        lines += [f"\\newcommand{{\\NatCovUseCount}}{{{len(use)}}}",
+                  f"\\newcommand{{\\NatCovUseRegions}}{{{_join(use)}}}"]
         write_table(rows)
+    if all("twi_auc" in r for r in rows):
+        # per-region skill for the comparison with published studies
+        for r in rows:
+            k = r["key"].replace("_", "")
+            lines += [f"\\newcommand{{\\NatAUC{k}}}{{{r['auc']:.3f}}}",
+                      f"\\newcommand{{\\NatSD{k}}}{{{r['sd']:.3f}}}",
+                      f"\\newcommand{{\\NatTWIAUC{k}}}{{{r['twi_auc']:.2f}}}"]
+    if all("spread_splits" in r for r in rows):
+        def pct(key, fn):
+            return f"{100 * fn(r[key] for r in rows):.0f}"
+        lines += [
+            f"\\newcommand{{\\NatSpreadSplits}}{{{rows[0]['spread_splits']}}}",
+            f"\\newcommand{{\\NatSpreadMinPred}}{{{rows[0]['spread_min']}}}",
+            f"\\newcommand{{\\NatSpreadScoredMin}}{{{pct('spread_share_scored', min)}}}",
+            f"\\newcommand{{\\NatSpreadConsistentMin}}{{{pct('spread_share_flag_consistent', min)}}}",
+            f"\\newcommand{{\\NatSpreadConsistentMax}}{{{pct('spread_share_flag_consistent', max)}}}",
+            f"\\newcommand{{\\NatSpreadAlwaysMin}}{{{pct('spread_share_always_given_ever', min)}}}",
+            f"\\newcommand{{\\NatSpreadAlwaysMax}}{{{pct('spread_share_always_given_ever', max)}}}",
+            f"\\newcommand{{\\NatSpreadTopSDMin}}{{{min(r['spread_sd_median_top_decile'] for r in rows):.2f}}}",
+            f"\\newcommand{{\\NatSpreadTopSDMax}}{{{max(r['spread_sd_median_top_decile'] for r in rows):.2f}}}",
+            f"\\newcommand{{\\NatSpreadMedianPred}}{{{min(r['spread_median_predictions'] for r in rows):.0f}--{max(r['spread_median_predictions'] for r in rows):.0f}}}",
+        ]
+        if all("spread_fixed_share_consistent" in r for r in rows):
+            lines += [
+                f"\\newcommand{{\\NatSpreadFixedConsistentMin}}{{{pct('spread_fixed_share_consistent', min)}}}",
+                f"\\newcommand{{\\NatSpreadFixedConsistentMax}}{{{pct('spread_fixed_share_consistent', max)}}}",
+                f"\\newcommand{{\\NatSpreadFixedAlwaysMin}}{{{pct('spread_fixed_share_always_given_ever', min)}}}",
+                f"\\newcommand{{\\NatSpreadFixedAlwaysMax}}{{{pct('spread_fixed_share_always_given_ever', max)}}}",
+            ]
+        make_spread_figure(rows)
     OUT.write_text("\n".join(lines) + "\n")
     write_chain_counts(partition, total)
     make_figure(partition, config["landslide"]["cht"]["districts"], rows)

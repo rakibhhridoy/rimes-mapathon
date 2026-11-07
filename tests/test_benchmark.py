@@ -17,7 +17,8 @@ sys.path.insert(0, str(ROOT))
 
 from pipeline.benchmark import (_best_f1_threshold, _fit_predict, _metrics,
                                 _tabular_models, _threshold_metrics,
-                                _uncorrected_p_value, corrected_p_value)
+                                _uncorrected_p_value, corrected_p_value,
+                                summarise_prediction_spread)
 from pipeline.sensitivity import (_top_overlap, _weighted_geometric_mean,
                                   _vulnerability_scenarios)
 
@@ -198,3 +199,31 @@ class TestThresholdMetrics:
         m = _threshold_metrics(y, scores, 0.5)
         assert m["precision"] == 0.5 and m["recall"] == 0.5
         assert m["predicted_positive_rate"] == 0.5
+
+
+class TestPredictionSpread:
+    """Per-asset spread counts held-out predictions only."""
+
+    def test_spread_and_flag_consistency(self):
+        nan = np.nan
+        probability = np.array([[0.2, 0.9, nan],
+                                [0.4, 0.9, 0.5],
+                                [0.2, 0.9, nan]])
+        flagged = np.array([[0, 1, nan],
+                            [1, 1, 1],
+                            [0, 1, nan]], dtype=float)
+        out = summarise_prediction_spread(probability, flagged, min_predictions=2)
+        assert list(out["n"]) == [3, 3, 1]
+        assert np.isnan(out["sd"][2])            # held out once: unscored
+        assert out["sd"][1] == 0.0
+        assert np.isclose(out["sd"][0], np.std([0.2, 0.4, 0.2], ddof=1))
+        s = out["summary"]
+        assert s["assets_scored"] == 2
+        assert s["share_flag_consistent"] == 0.5   # asset 0 flips, asset 1 never does
+        assert s["share_always_flagged"] == 0.5
+        assert s["share_ever_flagged"] == 1.0
+        assert s["share_always_given_ever"] == 0.5
+        fixed = summarise_prediction_spread(probability, flagged, min_predictions=2,
+                                            flagged_share=np.where(np.isnan(flagged), nan, [0, 1, 1]))
+        assert fixed["summary"]["fixed_share_consistent"] == 1.0
+        assert fixed["summary"]["fixed_share_always_given_ever"] == 1.0

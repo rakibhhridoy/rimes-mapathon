@@ -4,45 +4,48 @@ The top-level auxiliary file: softwarex.aux
 The style file: elsarticle-num-names.bst
 Database file #1: ../references.bib
 Database file #2: softwarex.bib
+Warning--entry type for "hasan2026software" isn't style-file defined
+--line 12 of file softwarex.bib
 Reallocated singl_function (elt_size=4) to 100 items from 50.
-You've used 20 entries,
+You've used 28 entries,
             2918 wiz_defined-function locations,
-            758 strings with 10300 characters,
-and the built_in function-call counts, 14994 in all, are:
-= -- 1054
-> -- 816
-< -- 9
-+ -- 305
-- -- 285
-* -- 1903
-:= -- 2187
-add.period$ -- 39
-call.type$ -- 20
-change.case$ -- 196
-chr.to.int$ -- 20
-cite$ -- 20
-duplicate$ -- 1023
-empty$ -- 947
-format.name$ -- 345
-if$ -- 2699
+            810 strings with 12669 characters,
+and the built_in function-call counts, 22185 in all, are:
+= -- 1550
+> -- 1263
+< -- 12
++ -- 476
+- -- 444
+* -- 2851
+:= -- 3221
+add.period$ -- 56
+call.type$ -- 28
+change.case$ -- 289
+chr.to.int$ -- 28
+cite$ -- 28
+duplicate$ -- 1481
+empty$ -- 1370
+format.name$ -- 528
+if$ -- 3995
 int.to.chr$ -- 1
 int.to.str$ -- 1
-missing$ -- 223
-newline$ -- 105
-num.names$ -- 80
-pop$ -- 348
+missing$ -- 330
+newline$ -- 143
+num.names$ -- 112
+pop$ -- 503
 preamble$ -- 1
-purify$ -- 195
+purify$ -- 288
 quote$ -- 0
-skip$ -- 225
+skip$ -- 326
 stack$ -- 0
-substring$ -- 548
-swap$ -- 851
-text.length$ -- 1
+substring$ -- 821
+swap$ -- 1269
+text.length$ -- 2
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 180
+type$ -- 252
 warning$ -- 0
-while$ -- 84
+while$ -- 121
 width$ -- 0
-write$ -- 283
+write$ -- 395
+(There was 1 warning)

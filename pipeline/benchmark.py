@@ -336,6 +336,138 @@ def run_threshold_metrics(cfg: dict, processed_dir: Path, output_dir: Path,
     return result
 
 
+# Many more assignments than the benchmark's twenty, because only about a
+# tenth of the assets fall in test blocks each time and a per-asset spread
+# needs several held-out predictions of the same asset.
+SPREAD_SPLITS = 100
+SPREAD_MIN_PREDICTIONS = 5
+
+
+def summarise_prediction_spread(probability: np.ndarray, flagged: np.ndarray,
+                                min_predictions: int = SPREAD_MIN_PREDICTIONS,
+                                flagged_share: np.ndarray | None = None) -> dict:
+    """Per-asset spread of held-out predictions over repeated block assignments.
+
+    `probability` and `flagged` are (splits, assets) arrays holding NaN where an
+    asset was not in that split's test blocks. An asset counts as consistently
+    flagged when every held-out prediction of it lands on the same side of that
+    split's threshold, set on the split's calibration blocks. `flagged_share`,
+    when given, holds a second flag that marks a fixed share of each split's
+    test assets, so the stability of the ranking can be told apart from the
+    movement of the threshold.
+    """
+    n = np.sum(np.isfinite(probability), axis=0)
+    enough = n >= min_predictions
+    import warnings
+
+    with warnings.catch_warnings():          # unscored assets are all-NaN columns
+        warnings.simplefilter("ignore", RuntimeWarning)
+        mean = np.nanmean(np.where(enough, probability, np.nan), axis=0)
+        sd = np.nanstd(np.where(enough, probability, np.nan), axis=0, ddof=1)
+        flag_share = np.nanmean(np.where(enough, flagged, np.nan), axis=0)
+    consistent = (flag_share == 0) | (flag_share == 1)
+    sd_ok, mean_ok = sd[enough], mean[enough]
+    top = mean_ok >= np.quantile(mean_ok, 0.9) if enough.any() else np.array([], bool)
+    summary = {
+        "assets": int(probability.shape[1]),
+        "assets_scored": int(enough.sum()),
+        "share_scored": float(enough.mean()),
+        "median_predictions": float(np.median(n[enough])) if enough.any() else None,
+        "sd_median": float(np.median(sd_ok)) if enough.any() else None,
+        "sd_p90": float(np.quantile(sd_ok, 0.9)) if enough.any() else None,
+        "sd_median_top_decile": float(np.median(sd_ok[top])) if top.any() else None,
+        "share_flag_consistent": float(consistent[enough].mean()) if enough.any() else None,
+        "share_always_flagged": float((flag_share[enough] == 1).mean()) if enough.any() else None,
+        "share_ever_flagged": float((flag_share[enough] > 0).mean()) if enough.any() else None,
+    }
+    ever = enough & (flag_share > 0)
+    summary["share_always_given_ever"] = (float((flag_share[ever] == 1).mean())
+                                          if ever.any() else None)
+    if flagged_share is not None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            share = np.nanmean(np.where(enough, flagged_share, np.nan), axis=0)
+        ever_s = enough & (share > 0)
+        summary["fixed_share_consistent"] = (float(((share == 0) | (share == 1))[enough].mean())
+                                             if enough.any() else None)
+        summary["fixed_share_always_given_ever"] = (float((share[ever_s] == 1).mean())
+                                                    if ever_s.any() else None)
+    return {"n": n, "mean": mean, "sd": sd, "flag_share": flag_share, "summary": summary}
+
+
+def run_prediction_spread(cfg: dict, processed_dir: Path, output_dir: Path,
+                          infra_path: Path, n_splits: int = SPREAD_SPLITS) -> dict:
+    """How much each asset's held-out risk moves when the training blocks change.
+
+    The default gradient-boosted model is refitted on `n_splits` assignments
+    of 10 km blocks. Each fit scores only the assets in its test blocks, so
+    every prediction kept is one the model made without seeing that ground,
+    and its flag uses the F1-maximising threshold of the same split's
+    calibration blocks. The spread is the standard deviation of an asset's
+    held-out probabilities; assets held out fewer than
+    SPREAD_MIN_PREDICTIONS times are left unscored. Writes
+    prediction_spread.json (region summary) and prediction_spread.npz
+    (per-asset lon, lat, n, mean, sd, flag_share).
+    """
+    import geopandas as gpd
+
+    from pipeline.feature_extract import compute_centroids, extract_features, project_coords
+    from pipeline.graph_build import spatial_block_split_three
+
+    infra = gpd.read_file(str(infra_path))
+    X, coords, y, _ = extract_features(cfg, infra, processed_dir)
+    X = np.ascontiguousarray(X, dtype=np.float32)
+    y = np.ascontiguousarray(y).astype(int)
+    coords_m = project_coords(np.asarray(coords), cfg["aoi"]["crs"])
+    block_m = cfg["graph"].get("block_size_m", 10_000)
+    train_ratio = cfg["graph"].get("train_split", 0.8)
+
+    probability = np.full((n_splits, len(y)), np.nan)
+    flagged = np.full((n_splits, len(y)), np.nan)
+    flagged_share = np.full((n_splits, len(y)), np.nan)
+    used = []
+    for seed in range(n_splits):
+        train_mask, calib_mask, test_mask = spatial_block_split_three(
+            coords_m, train_ratio=train_ratio, block_size_m=block_m, seed=seed)
+        train = train_mask.numpy().astype(bool)
+        calib = calib_mask.numpy().astype(bool)
+        test = test_mask.numpy().astype(bool)
+        if len(np.unique(y[train])) < 2 or len(np.unique(y[calib])) < 2 or not test.any():
+            logger.warning(f"split {seed}: a block set holds one class, skipped")
+            continue
+        scored = np.flatnonzero(calib | test)
+        p = np.full(len(y), np.nan)
+        p[scored] = _fit_predict("gradient_boosting",
+                                 _tabular_models(seed)["gradient_boosting"],
+                                 X, y, train, scored, seed)
+        threshold = _best_f1_threshold(y[calib], p[calib])
+        probability[seed, test] = p[test]
+        flagged[seed, test] = (p[test] >= threshold).astype(float)
+        # the training blocks' flood share, applied to the test assets' ranking
+        cut = np.quantile(p[test], 1 - y[train].mean())
+        flagged_share[seed, test] = (p[test] >= cut).astype(float)
+        used.append(seed)
+
+    probability, flagged = probability[used], flagged[used]
+    spread = summarise_prediction_spread(probability, flagged,
+                                         flagged_share=flagged_share[used])
+    points = compute_centroids(infra)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(output_dir / "prediction_spread.npz",
+                        lon=np.asarray(points["lon"]), lat=np.asarray(points["lat"]),
+                        n=spread["n"], mean=spread["mean"], sd=spread["sd"],
+                        flag_share=spread["flag_share"])
+    result = {"model": "gradient_boosting", "block_size_m": block_m,
+              "n_splits": len(used), "seeds": used,
+              "min_predictions": SPREAD_MIN_PREDICTIONS,
+              "threshold_rule": "maximum F1 on the split's calibration blocks",
+              "fixed_share_rule": "top share of test assets equal to the training blocks' flood share",
+              "summary": spread["summary"]}
+    (output_dir / "prediction_spread.json").write_text(json.dumps(result, indent=2))
+    logger.info(f"Wrote {output_dir / 'prediction_spread.json'}")
+    return result
+
+
 def run_label_comparison(cfg: dict, processed_dir: Path, output_dir: Path,
                          infra_path: Path, seeds=SEEDS) -> dict:
     """Train the configured model on proxy labels and on observed labels.
