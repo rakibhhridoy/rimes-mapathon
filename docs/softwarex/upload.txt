@@ -46,9 +46,9 @@ flood susceptibility; Sentinel-1; spatial cross-validation; machine learning; ri
 
 CODE METADATA
 -------------
-C1  Current code version: v3.0
+C1  Current code version: v3.1
 C2  Permanent link to code/repository used for this code version: https://github.com/rakibhhridoy/rimes-mapathon
-C3  Permanent link to reproducible capsule: Archived release: https://doi.org/10.5281/zenodo.23108192
+C3  Permanent link to reproducible capsule: Archived release: https://doi.org/10.5281/zenodo.24056445
 C4  Legal code license: MIT
 C5  Code versioning system used: git
 C6  Software code languages, tools and services used: Python 3.11; GeoPandas, Rasterio, GDAL, scikit-learn, PyTorch Geometric, PyKrige, PySAL; Google Earth Engine; FastAPI, SQLite, PMTiles and MapLibre GL
@@ -76,10 +76,10 @@ This research did not receive any specific grant from funding agencies in the pu
 
 DATA AVAILABILITY
 -----------------
-The code is at https://github.com/rakibhhridoy/rimes-mapathon, and the release the article describes is archived at https://doi.org/10.5281/zenodo.23108192. Input data and outputs for the three validation regions and the landslide region are archived at https://doi.org/10.5281/zenodo.23108572, and the national partition is reproduced by the configuration files in the repository. A single command, python scripts/demo.py, downloads a validation region's archive, reruns the pipeline on it without Earth Engine in a few minutes, and checks every headline figure against the archived outputs.
+The code is at https://github.com/rakibhhridoy/rimes-mapathon, and the release the article describes is archived at https://doi.org/10.5281/zenodo.24056445. Input data and outputs for the three validation regions and the landslide region are archived at https://doi.org/10.5281/zenodo.23108572, and the national partition is reproduced by the configuration files in the repository. A single command, python scripts/demo.py, downloads a validation region's archive, reruns the pipeline on it without Earth Engine in a few minutes, and checks every headline figure against the archived outputs.
 
 Data/software repository links for the "research data" step:
-  Software (v3.0.0): https://doi.org/10.5281/zenodo.23108192
+  Software (v3.1.0): https://doi.org/10.5281/zenodo.24056445
   Data (v3):         https://doi.org/10.5281/zenodo.23108572
   Code:              https://github.com/rakibhhridoy/rimes-mapathon
   Live dashboard:    https://fermium.systems/hazmapper

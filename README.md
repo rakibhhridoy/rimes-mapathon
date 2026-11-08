@@ -1,7 +1,7 @@
 # Fermium Hazard Mapper
 
 [![tests](https://github.com/rakibhhridoy/rimes-mapathon/actions/workflows/tests.yml/badge.svg)](https://github.com/rakibhhridoy/rimes-mapathon/actions/workflows/tests.yml)
-[![software DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23108192.svg)](https://doi.org/10.5281/zenodo.23108192)
+[![software DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24056445.svg)](https://doi.org/10.5281/zenodo.24056445)
 [![data DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23108572.svg)](https://doi.org/10.5281/zenodo.23108572)
 
 Open flood and landslide risk mapping for **all of Bangladesh** (formerly
@@ -498,7 +498,7 @@ If you use this code or its outputs, please cite the software (MIT licence, see
 `LICENSE`; citation metadata in `CITATION.cff`) and the data archive:
 
 > Hasan, M. R. (2026). *Fermium Hazard Mapper* (version 3.1.0) [Software].
-> Zenodo. https://doi.org/10.5281/zenodo.23108191
+> Zenodo. https://doi.org/10.5281/zenodo.24056445
 
 > Hasan, M. R. (2026). *Fermium Hazard Mapper: input data and outputs for
 > flood and landslide susceptibility in Bangladesh* (version 3).
