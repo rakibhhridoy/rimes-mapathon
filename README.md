@@ -380,6 +380,22 @@ observed flooding. Results land in `data/output/validation_metrics.json`.
   random ±50 % perturbation), but about a fifth of the top decile changes
   places, and dropping the access distances from vulnerability moves it a lot
   (0.42–0.59). Results land in `<output>/sensitivity.json`.
+- **Further held-out tests (v3.1).** Each repeats the benchmark's block
+  assignments and writes a JSON file to the region's output folder.
+  - `threshold-metrics`: precision, recall and F1 beside the AUC, at the
+    threshold where F1 peaks on calibration blocks (`threshold_metrics.json`).
+  - `covariates`, then `covariate-ablation`: fetch dry-season NDVI, topsoil
+    clay and mean annual rainfall from Earth Engine, and test whether they, or
+    the asset coordinates alone, raise held-out AUC (`covariate_ablation.json`).
+    The layers enter a model only when listed under `data.extra_features`.
+  - `prediction-spread`: refits the default model on 100 block assignments and
+    reports the spread of each asset's held-out probability and how often its
+    flag holds (`prediction_spread.json`, per asset in `prediction_spread.npz`).
+  - `rolling-origin`: predicts each flood year from the years before it and
+    scores it against the record of earlier flooding; `record-checks` relates
+    record length to model skill.
+  - `refresh-pvalues`: recomputes stored p-values with the corrected resampled
+    t-test (Nadeau and Bengio 2003).
 - **Validation** — whole 10 km blocks are held out (`graph.block_size_m`), split
   between calibration and test. Neighbouring assets share terrain, so a random
   node split measures memorisation rather than skill. Metrics land in
@@ -481,8 +497,8 @@ python scripts/build_database.py --extract-raster sylhet_dem_srtm_30m dem.tif
 If you use this code or its outputs, please cite the software (MIT licence, see
 `LICENSE`; citation metadata in `CITATION.cff`) and the data archive:
 
-> Hasan, M. R. (2026). *Fermium Hazard Mapper* (version 3.0.0) [Software].
-> Zenodo. https://doi.org/10.5281/zenodo.23108192
+> Hasan, M. R. (2026). *Fermium Hazard Mapper* (version 3.1.0) [Software].
+> Zenodo. https://doi.org/10.5281/zenodo.23108191
 
 > Hasan, M. R. (2026). *Fermium Hazard Mapper: input data and outputs for
 > flood and landslide susceptibility in Bangladesh* (version 3).

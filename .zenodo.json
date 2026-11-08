@@ -1,8 +1,8 @@
 {
-  "title": "Fermium Hazard Mapper v3.0",
+  "title": "Fermium Hazard Mapper v3.1",
   "upload_type": "software",
-  "version": "3.0.0",
-  "description": "<p>An open Python pipeline and web application that trains flood susceptibility models on flood extents mapped from Sentinel-1 radar, scores every model on whole areas held out from training, and publishes asset-level and administrative-level flood and landslide risk for Bangladesh. Version 3.0 runs a national partition of eight flood regions over all 61 lowland districts plus the Chittagong Hill Tracts landslide region, and serves it through a FastAPI and MapLibre web application at https://fermium.systems/hazmapper.</p>",
+  "version": "3.1.0",
+  "description": "<p>An open Python pipeline and web application that trains flood susceptibility models on flood extents mapped from Sentinel-1 radar, scores every model on whole areas held out from training, and publishes asset-level and administrative-level flood and landslide risk for Bangladesh. Version 3.1 adds held-out tests of precision, recall and F1, optional vegetation, soil and rainfall covariates, and the spread of each asset's held-out score. It runs a national partition of eight flood regions over all 61 lowland districts plus the Chittagong Hill Tracts landslide region, and serves it through a FastAPI and MapLibre web application at https://fermium.systems/hazmapper.</p>",
   "creators": [
     {
       "name": "Hasan, Md Rakib",

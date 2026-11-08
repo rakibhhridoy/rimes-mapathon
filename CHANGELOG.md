@@ -1,7 +1,33 @@
 # Changelog
 
-## Unreleased
+## v3.1.0 (2026-11-08)
 
+More held-out validation and a reproduction demo; the default model is
+unchanged.
+
+**New held-out tests** (each on the benchmark's block assignments)
+- `threshold-metrics`: precision, recall and F1 beside the AUC, with the
+  threshold chosen where F1 peaks on calibration blocks, for every model and
+  for the wetness index alone.
+- `covariates` and `covariate-ablation`: optional dry-season MODIS NDVI,
+  SoilGrids topsoil clay and CHIRPS mean annual rainfall, tested against the
+  default features and against asset coordinates alone. Optional features
+  enter a model through `data.extra_features` (`pipeline/covariates.py`).
+- `prediction-spread`: per-asset spread of held-out probability over 100
+  block assignments, and how often each asset's flag holds under the
+  calibration threshold and under a fixed flagged share.
+- `rolling-origin` and `record-checks`: each flood year predicted from the
+  years before it and scored against the record of earlier flooding, with
+  the JRC hazard map and Molchan scores; record length against skill.
+- Every comparison over block assignments uses the corrected resampled
+  t-test (Nadeau and Bengio 2003); `refresh-pvalues` updates stored results.
+- Block-size check (20 and 40 km) and held-out scores for the hazard surface.
+
+**Other**
+- Validation-region configurations (`configs/validation/`) and
+  `scripts/make_validation_region.py`; `scripts/remap_s1a.py` remaps events
+  with Sentinel-1A only.
+- Sentinel-1 docstring corrected: composites span relative orbits.
 - `scripts/demo.py` reproduces a validation region from the data archive
   without Earth Engine and checks it against the archived outputs; downloads
   resume after a stall.
