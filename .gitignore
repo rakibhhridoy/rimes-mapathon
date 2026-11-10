@@ -72,9 +72,10 @@ docs/paper/refs/
 docs/paper/submission/upload/
 
 # SoftwareX round-1 revision: reviews and response are confidential, kept local.
-# Only the frozen baseline is tracked.
+# Only the frozen baseline and the build script for the flat marked source are tracked.
 docs/softwarex/revision/*
 !docs/softwarex/revision/baseline/
+!docs/softwarex/revision/make_upload_marked.py
 docs/softwarex/SOFTX-D-26-01375-reviews.zip
 docs/softwarex/SOFTX-S-26-01946.pdf.download/
 docs/softwarex/LaTeX_Source.zip
